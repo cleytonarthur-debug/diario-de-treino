@@ -85,7 +85,8 @@ const sexoDe=s=>{s=String(s||"").trim().toLowerCase();return /^(m|h)/.test(s)?"M
 
 function calc(v,perfil,data){
   const out={};const r=(x,n)=>isFinite(x)?Math.round(x*Math.pow(10,n))/Math.pow(10,n):NaN;
-  const peso=num(v["Peso (kg)"]);const alt=num(v["Altura (cm)"])||num(perfil&&perfil.altura);
+  const peso=num(v["Peso (kg)"]);let alt=num(v["Altura (cm)"])||num(perfil&&perfil.altura);
+  if(alt>0&&alt<3)alt*=100; // digitado em metros (1,72)
   if(peso&&alt)out["IMC"]=r(peso/Math.pow(alt/100,2),1);
   const ci=num(v["Cintura (cm)"]),qu=num(v["Quadril (cm)"]);if(ci&&qu)out["RCQ"]=r(ci/qu,2);
   const idade=idadeEm(perfil&&perfil.nasc,data);const sx=sexoDe(perfil&&perfil.sexo);

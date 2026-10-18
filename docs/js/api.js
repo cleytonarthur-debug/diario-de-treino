@@ -20,6 +20,9 @@ function fromHash(){
   const c=parseLink(location.hash);
   if(c){
     const old=load(CFG_KEY);
+    // Professor abrindo o link de um aluno neste aparelho: não troca sozinho (perderia o acesso de professor).
+    if(old&&old.p&&c.t&&!sessionStorage.getItem("dt2-trocar"))return {cfg:old,changed:false,conflict:c};
+    sessionStorage.removeItem("dt2-trocar");
     put(CFG_KEY,c);
     // No iPhone o ícone da tela inicial abre o endereço com o #, então o link continua servindo.
     // No Android o app abre sem #, e usa o que ficou guardado aqui.

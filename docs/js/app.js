@@ -833,7 +833,7 @@ function waLink(a){
 function shareBox(a){
   if(!a.link)return '<p class="muted small">O link aparece quando o endereço do programa central estiver definido.</p>';
   return '<div class="sheet-card" style="max-width:none;margin:12px 0"><h3>Acesso de '+esc(a.nome)+'</h3>'+
-    '<p class="muted small">Envie este link para o aluno. Ele é o login dele: quem tiver o link entra como ele.</p>'+
+    '<p class="muted small">Envie este link para o aluno. Ele é o login dele: quem tiver o link entra como ele. <b>Não abra este link no seu celular</b>: você continua usando o seu link de professor.</p>'+
     '<div class="linkbox">'+esc(a.link)+'</div>'+
     '<div class="row-btns"><a class="btn wa" href="'+esc(waLink(a))+'" target="_blank" rel="noopener">Enviar pelo WhatsApp</a><button class="btn" data-copy="'+esc(a.link)+'">Copiar link</button></div></div>';
 }
@@ -862,7 +862,7 @@ function renderAlunoForm(el){
   el.innerHTML='<div class="session-head"><div><h2>'+(novo?"Novo aluno":"Editar "+esc(f.nome))+'</h2>'+(novo?'<div class="muted small">O app cria uma planilha só deste aluno no seu Drive e gera o link de acesso dele.</div>':"")+'</div></div>'+
     '<div class="card"><div class="form-grid">'+i("nome","Nome completo *","text",'autocomplete="off"')+i("nasc","Data de nascimento","date")+
     '<label class="fld2">Sexo<select data-k="sexo"><option value=""></option>'+["Masculino","Feminino"].map(s=>'<option'+(f.sexo===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label>'+
-    i("altura","Altura (cm)","text",'inputmode="decimal"')+i("objetivo","Objetivo","text",'placeholder="Hipertrofia, emagrecimento…"')+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+i("email","E-mail","email")+'</div>'+
+    i("altura","Altura (cm)","text",'inputmode="decimal" placeholder="ex.: 172"')+i("objetivo","Objetivo","text",'placeholder="Hipertrofia, emagrecimento…"')+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+i("email","E-mail","email")+'</div>'+
     '<label class="fld2" style="margin-top:12px">Observações (lesões, restrições…)<textarea data-k="obs">'+esc(f.obs||"")+'</textarea></label>'+
     (novo?'<details style="margin-top:12px"><summary class="small">Este aluno já tem uma planilha de treinos? (ex.: você mesmo)</summary><label class="fld2" style="margin-top:8px">Link da planilha existente<input data-k="planilhaExistente" placeholder="https://docs.google.com/spreadsheets/d/…" value="'+esc(f.planilhaExistente||"")+'"></label><p class="muted small">O app passa a usar essa planilha em vez de criar uma nova. Os treinos antigos continuam lá.</p></details>'
       :'<label class="show-key" style="margin-top:12px"><input type="checkbox" data-k="ativo"'+(f.ativo!==false?" checked":"")+'> Acesso ativo (desmarque para pausar o link do aluno)</label>')+
@@ -970,8 +970,17 @@ function showStart(){
   $("#start-go").onclick=go;$("#start-link").addEventListener("keydown",e=>{if(e.key==="Enter")go()});
 }
 function boot(){
-  const {cfg,changed}=Api.fromHash();
+  const {cfg,changed,conflict}=Api.fromHash();
   if(!cfg){showStart();return}
+  if(conflict){
+    history.replaceState(null,"",location.pathname);
+    setTimeout(()=>{
+      banner('<p>Você abriu o <b>link de um aluno</b> neste celular, que está com o seu <b>acesso de professor</b>. Para não perder o acesso de professor, continuei como professor.</p>'+
+        '<button class="btn" id="b-keep">Ok</button><button class="btn ghost" id="b-switch">Entrar como o aluno</button>');
+      $("#b-keep").onclick=()=>banner("");
+      $("#b-switch").onclick=()=>{sessionStorage.setItem("dt2-trocar","1");Api.setConfig(conflict);location.reload()};
+    },300);
+  }
   if(changed){Object.keys(localStorage).filter(k=>k.startsWith("dt2-cache-")||k==="dt2-aluno-sel"||k==="dt2-aba").forEach(k=>{try{localStorage.removeItem(k)}catch(e){}})}
   S.role=cfg.p?"prof":"aluno";
   document.querySelector('#tabs [data-v="alunos"]').hidden=S.role!=="prof";
