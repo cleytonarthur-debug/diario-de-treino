@@ -14,7 +14,7 @@
 
 const VERSAO = '2.0.0';
 const APP_URL = 'https://cleytonarthur-debug.github.io/diario-de-treino/'; // endereço do app (site)
-const API_URL_PADRAO = '';                                          // URL /exec desta implantação
+const API_URL_PADRAO = 'https://script.google.com/macros/s/AKfycbztFNMiyDaVQpbpO3ZJXdEmDmfXKXqQCOeY6rTGflYqE1sjyXS5W_MsZVF3o8zGMn1djQ/exec';
 
 const ABA_ALUNOS = 'Alunos';
 const HEAD_ALUNOS = ['ID', 'Nome', 'Nascimento', 'Sexo', 'Altura (cm)', 'Objetivo', 'Telefone', 'E-mail',
