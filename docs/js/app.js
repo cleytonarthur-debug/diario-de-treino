@@ -1247,7 +1247,8 @@ function renderPerfil(){
     html+='<div class="empty" style="margin-bottom:14px">Escolha um aluno na aba <b>Alunos</b> para ver o perfil.</div>';
   }
   html+='<div class="card" style="margin-bottom:14px"><h3>Instalar o app</h3>'+installHtml()+'</div>';
-  html+='<div class="card"><h3>Este aparelho</h3><p class="muted small">'+(prof?"Você está entrando como <b>professor</b>.":"Você está entrando como aluno.")+' Para trocar de conta, saia e abra outro link.</p><div class="row-btns"><button class="btn ghost" id="p-out">Sair deste aparelho</button></div></div>';
+  html+='<div class="card"><h3>Este aparelho</h3><p class="muted small">'+(prof?"Você está entrando como <b>professor</b>.":"Você está entrando como aluno.")+' Para trocar de conta, saia e abra outro link.</p><div class="row-btns"><button class="btn ghost" id="p-out">Sair deste aparelho</button></div></div>'+
+    '<p class="note" style="text-align:center"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></p>';
   el.innerHTML=html;
   const pi=$("#p-install");if(pi)pi.onclick=doInstall;
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);

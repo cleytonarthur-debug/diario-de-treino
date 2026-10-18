@@ -11,6 +11,8 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 | O quê | Onde |
 |---|---|
 | App | https://cleytonarthur-debug.github.io/diario-de-treino/ |
+| Política de Privacidade | https://cleytonarthur-debug.github.io/diario-de-treino/privacidade.html |
+| Termos de Uso | https://cleytonarthur-debug.github.io/diario-de-treino/termos.html |
 | Código (GitHub, público, sem dados) | https://github.com/cleytonarthur-debug/diario-de-treino |
 | Planilha Painel do Professor (abas Alunos e Catálogo de exercícios) | https://docs.google.com/spreadsheets/d/1kSZaLnRL5UL4TQWexPt2faBxP8Ls3_8k9En3OezKT5E/edit |
 | Programa central (Apps Script ligado ao Painel) | scriptId `1_EhLQqx4sZXgKoYlL3CXs76ry1mkkoBcwF_fqMfi6_k4RqSvBAz2MH4n` |
@@ -54,8 +56,13 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - 18/10: v2 com app instalável, multi-aluno, avaliação física e painéis.
 - 18/10: v2.1 com cadastro feito pelo aluno, aviso ao professor e montagem de treinos no app.
 
+## Privacidade e Termos (18/10/2026)
+- Páginas `docs/privacidade.html` e `docs/termos.html` (estilo em `docs/css/legal.css`), com link discreto no fim da aba **Perfil** e incluídas no cache do service worker.
+- **Controlador (LGPD):** Cleyton Arthur Santana Neres, cleytonarthur@gmail.com. Os dados de saúde estão declarados. Pedido de exclusão respondido em até 15 dias.
+- **Se o app mudar o que guarda** (novo campo, novo serviço externo), atualize as duas páginas e a data no topo.
+
 ## Pendências
-- Data de nascimento do professor está como 26/11/1900. Falta o ano certo.
+- Recomendado: no cadastro do aluno, uma caixa "Li e aceito a Política de Privacidade" para registrar o consentimento dos dados de saúde (LGPD art. 11).
 - Uma planilha vazia "Treino — Cleyton Arthur Santana Neres" sobrou na pasta Alunos (pode apagar).
 
 ## Futuro (ver memória "ideias-futuras-diario")
