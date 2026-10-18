@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0f1b2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diário de Treino">
+<meta name="referrer" content="no-referrer">
+<title>Diário de Treino</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <h1><button id="home" class="home" title="Voltar para a escolha do treino">Diário de Treino</button></h1>
+      <button id="who" class="who" hidden></button>
+    </div>
+    <div class="sync" id="sync"><span class="dot busy"></span><span>Abrindo…</span></div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-v="alunos" hidden>Alunos</button>
+    <button class="tab" role="tab" data-v="lancar">Treinar</button>
+    <button class="tab" role="tab" data-v="evo">Evolução</button>
+    <button class="tab" role="tab" data-v="aval">Avaliação</button>
+    <button class="tab" role="tab" data-v="perfil">Perfil</button>
+  </nav>
+</header>
+
+<main>
+  <div id="banner"></div>
+
+  <section id="v-alunos" class="view" hidden></section>
+  <section id="v-lancar" class="view" hidden><div id="lancar"></div></section>
+
+  <section id="v-evo" class="view" hidden>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Período" id="f-period">
+        <button data-p="4" aria-pressed="false">4 sem</button>
+        <button data-p="12" aria-pressed="true">12 sem</button>
+        <button data-p="26" aria-pressed="false">6 meses</button>
+        <button data-p="0" aria-pressed="false">Tudo</button>
+      </div>
+      <div class="chips" id="f-groups" aria-label="Grupos musculares"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h2>Evolução de força</h2><p>carga estimada para 1 repetição (1RM), melhor série de cada treino</p></div>
+      <div class="pick-ex"><select id="f-ex" aria-label="Exercício"></select></div>
+      <div class="chart-box"><canvas id="ch-forca" aria-label="Evolução de força no exercício escolhido"></canvas></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><h2>Peso e composição</h2><p>das avaliações físicas</p></div>
+        <div class="chart-box"><canvas id="ch-corpo" aria-label="Peso, massa magra e gordura"></canvas></div>
+        <div class="legend" id="lg-corpo"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Medidas</h2><p>perímetros das avaliações (cm)</p></div>
+        <div class="pick-ex"><select id="f-medida" aria-label="Medida"></select></div>
+        <div class="chart-box sm"><canvas id="ch-medida" aria-label="Evolução da medida escolhida"></canvas></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><h2>Volume semanal por grupo</h2><p>toneladas levantadas (carga × reps), por semana</p></div>
+        <div class="chart-box"><canvas id="ch-vol" aria-label="Volume semanal por grupo muscular"></canvas></div>
+        <div class="legend" id="lg-vol"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Séries por semana</h2><p>séries feitas, empilhadas por grupo</p></div>
+        <div class="chart-box sm"><canvas id="ch-sets" aria-label="Séries por semana por grupo"></canvas></div>
+        <div class="legend" id="lg-sets"></div>
+      </div>
+    </div>
+    <div class="groups" id="groups"></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h2>Recordes por exercício</h2><p>melhor carga estimada para 1 repetição (1RM, fórmula de Epley) no período</p></div>
+      <div class="tbl-wrap"><table id="prs"></table></div>
+      <p class="note">Cargas mudam de uma academia e de uma máquina para outra. Compare o mesmo exercício no mesmo equipamento. "CL" (cada lado) conta em dobro.</p>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Últimos treinos</h2><p>sessões mais recentes</p></div>
+      <div class="tbl-wrap"><table id="last"></table></div>
+    </div>
+  </section>
+
+  <section id="v-aval" class="view" hidden><div id="aval"></div></section>
+  <section id="v-perfil" class="view" hidden><div id="perfil"></div></section>
+</main>
+
+<div class="savebar" id="savebar" hidden>
+  <div class="savebar-in">
+    <div><div class="count" id="sb-count">0 séries</div><div class="rest" id="sb-rest"></div></div>
+    <div class="grow"></div>
+    <button class="btn ghost" id="sb-cancel" hidden>Voltar</button>
+    <button class="btn primary" id="sb-save" disabled>Salvar na planilha</button>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<div class="sheet" id="start" hidden>
+  <div class="sheet-card">
+    <h2>Diário de Treino</h2>
+    <p>Para entrar, abra o <b>link que seu professor enviou</b> pelo WhatsApp.</p>
+    <p class="muted small">Se você já tem o link copiado, cole aqui:</p>
+    <label class="fld2">Link de acesso<input id="start-link" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…#api=…"></label>
+    <p class="setup-msg" id="start-msg" role="status"></p>
+    <div class="setup-row"><button class="btn primary" id="start-go">Entrar</button></div>
+  </div>
+</div>
+
+<script src="vendor/chart.umd.js"></script>
+<script src="js/api.js"></script>
+<script src="js/body.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+}
+</script>
+</body>
+</html>
