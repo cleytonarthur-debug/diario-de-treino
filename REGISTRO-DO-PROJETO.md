@@ -36,6 +36,14 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 6. **Avaliação física (só o professor lança):** desenho do corpo (frente e costas), perímetros, dobras (JP7 ou JP3) ou bioimpedância. O app calcula IMC, RCQ, % de gordura e massa magra/gorda.
 7. **Evolução:** força (1RM por exercício), peso e composição, medidas, volume e recordes.
 
+## Métodos de treino (desde 18/10/2026)
+- Os métodos ficam em arquivos próprios em `docs/metodos/`. O índice é `index.json` e o primeiro método é `metodo-par.json`.
+- **Para criar um método novo:** copie o formato do metodo-par.json (dias, aquecimento, descanso, músculos, exercícios com alternativas, treinos em pares, fases e progressão) e acrescente no index.json.
+- **Ligar no aluno:** Montar treinos → Método de treino → escolher o método e a data de início. Fica gravado nas colunas "Método" e "Início do método" da aba Alunos.
+- **No treino:** fase pela data (ciclo de 13 semanas que recomeça), séries, reps e reps sobrando da fase, pares a/b, cronômetro (45–60 s entre a e b, 60–90 s entre pares, vibra), aquecimento, zona 2 pela idade e cardio no fim (vai para o Histórico).
+- **Avisos:** "⬆ Subir carga" (progressão dupla, olhando a última sessão) e "Sem evolução há 2 semanas: conferir sono e alimentação".
+- **No Histórico:** Treino = "Método Par A" ou "Método Par B". A primeira linha leva "[Método Par · semana X · Fase]" nas Observações.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

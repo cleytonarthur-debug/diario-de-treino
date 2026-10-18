@@ -217,15 +217,27 @@ function templates(){
   const ss=sessions();const by=new Map();
   ss.forEach(s=>{if(!s.treino)return;const prev=by.get(s.treino);by.set(s.treino,{last:s,count:(prev?prev.count:0)+1})});
   const hist=[...by.entries()].map(([name,o])=>({name,last:o.last,count:o.count})).sort((a,b)=>b.last.date-a.last.date);
-  if(!S.models.size)return hist;
   const byKey=new Map(hist.map(t=>[strip(t.name),t]));
-  const list=[...S.models.entries()].map(([name,items])=>{const h=byKey.get(strip(name));return {name,model:items,last:h?h.last:null,count:h?h.count:0}});
-  const used=new Set(list.map(t=>strip(t.name)));
+  // Método de treino ligado ao aluno: os treinos do método vêm primeiro.
+  const mt=metodoAluno();const list=[];
+  if(mt)Object.entries(mt.m.treinos).forEach(([k,t])=>{const h=byKey.get(strip(t.nome));
+    list.push({name:mt.m.nome+" – Treino "+k,metodo:{m:mt.m,k,F:mt.F},histName:t.nome,last:h?h.last:null,count:h?h.count:0})});
+  if(!S.models.size&&!list.length)return hist;
+  [...S.models.entries()].forEach(([name,items])=>{const h=byKey.get(strip(name));list.push({name,model:items,last:h?h.last:null,count:h?h.count:0})});
+  const used=new Set(list.map(t=>strip(t.histName||t.name)));
   hist.forEach(t=>{if(!used.has(strip(t.name)))list.push(Object.assign({other:true},t))});
   return list;
 }
+function metodoAluno(){
+  const a=S.aluno;if(!a||!a.metodo||!window.Metodos)return null;
+  const m=Metodos.get(a.metodo);if(!m)return null;
+  const F=Metodos.fase(m,a.metodoInicio,new Date());if(!F)return null;
+  return {m,F};
+}
 function suggestion(list){
-  list=list.filter(t=>t.last&&!t.other);
+  const mt=metodoAluno();
+  if(mt&&!mt.F.antes){const k=Metodos.treinoDoDia(mt.m,new Date());if(k)return mt.m.nome+" – Treino "+k}
+  list=list.filter(t=>t.last&&!t.other&&!t.metodo);
   const now=Date.now();const recent=list.filter(t=>now-t.last.date<21*864e5);
   if(!recent.length)return list.length?list[0].name:null;
   return recent.slice().sort((a,b)=>a.last.date-b.last.date)[0].name;
@@ -239,8 +251,51 @@ function lastFor(exName){
 function lastExact(name){const all=lastFor(name)||[];const ex=all.filter(r=>strip(r.ex)===strip(name));return ex.length?ex:all}
 const pickN=(arr,i)=>arr.length?(arr[Math.min(i,arr.length-1)]||""):"";
 const newId=()=>Math.random().toString(36).slice(2);
+function faseTexto(F){
+  if(!F)return "";if(F.antes)return "começa em "+F.diasPara+(F.diasPara===1?" dia":" dias");
+  const f=F.fase;return "Semana "+F.semanaCiclo+" de "+F.total+" · "+f.nome+(F.ciclo>1?" · ciclo "+F.ciclo:"");
+}
+function cardMetodo(t,sug,today){
+  const {m,k,F}=t.metodo;const f=F.antes?m.fases[0]:F.fase;
+  const pares=m.treinos[k].pares;
+  const grs=[...new Set(pares.flatMap(p=>[p.a,p.b]).map(x=>(m.musculos[(m.exercicios[x]||{}).musculo]||{}).grupo))].filter(g=>GROUP_VAR[g]);
+  const days=t.last?Math.round((today-t.last.date)/864e5):0;
+  return '<button data-t="'+esc(t.name)+'" class="'+(sug?"sug":"")+'">'+(sug?'<span class="tag">Treino de hoje no '+esc(m.nome)+'</span>':"")+
+    '<b>'+esc(t.name)+'</b><span class="muted small">'+esc(faseTexto(F))+' · '+pares.length+' pares · '+f.series+' séries de '+(f.reps||[]).join("–")+'</span>'+
+    (t.last?'<span class="muted small">Último: '+fmtShort(t.last.date)+' ('+(days===0?"hoje":days===1?"ontem":days+" dias")+')</span>':"")+
+    '<span class="tag">'+grs.map(g=>'<i style="background:var('+GROUP_VAR[g]+')"></i>'+esc(g)).join(" ")+'</span></button>';
+}
+function metodoAviso(today){
+  const mt=metodoAluno();if(!mt)return "";
+  if(mt.F.antes)return '<div class="notice"><p>O <b>'+esc(mt.m.nome)+'</b> começa em '+esc(S.aluno.metodoInicio)+'.</p></div>';
+  if(Metodos.treinoDoDia(mt.m,today))return "";
+  return '<div class="notice"><p><b>'+esc(mt.m.diaLivre||"Dia livre.")+'</b> '+esc(mt.m.diasTexto||"")+'</p></div>';
+}
+function buildMetodoDraft(t){
+  const {m,k}=t.metodo;const F=Metodos.fase(m,S.aluno.metodoInicio,new Date());
+  const f=F&&!F.antes?F.fase:m.fases[0];
+  const blocks=[];
+  m.treinos[k].pares.forEach((p,pi)=>["a","b"].forEach(l=>{
+    const ex=Metodos.exercicio(m,p[l]);if(!ex)return;
+    const prev=lastExact(ex.nome);
+    const b={id:newId(),name:ex.nome,grupo:(m.musculos[ex.musculo]||{}).grupo||guessGroup(ex.nome),sets:[],obs:"",
+      par:pi+1,lado:l,exKey:p[l],musculo:ex.musculo,tipo:ex.tipo,unidade:ex.unidade||""};
+    const n=Metodos.seriesDoPar(f,pi+1);
+    for(let i=0;i<n;i++){
+      const s=makeSet(i+1,prev[i]||null);s.meta=Metodos.meta(f,ex);s.rirMeta=f.rir.join("–");
+      if(!s.peso&&prev.length)s.peso=String(prev[prev.length-1].peso||"").trim();
+      b.sets.push(s);
+    }
+    blocks.push(b);
+  }));
+  const card=Metodos.cardio(m,f,new Date());
+  if(card){const s=makeSet(1,null);s.meta=card;blocks.push({id:newId(),name:/interval/i.test(card)?"Cardio intervalado":"Cardio zona 2",grupo:"Cardio",cardio:true,sets:[s],obs:""})}
+  return {date:fmtDate(new Date()),treino:m.treinos[k].nome,blocks,started:Date.now(),inicio:hhmm(new Date()),lastTick:null,obs:"",
+    metodo:{id:m.id,k,semana:F&&!F.antes?F.semanaCiclo:1,total:F&&F.total||m.cicloSemanas,fase:f.nome,rir:f.rir}};
+}
 function buildDraft(treino){
   const t=templates().find(x=>x.name===treino);
+  if(t&&t.metodo)return buildMetodoDraft(t);
   const blocks=[];
   if(t&&t.model){
     t.model.forEach(it=>{
@@ -288,6 +343,7 @@ function renderLancar(){
     if(!S.loaded){el.innerHTML='<div class="empty">'+(S.error?"Sem dados da planilha ainda. Veja o aviso acima.":"Lendo os treinos na planilha…")+'</div>';return}
     const list=templates();const sug=suggestion(list);const today=new Date();
     const card=t=>{
+      if(t.metodo)return cardMetodo(t,t.name===sug,today);
       const days=t.last?Math.round((today-t.last.date)/864e5):0;
       const grs=(t.model?[...new Set(t.model.map(it=>S.exMap.get(strip(it.ex))||guessGroup(it.ex)))]:[...new Set(t.last.rows.map(r=>r.grupo))]).filter(g=>GROUP_VAR[g]);
       const nSeries=t.model?t.model.reduce((a,it)=>a+it.series,0):t.last.rows.length;
@@ -304,6 +360,7 @@ function renderLancar(){
     el.innerHTML='<div class="session-head"><div><h2>Qual treino hoje?</h2><div class="muted small">'+DIAS[today.getDay()]+", "+fmtDate(today)+' · '+
       (S.models.size?'o app mostra o que foi feito da última vez':'o app copia o último treino igual para só preencher')+'</div></div>'+
       (prof?'<button class="btn" id="b-montar-t">✎ Montar treinos</button>':"")+'</div>'+
+      metodoAviso(today)+
       (vazio?'<div class="notice"><p>'+(prof?'Este aluno ainda não tem treinos. Toque em <b>Montar treinos</b> para criar.':'Seu professor está montando o seu treino. Assim que ficar pronto, ele aparece aqui. Enquanto isso, você pode usar o <b>Treino livre</b>.')+'</p></div>':"")+
       '<div class="pick">'+(S.draft?'<button data-cont="1" class="cont"><span class="tag">Em andamento, ainda não salvo</span><b>Continuar: '+esc(S.draft.treino)+'</b><span class="muted small">'+doneSets()+' séries feitas hoje</span></button>':"")+
       main.map(card).join("")+'<button data-t=""><b>Treino livre</b><span class="muted small">Começar em branco e adicionar exercícios</span></button></div>'+
@@ -326,25 +383,81 @@ function renderLancar(){
   el.innerHTML='<div class="session-head"><div><h2>'+esc(d.treino)+'</h2><div class="meta"><span>'+esc(d.date)+'</span><label class="inicio">Início <input type="time" id="inicio" value="'+esc(d.inicio||hhmm(new Date(d.started)))+'" aria-label="Horário de início do treino"></label><span id="clock"></span></div></div>'+
     '<div class="row-btns"><button class="btn ghost" id="b-stop" title="Marca as séries que faltam como não feitas">Parei aqui</button><button class="btn ghost" id="b-discard">Descartar</button></div></div>'+
     '<div class="treino-obs"><textarea id="treino-obs" placeholder="Observação do treino (opcional): como foi, se precisou parar, dor, cansaço…" aria-label="Observação do treino">'+esc(d.obs||"")+'</textarea></div>'+
+    (d.metodo?metodoTopo(d):"")+
     (d.blocks.length?"":'<div class="empty">Nenhum exercício ainda. Adicione abaixo.</div>')+
-    d.blocks.map((b,bi)=>exCard(b,bi)).join("")+
+    d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)).join("")+
     '<div class="add-ex"><input id="new-ex" list="ex-list" placeholder="Adicionar exercício (busque pelo nome)" aria-label="Nome do exercício"><button class="btn" id="b-add">Adicionar</button></div>'+
     '<datalist id="ex-list">'+exNames.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
   bindLancar();
   updateBar();
 }
+/* ---- Método: topo do treino, cabeçalho de cada par, avisos de progressão ---- */
+function metodoDoDraft(d){return d&&d.metodo&&window.Metodos?Metodos.get(d.metodo.id):null}
+function metodoTopo(d){
+  const m=metodoDoDraft(d);if(!m)return "";
+  const z=Metodos.zona2(m,idade(S.aluno));
+  return '<div class="card mtopo"><div class="card-h"><h2>'+esc(m.nome)+'</h2><p>Semana '+d.metodo.semana+' de '+d.metodo.total+' · '+esc(d.metodo.fase)+' · deixe '+esc((d.metodo.rir||[]).join("–"))+' reps sobrando</p></div>'+
+    '<p class="small"><b>Aquecimento:</b> '+(m.aquecimento||[]).map(esc).join(" + ")+'.</p>'+
+    '<p class="small"><b>Como fazer:</b> série do <b>a</b> → descanso '+m.descanso.entreAeB.join("–")+' s → série do <b>b</b> → descanso '+m.descanso.entrePares.join("–")+' s. Repita até fechar as séries do par e só então vá ao próximo.</p>'+
+    (z?'<p class="small"><b>Zona 2:</b> '+z.lo+'–'+z.hi+' bpm (FC máx. ≈ '+z.max+'). '+esc(z.descricao||"")+'</p>':"")+'</div>';
+}
+function parHeader(d,b){
+  if(b.cardio)return '<div class="par-h">Cardio no fim</div>';
+  if(!d.metodo||b.lado!=="a")return "";
+  const m=metodoDoDraft(d);const nb=d.blocks.find(x=>x.par===b.par&&x.lado==="b");
+  const nome=k=>m&&m.musculos[k]?m.musculos[k].nome:k;
+  return '<div class="par-h">Par '+b.par+' · '+esc(nome(b.musculo))+(nb?' ↔ '+esc(nome(nb.musculo)):"")+'</div>';
+}
+function avisosProgresso(d,b){
+  if(!d.metodo||b.cardio)return "";
+  const m=metodoDoDraft(d);if(!m)return "";
+  const f=(Metodos.fase(m,S.aluno&&S.aluno.metodoInicio,new Date())||{}).fase||m.fases[0];
+  const ex={unidade:b.unidade};const out=[];
+  // progressão dupla: topo da faixa em todas as séries da última vez, com as reps sobrando da fase
+  let prev=lastExact(b.name);
+  const ult=prev.map(r=>String(r.serie).trim()).lastIndexOf("1");if(ult>0)prev=prev.slice(ult); // só a última sessão do dia
+  prev=prev.filter(r=>!/n[aã]o fiz/i.test(r.feitas));
+  const top=Metodos.topo(f,ex);
+  if(prev.length&&prev.every(r=>r.reps&&r.reps[0]>=top&&r.rir!==""&&+r.rir>=f.rir[0]))
+    out.push('<span class="badge up">⬆ '+esc(m.progressao.avisoSubir)+': '+esc(Metodos.incremento(m,b.tipo))+' e volte para '+(b.unidade==="s"?f.tempo[0]+" s":f.reps[0]+" reps")+'</span>');
+  // estagnação: 2 semanas sem melhorar a melhor série
+  const k=exKey(b.name);const byDay=new Map();
+  S.rows.forEach(r=>{if(exKey(r.ex)!==k||!r.reps)return;const sc=r.e1||r.reps.reduce((a,c)=>a+c,0);const o=byDay.get(r.dateS);if(!o||sc>o.sc)byDay.set(r.dateS,{d:r.date,sc})});
+  const ses=[...byDay.values()].sort((a,c)=>a.d-c.d);const lim=Date.now()-(m.progressao.estagnacaoSemanas||2)*7*864e5;
+  const rec=ses.filter(x=>+x.d>=lim),old=ses.filter(x=>+x.d<lim);
+  if(rec.length>=2&&old.length&&Math.max(...rec.map(x=>x.sc))<=old[old.length-1].sc)
+    out.push('<span class="badge down">'+esc(m.progressao.avisoEstagnacao)+'</span>');
+  return out.length?'<div class="alerts">'+out.join("")+'</div>':"";
+}
+function cardioCard(b,bi){
+  const s=b.sets[0];const done=!!String(s.reps).trim();const z=window.Metodos&&S.draft&&S.draft.metodo?Metodos.zona2(metodoDoDraft(S.draft),idade(S.aluno)):null;
+  return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var(--g-abd)"></span><h3>'+esc(b.name)+'</h3><button class="x" data-act="rm-ex" aria-label="Remover cardio">×</button></div>'+
+    '<div class="set'+(done?" done":"")+'" data-s="0"><div class="set-info"><b>'+esc(s.meta)+'</b>'+(z?'<span>zona 2: '+z.lo+'–'+z.hi+' bpm</span>':"")+'</div>'+
+    '<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Como foi? (tempo feito, FC média, aparelho)" aria-label="Observação do cardio">'+
+    '<button class="chk" data-act="check" aria-label="Marcar cardio como feito">✓</button></div></div>'+
+    '<div class="ex-f"><button class="btn ghost" data-act="add-set" hidden></button></div></div>';
+}
 function exCard(b,bi){
+  if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
-  return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+esc(b.name)+
+  return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3><span class="tag">'+esc(b.grupo)+'</span>'+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
-    (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>':"")+
+    (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
+    avisosProgresso(S.draft,b)+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
     '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
     '<button class="btn ghost" data-act="ex-note">'+(b.obs?"✎ Obs.":"✎ Obs. do exercício")+'</button></div>'+
     (b.noteOpen||b.obs?'<div class="ex-obs"><input class="obs" data-f="exobs" value="'+esc(b.obs||"")+'" placeholder="Observação do exercício (ex.: máquina diferente, ajuste de banco)" aria-label="Observação do exercício"></div>':"")+
     '</div>';
+}
+// Trocas sugeridas pelo método: mesmo músculo, para manter o par.
+function swapSugestoes(b){
+  const m=metodoDoDraft(S.draft);if(!m||!b.exKey)return "";
+  const alts=Metodos.alternativas(m,b.origKey||b.exKey).filter(x=>x.key!==b.exKey);
+  if(b.origKey&&b.origKey!==b.exKey)alts.unshift({key:b.origKey,ex:m.exercicios[b.origKey]});
+  return alts.length?'<div class="swap-sug"><span class="small muted">Mesmo músculo ('+esc((m.musculos[b.musculo]||{}).nome||"")+'):</span>'+alts.map(x=>'<button class="chip" data-alt="'+esc(x.key)+'">'+esc(x.ex.nome)+'</button>').join("")+'</div>':"";
 }
 function lastText(s){
   if(!s.last)return '<span>primeira vez</span>';
@@ -360,7 +473,7 @@ function cmpBadge(s){
 }
 function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+'" data-s="'+si+'"><div class="set-info"><b>Série '+s.n+'</b>'+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+'" data-s="'+si+'"><div class="set-info"><b>Série '+s.n+'</b>'+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
@@ -373,6 +486,14 @@ function bindLancar(){
   const el=$("#lancar");
   el.querySelectorAll(".ex").forEach(card=>{
     const bi=+card.dataset.b;const b=S.draft.blocks[bi];
+    if(b.cardio){
+      const s=b.sets[0];const row=card.querySelector(".set");
+      row.querySelector('[data-f="obs"]').addEventListener("input",e=>{s.obs=e.target.value;saveDraft()});
+      row.querySelector('[data-act="check"]').onclick=()=>{s.reps=String(s.reps).trim()?"":"feito";s.time=s.reps?hhmm(new Date()):null;S.draft.rest=null;saveDraft();rerenderCard(bi);updateBar()};
+      card.querySelector('[data-act="rm-ex"]').onclick=()=>{S.draft.blocks.splice(bi,1);saveDraft();renderLancar()};
+      return;
+    }
+    card.querySelectorAll("[data-alt]").forEach(c=>c.onclick=()=>{swapToKey(b,c.dataset.alt);b.swapping=false;saveDraft();rerenderCard(bi)});
     card.querySelectorAll(".set").forEach(row=>{
       const si=+row.dataset.s;const s=b.sets[si];
       row.querySelectorAll("[data-f]").forEach(inp=>{
@@ -380,7 +501,7 @@ function bindLancar(){
         inp.addEventListener(ev,()=>{
           const f=inp.dataset.f;s[f]=inp.value;
           if(f==="reps"){
-            if(inp.value.trim()&&!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();const t=row.querySelector('[data-f="time"]');if(t)t.value=s.time}
+            if(inp.value.trim()&&!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si);const t=row.querySelector('[data-f="time"]');if(t)t.value=s.time}
             if(inp.value.trim()&&s.skip){s.skip=false;row.classList.remove("skip")}
             row.classList.toggle("done",!!inp.value.trim());
           }
@@ -393,7 +514,7 @@ function bindLancar(){
         if(!String(s.reps).trim()){
           const m=String(s.meta).match(/\d+/);s.reps=m?m[0]:(s.last&&s.last.feitas&&/^\d+$/.test(s.last.feitas)?s.last.feitas:"");
           if(!s.reps){row.querySelector('[data-f="reps"]').focus();return}
-          s.time=hhmm(new Date());S.draft.lastTick=Date.now();s.skip=false;
+          s.time=hhmm(new Date());S.draft.lastTick=Date.now();s.skip=false;startRest(bi,si);
         }else{s.reps="";s.time=null}
         saveDraft();rerenderCard(bi);updateBar();
       };
@@ -408,7 +529,9 @@ function bindLancar(){
     const so=card.querySelector('[data-act="swap-ok"]');
     if(so){
       const inp=card.querySelector('[data-f="swapto"]');
-      const go=()=>{const name=inp.value.trim();if(!name)return;swapExercise(b,name);b.swapping=false;saveDraft();rerenderCard(bi)};
+      const go=()=>{const name=inp.value.trim();if(!name)return;
+        const g=guessGroup(name);if(b.musculo&&g!=="Sem grupo"&&g!==b.grupo)toast("Atenção: o par pede "+b.grupo+". Prefira um exercício do mesmo músculo.");
+        swapExercise(b,name);b.swapping=false;saveDraft();rerenderCard(bi)};
       so.onclick=go;inp.addEventListener("keydown",e=>{if(e.key==="Enter")go()});
       card.querySelector('[data-act="swap-cancel"]').onclick=()=>{b.swapping=false;rerenderCard(bi)};
     }
@@ -444,6 +567,27 @@ function swapExercise(b,name){
   });
   if(strip(b.orig)===strip(b.name))delete b.orig;
 }
+/* Cronômetro de descanso do método: depois do (a) 45–60 s, depois do (b) 60–90 s. */
+function startRest(bi,si){
+  const d=S.draft;const m=metodoDoDraft(d);const b=d.blocks[bi];
+  if(!m||!b.par){d.rest=null;return}
+  const pend=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
+  const blk=(par,l)=>d.blocks.find(x=>x.par===par&&x.lado===l);
+  let alvo,prox=null;
+  if(b.lado==="a"){alvo=m.descanso.entreAeB;const nb=blk(b.par,"b");if(nb&&pend(nb)>=0)prox=nb;}
+  else{alvo=m.descanso.entrePares;const na=blk(b.par,"a");prox=na&&pend(na)>=0?na:d.blocks.find(x=>x.par>b.par&&!x.cardio&&pend(x)>=0)||d.blocks.find(x=>x.cardio&&pend(x)>=0)||null;}
+  if(b.lado==="a"&&!prox){alvo=m.descanso.entrePares;prox=d.blocks.find(x=>x.par>b.par&&pend(x)>=0)||null}
+  d.rest={min:alvo[0],max:alvo[1],at:Date.now(),buzz:0,
+    prox:prox?(prox.cardio?prox.name:(prox.par+prox.lado+" "+prox.name+" · série "+(pend(prox)+1))):"fim do treino"};
+}
+function swapToKey(b,key){
+  const m=metodoDoDraft(S.draft);const ex=Metodos.exercicio(m,key);if(!ex)return;
+  b.origKey=b.origKey||b.exKey;b.exKey=key;b.tipo=ex.tipo;b.unidade=ex.unidade||"";
+  swapExercise(b,ex.nome);
+  const f=(Metodos.fase(m,S.aluno&&S.aluno.metodoInicio,new Date())||{}).fase||m.fases[0];
+  b.sets.forEach(s=>{if(!String(s.reps).trim())s.meta=Metodos.meta(f,ex)});
+  if(b.origKey===b.exKey)delete b.origKey;
+}
 function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;const t=document.createElement("div");t.innerHTML=exCard(S.draft.blocks[bi],bi);old.replaceWith(t.firstChild);bindLancar()}
 function addExercise(){
   const inp=$("#new-ex");const name=inp.value.trim();if(!name)return;
@@ -473,7 +617,17 @@ function updateBar(){
 setInterval(()=>{
   if(!S.draft||S.view!=="lancar")return;
   const c=$("#clock");if(c){const m=Math.floor((Date.now()-S.draft.started)/60000);c.textContent="treino há "+(m<60?m+" min":Math.floor(m/60)+"h"+pad(m%60))}
-  const r=$("#sb-rest");if(r){if(S.draft.lastTick){const s=Math.floor((Date.now()-S.draft.lastTick)/1000);r.textContent="descanso "+Math.floor(s/60)+":"+pad(s%60)}else r.textContent="toque ✓ ao terminar cada série"}
+  const r=$("#sb-rest");if(!r)return;
+  const R=S.draft.rest;
+  if(R){
+    const s=Math.floor((Date.now()-R.at)/1000);
+    const fase=s<R.min?"":s<=R.max?" ✓ pode ir":" ✓ já pode ir";
+    r.innerHTML='<b class="'+(s>=R.min?"rest-ok":"")+'">descanso '+Math.floor(s/60)+":"+pad(s%60)+'</b> · ideal '+R.min+"–"+R.max+" s"+fase+'<br>depois: '+esc(R.prox);
+    // vibra ao chegar no mínimo e no máximo do descanso
+    if(s>=R.min&&R.buzz<1){R.buzz=1;try{navigator.vibrate&&navigator.vibrate(250)}catch(e){}}
+    if(s>=R.max&&R.buzz<2){R.buzz=2;try{navigator.vibrate&&navigator.vibrate([200,120,200])}catch(e){}}
+  }else if(S.draft.lastTick){const s=Math.floor((Date.now()-S.draft.lastTick)/1000);r.textContent="descanso "+Math.floor(s/60)+":"+pad(s%60)}
+  else r.textContent="toque ✓ ao terminar cada série";
 },1000);
 
 function intensityFromRir(rir){if(rir==="")return "";const n=+rir;return n<=0?"Máxima":n===1?"Muito alta":n===2?"Alta":n===3?"Moderada":"Leve"}
@@ -525,7 +679,8 @@ async function save(){
     let firstOfEx=true;
     b.sets.forEach(s=>{
       if(!setDone(s))return;
-      const obs=[s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
+      const tagM=firstOfTreino&&d.metodo?"["+((metodoDoDraft(d)||{}).nome||"Método")+" · semana "+d.metodo.semana+" · "+d.metodo.fase+"]":"";
+      const obs=[tagM,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
       rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,b.name,s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":intensityFromRir(s.rir),s.skip||s.rir===""?"":Number(s.rir),textCell(obs)]);
     });
@@ -955,7 +1110,7 @@ function openModelEditor(alunoId){
   if(alunoId&&alunoId!==S.alunoId)selectAluno(alunoId,true);
   S.modEdit="carregando";setView("lancar");
   const go=()=>{S.modEdit=[...S.models.entries()].map(([nome,itens])=>({nome,itens:itens.map(it=>({ex:it.ex,series:it.series,metas:it.metas.filter(Boolean).join("; "),peso:it.pesos.filter(Boolean).join("; ")}))}));
-    if(!S.modEdit.length)S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
+    if(!S.modEdit.length&&!(S.aluno&&S.aluno.metodo))S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
   if(S.loaded)go();else{const t=setInterval(()=>{if(S.loaded){clearInterval(t);go()}},300);setTimeout(()=>clearInterval(t),30000)}
 }
 const novoItem=()=>({ex:"",series:3,metas:"12",peso:""});
@@ -967,6 +1122,8 @@ function renderModelEditor(el){
     [a.objetivo,a.dias?a.dias+"x por semana":"",a.obs?"Restrições: "+a.obs:""].filter(Boolean).map(esc).join(" · ")+'</div></div>'+
     '<div class="row-btns"><button class="btn ghost" id="mt-cancel">Cancelar</button><button class="btn primary" id="mt-save">Salvar treinos</button></div></div>'+
     '<p class="setup-msg" id="mt-msg" role="status"></p>'+
+    metodoCard(a)+
+    '<div class="par-h">Treinos próprios (aba Modelos)</div>'+
     M.map((t,ti)=>'<div class="mt" data-t="'+ti+'"><div class="mt-h"><input data-f="nome" value="'+esc(t.nome)+'" placeholder="Nome do treino (ex.: Treino A — Pernas)" aria-label="Nome do treino">'+
       '<button class="btn ghost small" data-act="rm-t">Remover</button></div>'+
       t.itens.map((it,ii)=>'<div class="mt-row" data-i="'+ii+'"><div class="ex-in"><input data-f="ex" list="mt-list" value="'+esc(it.ex)+'" placeholder="Exercício (busque pelo nome)" aria-label="Exercício">'+
@@ -991,9 +1148,37 @@ function renderModelEditor(el){
       row.querySelector('[data-act="down"]').onclick=()=>{if(ii<t.itens.length-1){t.itens.splice(ii+1,0,t.itens.splice(ii,1)[0]);render()}};
     });
   });
+  bindMetodoCard();
   $("#mt-addt").onclick=()=>{M.push({nome:"Treino "+String.fromCharCode(65+M.length),itens:[novoItem()]});render();window.scrollTo({top:document.body.scrollHeight})};
   $("#mt-cancel").onclick=()=>{S.modEdit=null;render()};
   $("#mt-save").onclick=saveModels;
+}
+/* Ligar um método (arquivo em metodos/) no aluno, com data de início. */
+function proximaSegunda(){const d=new Date();const k=(8-d.getDay())%7;d.setDate(d.getDate()+(d.getDay()===1?0:k));return d}
+function metodoCard(a){
+  const ms=window.Metodos?Metodos.todos():[];
+  const atual=a.metodo&&window.Metodos?Metodos.get(a.metodo):null;
+  const F=atual?Metodos.fase(atual,a.metodoInicio,new Date()):null;
+  return '<div class="card" style="margin-bottom:12px"><h3>Método de treino</h3>'+
+    (atual?'<p class="small" style="margin:6px 0">Ligado: <b>'+esc(atual.nome)+'</b> desde '+esc(a.metodoInicio)+' · '+esc(faseTexto(F))+'</p>':'<p class="muted small" style="margin:6px 0">Ligue um método e o app monta os treinos, as fases e a progressão sozinho.</p>')+
+    '<div class="form-grid"><label class="fld2">Método<select id="me-m"><option value="">Nenhum</option>'+ms.map(m=>'<option value="'+esc(m.id)+'"'+(a.metodo===m.id?" selected":"")+'>'+esc(m.nome)+' ('+esc(m.publico||"")+')</option>').join("")+'</select></label>'+
+    '<label class="fld2">Começa em<input id="me-d" type="date" value="'+esc(brToIso(a.metodoInicio)||brToIso(fmtDate(proximaSegunda())))+'"></label></div>'+
+    '<p class="setup-msg" id="me-msg" role="status"></p><div class="row-btns"><button class="btn" id="me-save">'+(atual?"Atualizar método":"Ligar método")+'</button></div></div>';
+}
+function bindMetodoCard(){
+  const b=$("#me-save");if(!b)return;
+  b.onclick=async()=>{
+    const metodo=$("#me-m").value,inicio=isoToBr($("#me-d").value),msg=$("#me-msg");
+    if(metodo&&!inicio){msg.textContent="Escolha a data de início.";msg.className="setup-msg bad";return}
+    b.disabled=true;msg.className="setup-msg";msg.textContent="Salvando…";
+    try{
+      const r=await callA("aplicarMetodo",{metodo,inicio});
+      S.aluno=Object.assign({},S.aluno,r.aluno);const i=S.alunos.findIndex(x=>x.id===r.aluno.id);if(i>=0)S.alunos[i]=r.aluno;
+      toast(metodo?"Método ligado. Já aparece no app do aluno.":"Método desligado.");profNotice();
+      Api.call("inicio").then(d=>Api.cacheSet("inicio",d)).catch(()=>{});
+      if(!S.models.size&&metodo){S.modEdit=null}render();
+    }catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";b.disabled=false}
+  };
 }
 async function saveModels(){
   const M=S.modEdit;const msg=$("#mt-msg"),btn=$("#mt-save");
@@ -1052,6 +1237,7 @@ function renderPerfil(){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div><dl class="kv">'+
       [["Idade",id!=null?id+" anos":""],["Nascimento",a.nasc],["Sexo",a.sexo],["Altura",a.altura?a.altura+" cm":""],["Peso",a.peso?a.peso+" kg":""],["Objetivo",a.objetivo],["Dias por semana",a.dias],["Restrições",a.obs],
+       ["Método",(()=>{const mt=metodoAluno();return mt?mt.m.nome+" · "+faseTexto(mt.F):""})()],
        ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
       (prof?'<div class="row-btns" style="margin-top:14px"><button class="btn" id="p-edit">Editar dados</button>'+(a.planilhaUrl?'<a class="btn" href="'+esc(a.planilhaUrl)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+'</div>':"")+
       '</div>';
@@ -1125,6 +1311,7 @@ function boot(){
   const ci=Api.cacheGet("inicio");
   if(ci)applyInicio(ci,false);
   setView(S.view);
+  Metodos.load().then(()=>render());
   refreshInicio();
   setTimeout(installBanner,1500);
 }

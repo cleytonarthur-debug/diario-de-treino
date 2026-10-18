@@ -220,6 +220,17 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 .treino-obs{margin:4px 0 14px}
 .treino-obs textarea{width:100%;min-height:54px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);padding:8px 10px;font:inherit;font-size:14px;color:var(--ink);resize:vertical}
 
+/* método (pares, cronômetro, avisos) */
+.mtopo{margin-bottom:12px}
+.mtopo p{margin:6px 0 0}
+.par-h{font-family:var(--f-num);text-transform:uppercase;letter-spacing:.05em;font-weight:700;font-size:15px;color:var(--ink-2);margin:16px 0 6px;padding-left:2px}
+.parlbl{display:inline-block;font-family:var(--f-num);font-size:14px;font-weight:700;background:var(--action);color:var(--action-ink);border-radius:6px;padding:0 6px;margin-right:2px}
+.alerts{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.alerts .badge{font-size:13px;padding:3px 9px}
+.swap-sug{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.rest-ok{color:var(--good)}
+.savebar .rest{line-height:1.35}
+
 /* montar treinos (professor) */
 .mt{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
 .mt-h{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}

@@ -18,9 +18,10 @@ const API_URL_PADRAO = 'https://script.google.com/macros/s/AKfycbztFNMiyDaVQpbpO
 
 const ABA_ALUNOS = 'Alunos';
 const HEAD_ALUNOS = ['ID', 'Nome', 'Nascimento', 'Sexo', 'Altura (cm)', 'Objetivo', 'Telefone', 'E-mail',
-  'Planilha', 'Código de acesso', 'Ativo', 'Criado em', 'Observações', 'Peso (kg)', 'Dias por semana', 'Situação'];
+  'Planilha', 'Código de acesso', 'Ativo', 'Criado em', 'Observações', 'Peso (kg)', 'Dias por semana', 'Situação',
+  'Método', 'Início do método'];
 const A = { id: 0, nome: 1, nasc: 2, sexo: 3, altura: 4, objetivo: 5, telefone: 6, email: 7,
-  planilha: 8, codigo: 9, ativo: 10, criado: 11, obs: 12, peso: 13, dias: 14, status: 15 };
+  planilha: 8, codigo: 9, ativo: 10, criado: 11, obs: 12, peso: 13, dias: 14, status: 15, metodo: 16, metodoInicio: 17 };
 // Situação do aluno: 'aguardando cadastro' → (aluno preenche) → 'montar treino' → (professor monta) → 'ok'
 const ST_CADASTRO = 'aguardando cadastro', ST_MONTAR = 'montar treino', ST_OK = 'ok';
 const ABA_CATALOGO = 'Catálogo de exercícios';
@@ -149,11 +150,23 @@ const ACOES = {
     });
     if (!al.nasc || !al.sexo || !al.altura) throw appErr_('bad_request', 'Preencha data de nascimento, sexo e altura.');
     if (al.status !== ST_OK) {
-      const temTreino = lerAba_(abrirPlanilhaAluno_(al), ABA_MOD, HEAD_MOD.length).length > 0;
+      const temTreino = !!al.metodo || lerAba_(abrirPlanilhaAluno_(al), ABA_MOD, HEAD_MOD.length).length > 0;
       al.status = temTreino ? ST_OK : ST_MONTAR;
     }
     escreverAluno_(al);
     return { aluno: perfil_(al) };
+  },
+  // Professor liga (ou desliga) um método de treino no aluno, com a data de início (dd/mm/aaaa).
+  aplicarMetodo: function (ctx, b) {
+    precisaProf_(ctx);
+    const al = precisaAluno_(ctx);
+    const metodo = String(b.metodo || '').trim().slice(0, 60);
+    const inicio = String(b.inicio || '').trim();
+    if (metodo && !/^\d{2}\/\d{2}\/\d{4}$/.test(inicio)) throw appErr_('bad_request', 'Informe a data de início do método.');
+    al.metodo = metodo; al.metodoInicio = metodo ? inicio : '';
+    if (metodo) al.status = ST_OK;
+    escreverAluno_(al);
+    return { aluno: alunoParaProfessor_(al) };
   },
   // Professor monta os treinos pelo app: substitui o conteúdo da aba Modelos do aluno.
   salvarModelos: function (ctx, b) {
@@ -309,7 +322,8 @@ function listarAlunos_() {
       linha: i + 2, id: r[A.id], nome: r[A.nome], nasc: r[A.nasc], sexo: r[A.sexo], altura: r[A.altura],
       objetivo: r[A.objetivo], telefone: r[A.telefone], email: r[A.email], planilha: r[A.planilha],
       codigo: r[A.codigo], ativo: !/^(n|nao|não|false|0)$/i.test(String(r[A.ativo]).trim()), criado: r[A.criado], obs: r[A.obs],
-      peso: r[A.peso] || '', dias: r[A.dias] || '', status: String(r[A.status] || '').trim() || ST_OK
+      peso: r[A.peso] || '', dias: r[A.dias] || '', status: String(r[A.status] || '').trim() || ST_OK,
+      metodo: String(r[A.metodo] || '').trim(), metodoInicio: String(r[A.metodoInicio] || '').trim()
     };
   }).filter(function (a) { return a.id && a.nome; });
 }
@@ -317,6 +331,7 @@ function listarAlunos_() {
 function perfil_(a) {
   return { id: a.id, nome: a.nome, nasc: a.nasc, sexo: a.sexo, altura: a.altura, objetivo: a.objetivo,
     peso: a.peso, dias: a.dias, obs: a.obs, email: a.email, status: a.status,
+    metodo: a.metodo || '', metodoInicio: a.metodoInicio || '',
     cadastroPendente: a.status === ST_CADASTRO };
 }
 
@@ -336,6 +351,7 @@ function escreverAluno_(a) {
   row[A.email] = a.email || ''; row[A.planilha] = a.planilha || ''; row[A.codigo] = a.codigo || '';
   row[A.ativo] = a.ativo === false ? 'não' : 'sim'; row[A.criado] = a.criado || ''; row[A.obs] = a.obs || '';
   row[A.peso] = a.peso || ''; row[A.dias] = a.dias || ''; row[A.status] = a.status || ST_OK;
+  row[A.metodo] = a.metodo || ''; row[A.metodoInicio] = a.metodoInicio || '';
   abaAlunos_().getRange(a.linha, 1, 1, HEAD_ALUNOS.length).setValues([row.map(String)]);
 }
 

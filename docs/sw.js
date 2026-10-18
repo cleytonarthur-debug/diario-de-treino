@@ -2,7 +2,8 @@
    (assim as atualizações chegam sozinhas) e usa a cópia guardada quando está offline. */
 const CACHE = "diario-de-treino-v2";
 const SHELL = [
-  "./", "index.html", "css/app.css", "js/api.js", "js/body.js", "js/app.js",
+  "./", "index.html", "css/app.css", "js/api.js", "js/body.js", "js/metodos.js", "js/app.js",
+  "metodos/index.json", "metodos/metodo-par.json",
   "vendor/chart.umd.js", "fonts/fonts.css", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
 ];

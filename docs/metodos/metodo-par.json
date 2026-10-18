@@ -1,0 +1,144 @@
+{
+  "id": "metodo-par",
+  "nome": "Método Par",
+  "versao": 1,
+  "publico": "Iniciantes",
+  "objetivo": "Condicionamento e saúde",
+  "descricao": "Treino de corpo inteiro, 4x por semana. Todo exercício é feito em par: protagonista (a) seguido do antagonista (b).",
+  "regras": [
+    "Todo exercício é feito em PAR: o músculo que faz o movimento (a) e depois o que faz o movimento oposto (b).",
+    "Execução do par: série do (a) → descanso 45–60 s → série do (b) → descanso 60–90 s → repete até fechar as séries do par. Só então passa ao próximo par.",
+    "Nunca colocar dois exercícios do mesmo músculo seguidos. Ao trocar um exercício, manter o mesmo músculo para não quebrar o par.",
+    "Iniciante não treina até a falha. Registrar as reps sobrando em toda série."
+  ],
+
+  "dias": { "1": "A", "2": "B", "4": "A", "5": "B" },
+  "diasTexto": "Seg = A · Ter = B · Qui = A · Sex = B",
+  "diaLivre": "Dia livre: caminhada de 30–40 min ou 7.000–8.000 passos.",
+  "aquecimento": [
+    "5 min de bike ou esteira leve",
+    "1 série a 50% da carga no 1º exercício"
+  ],
+  "descanso": { "entreAeB": [45, 60], "entrePares": [60, 90] },
+
+  "musculos": {
+    "quadriceps": { "nome": "Quadríceps", "grupo": "Inferiores" },
+    "posterior":  { "nome": "Posterior de coxa", "grupo": "Inferiores" },
+    "peito":      { "nome": "Peito", "grupo": "Peito" },
+    "costas":     { "nome": "Costas", "grupo": "Costas" },
+    "ombros":     { "nome": "Ombros", "grupo": "Ombros" },
+    "biceps":     { "nome": "Bíceps", "grupo": "Braços" },
+    "triceps":    { "nome": "Tríceps", "grupo": "Braços" },
+    "abdomen":    { "nome": "Abdômen", "grupo": "Abdômen" },
+    "lombar":     { "nome": "Lombar", "grupo": "Abdômen" }
+  },
+
+  "exercicios": {
+    "leg-press-45":        { "nome": "Leg press 45°", "musculo": "quadriceps", "tipo": "maquina", "alternativas": ["agachamento-smith", "hack", "leg-press-horizontal"] },
+    "cadeira-extensora":   { "nome": "Cadeira extensora", "musculo": "quadriceps", "tipo": "maquina", "alternativas": ["leg-press-45", "agachamento-goblet"] },
+    "agachamento-goblet":  { "nome": "Agachamento goblet", "musculo": "quadriceps", "tipo": "halter", "alternativas": ["agachamento-smith", "leg-press-45"] },
+    "agachamento-smith":   { "nome": "Agachamento smith", "musculo": "quadriceps", "tipo": "maquina", "alternativas": ["leg-press-45", "agachamento-goblet"] },
+    "hack":                { "nome": "Agachamento hack", "musculo": "quadriceps", "tipo": "maquina", "alternativas": ["leg-press-45", "agachamento-smith"] },
+    "leg-press-horizontal":{ "nome": "Leg press horizontal", "musculo": "quadriceps", "tipo": "maquina", "alternativas": ["leg-press-45", "cadeira-extensora"] },
+
+    "mesa-flexora":        { "nome": "Mesa flexora", "musculo": "posterior", "tipo": "maquina", "alternativas": ["cadeira-flexora", "flexora-em-pe", "stiff-halteres"] },
+    "cadeira-flexora":     { "nome": "Cadeira flexora", "musculo": "posterior", "tipo": "maquina", "alternativas": ["mesa-flexora", "flexora-em-pe"] },
+    "stiff-halteres":      { "nome": "Stiff com halteres", "musculo": "posterior", "tipo": "halter", "alternativas": ["stiff-maquina", "mesa-flexora"] },
+    "stiff-maquina":       { "nome": "Stiff máquina", "musculo": "posterior", "tipo": "maquina", "alternativas": ["stiff-halteres", "mesa-flexora"] },
+    "flexora-em-pe":       { "nome": "Flexora unilateral em pé", "musculo": "posterior", "tipo": "maquina", "alternativas": ["mesa-flexora", "cadeira-flexora"] },
+
+    "supino-maquina":      { "nome": "Supino máquina", "musculo": "peito", "tipo": "maquina", "alternativas": ["supino-reto-halteres", "voador-peito", "flexao"] },
+    "supino-inclinado-halteres": { "nome": "Supino inclinado com halteres", "musculo": "peito", "tipo": "halter", "alternativas": ["supino-inclinado-maquina", "crossover"] },
+    "supino-reto-halteres":{ "nome": "Supino reto com halteres", "musculo": "peito", "tipo": "halter", "alternativas": ["supino-maquina", "voador-peito"] },
+    "supino-inclinado-maquina": { "nome": "Supino inclinado máquina", "musculo": "peito", "tipo": "maquina", "alternativas": ["supino-inclinado-halteres", "crossover"] },
+    "voador-peito":        { "nome": "Voador peito (máquina)", "musculo": "peito", "tipo": "maquina", "alternativas": ["supino-maquina", "crossover"] },
+    "crossover":           { "nome": "Crossover polia", "musculo": "peito", "tipo": "cabo", "alternativas": ["voador-peito", "supino-maquina"] },
+    "flexao":              { "nome": "Flexão de braço", "musculo": "peito", "tipo": "corpo", "alternativas": ["supino-maquina", "supino-reto-halteres"] },
+
+    "remada-sentada-maquina": { "nome": "Remada sentada máquina", "musculo": "costas", "tipo": "maquina", "alternativas": ["remada-baixa-cabo", "remada-articulada", "serrote"] },
+    "puxada-frontal":      { "nome": "Puxada frontal", "musculo": "costas", "tipo": "cabo", "alternativas": ["pulley-neutro", "pulldown-corda", "barra-assistida"] },
+    "remada-baixa-cabo":   { "nome": "Remada baixa no cabo", "musculo": "costas", "tipo": "cabo", "alternativas": ["remada-sentada-maquina", "remada-articulada"] },
+    "remada-articulada":   { "nome": "Remada articulada", "musculo": "costas", "tipo": "maquina", "alternativas": ["remada-sentada-maquina", "remada-baixa-cabo"] },
+    "serrote":             { "nome": "Remada unilateral com halter (serrote)", "musculo": "costas", "tipo": "halter", "alternativas": ["remada-sentada-maquina", "remada-baixa-cabo"] },
+    "pulley-neutro":       { "nome": "Pulley pegada neutra", "musculo": "costas", "tipo": "cabo", "alternativas": ["puxada-frontal", "pulldown-corda"] },
+    "pulldown-corda":      { "nome": "Pulldown na corda", "musculo": "costas", "tipo": "cabo", "alternativas": ["puxada-frontal", "pulley-neutro"] },
+    "barra-assistida":     { "nome": "Barra fixa assistida", "musculo": "costas", "tipo": "maquina", "alternativas": ["puxada-frontal", "pulley-neutro"] },
+
+    "desenvolvimento-maquina": { "nome": "Desenvolvimento máquina", "musculo": "ombros", "tipo": "maquina", "alternativas": ["desenvolvimento-halteres", "elevacao-lateral"] },
+    "desenvolvimento-halteres": { "nome": "Desenvolvimento com halteres sentado", "musculo": "ombros", "tipo": "halter", "alternativas": ["desenvolvimento-maquina", "elevacao-lateral"] },
+    "elevacao-lateral":    { "nome": "Elevação lateral com halteres", "musculo": "ombros", "tipo": "halter", "alternativas": ["desenvolvimento-maquina", "desenvolvimento-halteres"] },
+
+    "rosca-direta-halteres": { "nome": "Rosca direta com halteres", "musculo": "biceps", "tipo": "halter", "alternativas": ["rosca-barra-w", "rosca-scott-maquina", "rosca-cabo"] },
+    "rosca-martelo":       { "nome": "Rosca martelo", "musculo": "biceps", "tipo": "halter", "alternativas": ["rosca-martelo-corda", "rosca-alternada"] },
+    "rosca-barra-w":       { "nome": "Rosca direta barra W", "musculo": "biceps", "tipo": "halter", "alternativas": ["rosca-direta-halteres", "rosca-scott-maquina"] },
+    "rosca-scott-maquina": { "nome": "Rosca scott máquina", "musculo": "biceps", "tipo": "maquina", "alternativas": ["rosca-direta-halteres", "rosca-cabo"] },
+    "rosca-cabo":          { "nome": "Rosca no cabo", "musculo": "biceps", "tipo": "cabo", "alternativas": ["rosca-direta-halteres", "rosca-scott-maquina"] },
+    "rosca-martelo-corda": { "nome": "Rosca martelo na corda", "musculo": "biceps", "tipo": "cabo", "alternativas": ["rosca-martelo", "rosca-alternada"] },
+    "rosca-alternada":     { "nome": "Rosca alternada com halteres", "musculo": "biceps", "tipo": "halter", "alternativas": ["rosca-martelo", "rosca-direta-halteres"] },
+
+    "triceps-polia-barra": { "nome": "Tríceps na polia (barra)", "musculo": "triceps", "tipo": "cabo", "alternativas": ["triceps-corda", "triceps-frances", "triceps-maquina"] },
+    "triceps-corda":       { "nome": "Tríceps corda", "musculo": "triceps", "tipo": "cabo", "alternativas": ["triceps-polia-barra", "triceps-maquina"] },
+    "triceps-frances":     { "nome": "Tríceps francês com halter", "musculo": "triceps", "tipo": "halter", "alternativas": ["triceps-polia-barra", "triceps-corda"] },
+    "triceps-maquina":     { "nome": "Tríceps máquina", "musculo": "triceps", "tipo": "maquina", "alternativas": ["triceps-polia-barra", "triceps-corda"] },
+
+    "abdominal-maquina":   { "nome": "Abdominal na máquina", "musculo": "abdomen", "tipo": "maquina", "alternativas": ["abdominal-solo", "prancha"] },
+    "prancha":             { "nome": "Prancha", "musculo": "abdomen", "tipo": "corpo", "unidade": "s", "alternativas": ["prancha-joelhos", "abdominal-solo"] },
+    "abdominal-solo":      { "nome": "Abdominal no solo (crunch)", "musculo": "abdomen", "tipo": "corpo", "alternativas": ["abdominal-maquina", "prancha"] },
+    "prancha-joelhos":     { "nome": "Prancha com joelhos apoiados", "musculo": "abdomen", "tipo": "corpo", "unidade": "s", "alternativas": ["prancha", "abdominal-solo"] },
+
+    "extensao-lombar":     { "nome": "Extensão lombar no banco (leve)", "musculo": "lombar", "tipo": "corpo", "alternativas": ["superman", "perdigueiro"] },
+    "superman":            { "nome": "Superman", "musculo": "lombar", "tipo": "corpo", "unidade": "s", "alternativas": ["extensao-lombar", "perdigueiro"] },
+    "perdigueiro":         { "nome": "Perdigueiro (bird dog)", "musculo": "lombar", "tipo": "corpo", "alternativas": ["superman", "extensao-lombar"] }
+  },
+
+  "treinos": {
+    "A": {
+      "nome": "Método Par A",
+      "pares": [
+        { "a": "leg-press-45", "b": "mesa-flexora" },
+        { "a": "supino-maquina", "b": "remada-sentada-maquina" },
+        { "a": "desenvolvimento-maquina", "b": "puxada-frontal" },
+        { "a": "rosca-direta-halteres", "b": "triceps-polia-barra" },
+        { "a": "abdominal-maquina", "b": "extensao-lombar" }
+      ]
+    },
+    "B": {
+      "nome": "Método Par B",
+      "pares": [
+        { "a": "cadeira-extensora", "b": "cadeira-flexora" },
+        { "a": "agachamento-goblet", "b": "stiff-halteres" },
+        { "a": "supino-inclinado-halteres", "b": "remada-baixa-cabo" },
+        { "a": "rosca-martelo", "b": "triceps-corda" },
+        { "a": "prancha", "b": "superman" }
+      ]
+    }
+  },
+
+  "cicloSemanas": 13,
+  "aposCiclo": "Recomeça na semana 1, mantendo as cargas já alcançadas.",
+  "fases": [
+    { "id": "adaptacao", "nome": "Adaptação", "semanas": [1, 4], "series": 2, "reps": [12, 15], "tempo": [20, 30], "rir": [3, 4],
+      "cardio": { "padrao": "20 min em zona 2" } },
+    { "id": "base", "nome": "Base", "semanas": [5, 8], "series": 3, "reps": [10, 12], "tempo": [30, 40], "rir": [2, 3],
+      "cardio": { "padrao": "25 min em zona 2", "5": "Intervalado: 8 × (1 min forte / 2 min leve)" } },
+    { "id": "desenvolvimento", "nome": "Desenvolvimento", "semanas": [9, 12], "series": 3, "seriesPorPar": { "1": 4 }, "reps": [8, 12], "tempo": [40, 60], "rir": [1, 2],
+      "cardio": { "padrao": "30 min em zona 2", "5": "Intervalado: 10 × (1 min forte / 1 min leve)" } },
+    { "id": "descanso-ativo", "nome": "Descanso ativo", "semanas": [13, 13], "baseFase": "desenvolvimento", "fatorSeries": 0.5, "rir": [3, 4],
+      "cardio": { "padrao": "20 min leve em zona 2" } }
+  ],
+
+  "progressao": {
+    "tipo": "dupla",
+    "regra": "Quando fizer o topo da faixa de reps em todas as séries, com as reps sobrando da fase, sobe a carga e volta ao início da faixa.",
+    "incremento": { "maquina": "+2 a 5 kg", "cabo": "+2 a 5 kg", "halter": "+1 a 2 kg", "corpo": "aumente o tempo ou deixe o exercício um pouco mais difícil" },
+    "avisoSubir": "Subir carga",
+    "estagnacaoSemanas": 2,
+    "avisoEstagnacao": "Sem evolução há 2 semanas: conferir sono e alimentação."
+  },
+
+  "intensidade": {
+    "falha": false,
+    "zona2": { "fcMaxFormula": "208 - 0,7 × idade", "fcMaxA": 208, "fcMaxB": 0.7, "percentual": [60, 70], "descricao": "Dá para conversar em frases." },
+    "intervaladoForte": "Forte = esforço 7–8 de 10."
+  }
+}
