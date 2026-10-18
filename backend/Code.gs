@@ -18,9 +18,12 @@ const API_URL_PADRAO = 'https://script.google.com/macros/s/AKfycbztFNMiyDaVQpbpO
 
 const ABA_ALUNOS = 'Alunos';
 const HEAD_ALUNOS = ['ID', 'Nome', 'Nascimento', 'Sexo', 'Altura (cm)', 'Objetivo', 'Telefone', 'E-mail',
-  'Planilha', 'Código de acesso', 'Ativo', 'Criado em', 'Observações'];
+  'Planilha', 'Código de acesso', 'Ativo', 'Criado em', 'Observações', 'Peso (kg)', 'Dias por semana', 'Situação'];
 const A = { id: 0, nome: 1, nasc: 2, sexo: 3, altura: 4, objetivo: 5, telefone: 6, email: 7,
-  planilha: 8, codigo: 9, ativo: 10, criado: 11, obs: 12 };
+  planilha: 8, codigo: 9, ativo: 10, criado: 11, obs: 12, peso: 13, dias: 14, status: 15 };
+// Situação do aluno: 'aguardando cadastro' → (aluno preenche) → 'montar treino' → (professor monta) → 'ok'
+const ST_CADASTRO = 'aguardando cadastro', ST_MONTAR = 'montar treino', ST_OK = 'ok';
+const ABA_CATALOGO = 'Catálogo de exercícios';
 
 const ABA_HIST = 'Histórico', ABA_EX = 'Exercícios', ABA_MOD = 'Modelos', ABA_AV = 'Avaliações';
 const HEAD_HIST = ['Data', 'Dia', 'Treino', 'Horário', 'Grupo', 'Exercício', 'Série', 'Reps meta',
@@ -120,20 +123,71 @@ function doPost(e) {
 const ACOES = {
   inicio: function (ctx) {
     const out = { papel: ctx.papel };
-    if (ctx.papel === 'prof') out.alunos = listarAlunos_().map(alunoParaProfessor_);
+    if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); }
     else out.aluno = perfil_(ctx.aluno);
     return out;
   },
   dados: function (ctx) {
     const al = precisaAluno_(ctx);
     const ss = abrirPlanilhaAluno_(al);
+    const modelos = lerAba_(ss, ABA_MOD, HEAD_MOD.length);
+    if (al.status === ST_MONTAR && modelos.length) { al.status = ST_OK; escreverAluno_(al); }
     return {
       aluno: ctx.papel === 'prof' ? alunoParaProfessor_(al) : perfil_(al),
       historico: lerAba_(ss, ABA_HIST, HEAD_HIST.length),
       exercicios: lerAba_(ss, ABA_EX, HEAD_EX.length),
-      modelos: lerAba_(ss, ABA_MOD, HEAD_MOD.length),
+      modelos: modelos,
       avaliacoes: lerAvaliacoes_(ss)
     };
+  },
+  // O próprio aluno completa o cadastro na primeira vez que abre o app.
+  meuCadastro: function (ctx, b) {
+    if (ctx.papel !== 'aluno') throw appErr_('forbidden', 'Só o aluno preenche o próprio cadastro.');
+    const al = ctx.aluno, d = b.dados || {};
+    ['nasc', 'sexo', 'altura', 'peso', 'objetivo', 'dias', 'email', 'obs'].forEach(function (k) {
+      if (d[k] !== undefined) al[k] = String(d[k]).trim().slice(0, 500);
+    });
+    if (!al.nasc || !al.sexo || !al.altura) throw appErr_('bad_request', 'Preencha data de nascimento, sexo e altura.');
+    if (al.status !== ST_OK) {
+      const temTreino = lerAba_(abrirPlanilhaAluno_(al), ABA_MOD, HEAD_MOD.length).length > 0;
+      al.status = temTreino ? ST_OK : ST_MONTAR;
+    }
+    escreverAluno_(al);
+    return { aluno: perfil_(al) };
+  },
+  // Professor monta os treinos pelo app: substitui o conteúdo da aba Modelos do aluno.
+  salvarModelos: function (ctx, b) {
+    precisaProf_(ctx);
+    const al = precisaAluno_(ctx);
+    const linhas = limparLinhas_(b.linhas || [], HEAD_MOD.length).map(function (r) { return r.map(String); })
+      .filter(function (r) { return r[0].trim() && r[1].trim(); });
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+    try {
+      const ss = abrirPlanilhaAluno_(al);
+      const sh = ss.getSheetByName(ABA_MOD);
+      const last = sh.getLastRow();
+      if (last > 1) sh.getRange(2, 1, last - 1, HEAD_MOD.length).setValues(
+        Array.apply(null, Array(last - 1)).map(function () { return ['', '', '', '', '']; }));
+      if (linhas.length) {
+        if (linhas.length + 1 > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), linhas.length + 1 - sh.getMaxRows());
+        sh.getRange(2, 1, linhas.length, HEAD_MOD.length).setNumberFormat('@').setValues(linhas);
+      }
+      // exercícios novos entram na lista do aluno e no catálogo do professor
+      const novos = limparLinhas_(b.exerciciosNovos || [], 2);
+      if (novos.length) {
+        const known = {};
+        lerAba_(ss, ABA_EX, 2).forEach(function (r) { known[norm_(r[0])] = true; });
+        const add = novos.filter(function (r) { const k = norm_(r[0]); if (!k || known[k]) return false; known[k] = true; return true; });
+        if (add.length) acrescentar_(ss.getSheetByName(ABA_EX), add, 2);
+        adicionarCatalogo_(novos);
+      }
+      if (linhas.length && al.status !== ST_OK) { al.status = ST_OK; escreverAluno_(al); }
+      SpreadsheetApp.flush();
+      return { linhas: linhas.length };
+    } finally {
+      lock.releaseLock();
+    }
   },
   gravar: function (ctx, b) {
     const al = precisaAluno_(ctx);
@@ -204,8 +258,46 @@ function abaAlunos_() {
     sh.getRange('J1').setNote('Código que vai no link do aluno. Para cortar o acesso, coloque "não" na coluna Ativo.');
     const s1 = ss.getSheetByName('Página1') || ss.getSheetByName('Sheet1');
     if (s1 && s1.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s1);
+  } else if (sh.getLastColumn() < HEAD_ALUNOS.length) {
+    // versão nova com mais colunas: completa o cabeçalho
+    sh.getRange(1, 1, 1, HEAD_ALUNOS.length).setValues([HEAD_ALUNOS]).setFontWeight('bold')
+      .setBackground('#0f1b2d').setFontColor('#ffffff');
+    sh.getRange(1, 1, sh.getMaxRows(), HEAD_ALUNOS.length).setNumberFormat('@');
   }
   return sh;
+}
+
+/* Catálogo de exercícios do professor (aba na planilha Painel). Na primeira vez é
+   montado juntando a aba Exercícios de todos os alunos. */
+function abaCatalogo_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(ABA_CATALOGO);
+  if (sh) return sh;
+  sh = ss.insertSheet(ABA_CATALOGO);
+  sh.getRange(1, 1, 1, 2).setValues([['Exercício', 'Grupo']]).setFontWeight('bold').setBackground('#0f1b2d').setFontColor('#ffffff');
+  sh.setFrozenRows(1); sh.setColumnWidth(1, 320);
+  const seen = {}, rows = [];
+  listarAlunos_().forEach(function (a) {
+    try {
+      lerAba_(SpreadsheetApp.openById(idPlanilha_(a.planilha)), ABA_EX, 2).forEach(function (r) {
+        const k = norm_(r[0]); if (k && !seen[k]) { seen[k] = true; rows.push([r[0], r[1] || '']); }
+      });
+    } catch (x) { /* planilha sem acesso: ignora */ }
+  });
+  rows.sort(function (a, b) { return a[0].localeCompare(b[0], 'pt-BR'); });
+  if (rows.length) acrescentar_(sh, rows, 2);
+  return sh;
+}
+function catalogo_() {
+  abaCatalogo_();
+  return lerAba_(SpreadsheetApp.getActiveSpreadsheet(), ABA_CATALOGO, 2);
+}
+function adicionarCatalogo_(rows) {
+  const sh = abaCatalogo_();
+  const known = {};
+  lerAba_(SpreadsheetApp.getActiveSpreadsheet(), ABA_CATALOGO, 2).forEach(function (r) { known[norm_(r[0])] = true; });
+  const add = rows.filter(function (r) { const k = norm_(r[0]); if (!k || known[k]) return false; known[k] = true; return true; });
+  if (add.length) acrescentar_(sh, add, 2);
 }
 
 function listarAlunos_() {
@@ -216,18 +308,21 @@ function listarAlunos_() {
     return {
       linha: i + 2, id: r[A.id], nome: r[A.nome], nasc: r[A.nasc], sexo: r[A.sexo], altura: r[A.altura],
       objetivo: r[A.objetivo], telefone: r[A.telefone], email: r[A.email], planilha: r[A.planilha],
-      codigo: r[A.codigo], ativo: !/^(n|nao|não|false|0)$/i.test(String(r[A.ativo]).trim()), criado: r[A.criado], obs: r[A.obs]
+      codigo: r[A.codigo], ativo: !/^(n|nao|não|false|0)$/i.test(String(r[A.ativo]).trim()), criado: r[A.criado], obs: r[A.obs],
+      peso: r[A.peso] || '', dias: r[A.dias] || '', status: String(r[A.status] || '').trim() || ST_OK
     };
   }).filter(function (a) { return a.id && a.nome; });
 }
 
 function perfil_(a) {
-  return { id: a.id, nome: a.nome, nasc: a.nasc, sexo: a.sexo, altura: a.altura, objetivo: a.objetivo };
+  return { id: a.id, nome: a.nome, nasc: a.nasc, sexo: a.sexo, altura: a.altura, objetivo: a.objetivo,
+    peso: a.peso, dias: a.dias, obs: a.obs, email: a.email, status: a.status,
+    cadastroPendente: a.status === ST_CADASTRO };
 }
 
 function alunoParaProfessor_(a) {
   const p = perfil_(a);
-  p.telefone = a.telefone; p.email = a.email; p.ativo = a.ativo; p.criado = a.criado; p.obs = a.obs;
+  p.telefone = a.telefone; p.ativo = a.ativo; p.criado = a.criado;
   p.planilhaUrl = a.planilha ? 'https://docs.google.com/spreadsheets/d/' + idPlanilha_(a.planilha) + '/edit' : '';
   const api = apiUrl_();
   p.link = a.codigo && api ? APP_URL + '#api=' + encodeURIComponent(api) + '&t=' + a.codigo : '';
@@ -240,6 +335,7 @@ function escreverAluno_(a) {
   row[A.altura] = a.altura || ''; row[A.objetivo] = a.objetivo || ''; row[A.telefone] = a.telefone || '';
   row[A.email] = a.email || ''; row[A.planilha] = a.planilha || ''; row[A.codigo] = a.codigo || '';
   row[A.ativo] = a.ativo === false ? 'não' : 'sim'; row[A.criado] = a.criado || ''; row[A.obs] = a.obs || '';
+  row[A.peso] = a.peso || ''; row[A.dias] = a.dias || ''; row[A.status] = a.status || ST_OK;
   abaAlunos_().getRange(a.linha, 1, 1, HEAD_ALUNOS.length).setValues([row.map(String)]);
 }
 
@@ -247,7 +343,7 @@ function salvarAluno_(d) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
   try {
-    const campos = ['nome', 'nasc', 'sexo', 'altura', 'objetivo', 'telefone', 'email', 'obs'];
+    const campos = ['nome', 'nasc', 'sexo', 'altura', 'objetivo', 'telefone', 'email', 'obs', 'peso', 'dias'];
     if (d.id) {
       const a = listarAlunos_().filter(function (x) { return x.id === String(d.id); })[0];
       if (!a) throw appErr_('not_found', 'Aluno não encontrado.');
@@ -271,6 +367,8 @@ function salvarAluno_(d) {
       planilha: planilhaId, codigo: novoCodigo_(20),
       criado: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy') };
     campos.forEach(function (k) { a[k] = String(d[k] || '').trim(); });
+    // Importou a planilha antiga: já tem treinos. Senão o aluno completa o cadastro pelo app.
+    a.status = d.planilhaExistente ? ST_OK : (a.nasc && a.sexo && a.altura ? ST_MONTAR : ST_CADASTRO);
     escreverAluno_(a);
     return a;
   } finally {

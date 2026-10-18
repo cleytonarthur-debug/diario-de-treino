@@ -145,9 +145,12 @@ function applyInicio(d,fresh){
     if(!S.alunoId&&sel&&S.alunos.some(a=>a.id===sel))selectAluno(sel,true);
     else if(S.alunoId){const a=S.alunos.find(x=>x.id===S.alunoId);if(a)S.aluno=Object.assign({},S.aluno,a)}
     if(!S.alunoId&&S.view!=="alunos")setView("alunos");
+    if(d.catalogo)S.catalogo=d.catalogo;
+    if(fresh)profNotice();
   }else if(d.aluno){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
+    if(d.aluno.cadastroPendente)showCadastro();
   }
   updateWho();
   if(fresh&&!S.alunoId)setSync("ok","Conectado");
@@ -158,7 +161,7 @@ function selectAluno(id,quiet){
   S.alunoId=id;store("dt2-aluno-sel",id);
   S.aluno=S.alunos.find(a=>a.id===id)||null;
   S.rows=[];S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
-  S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;
+  S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;S.modEdit=null;
   updateWho();
   loadDados();
   if(!quiet)setView("lancar");
@@ -278,6 +281,7 @@ function needAluno(el){
 function renderLancar(){
   const el=$("#lancar");
   if(needAluno(el)){$("#savebar").hidden=true;return}
+  if(S.role==="prof"&&S.modEdit){$("#savebar").hidden=true;return renderModelEditor(el)}
   if(S.draft&&S.draft.date!==fmtDate(new Date())&&savableSets()===0){S.draft=null;saveDraft()}
   if(!S.draft||S.picker){
     $("#savebar").hidden=true;
@@ -288,18 +292,23 @@ function renderLancar(){
       const grs=(t.model?[...new Set(t.model.map(it=>S.exMap.get(strip(it.ex))||guessGroup(it.ex)))]:[...new Set(t.last.rows.map(r=>r.grupo))]).filter(g=>GROUP_VAR[g]);
       const nSeries=t.model?t.model.reduce((a,it)=>a+it.series,0):t.last.rows.length;
       const info=t.last?'Último: '+fmtShort(t.last.date)+' ('+(days===0?"hoje":days===1?"ontem":days+" dias")+') · '+nSeries+(nSeries===1?' série':' séries')
-        :'Novo, ainda não feito · '+t.model.length+' exercícios · '+nSeries+' séries';
+        :'Novo, ainda não feito · '+t.model.length+(t.model.length===1?' exercício · ':' exercícios · ')+nSeries+' séries';
       return '<button data-t="'+esc(t.name)+'" class="'+(t.name===sug?"sug":"")+'">'+
         (t.name===sug?'<span class="tag">Sugestão: o da rotação parado há mais tempo</span>':"")+
         '<b>'+esc(t.name)+'</b><span class="muted small">'+info+'</span>'+
         '<span class="tag">'+grs.map(g=>'<i style="background:var('+GROUP_VAR[g]+')"></i>'+esc(g)).join(" ")+'</span></button>';
     };
     const main=list.filter(t=>!t.other),others=list.filter(t=>t.other);
+    const prof=S.role==="prof";
+    const vazio=!main.length&&!others.length;
     el.innerHTML='<div class="session-head"><div><h2>Qual treino hoje?</h2><div class="muted small">'+DIAS[today.getDay()]+", "+fmtDate(today)+' · '+
-      (S.models.size?'os treinos vêm da aba Modelos; o app mostra o que foi feito da última vez':'o app copia o último treino igual para só preencher')+'</div></div></div>'+
+      (S.models.size?'o app mostra o que foi feito da última vez':'o app copia o último treino igual para só preencher')+'</div></div>'+
+      (prof?'<button class="btn" id="b-montar-t">✎ Montar treinos</button>':"")+'</div>'+
+      (vazio?'<div class="notice"><p>'+(prof?'Este aluno ainda não tem treinos. Toque em <b>Montar treinos</b> para criar.':'Seu professor está montando o seu treino. Assim que ficar pronto, ele aparece aqui. Enquanto isso, você pode usar o <b>Treino livre</b>.')+'</p></div>':"")+
       '<div class="pick">'+(S.draft?'<button data-cont="1" class="cont"><span class="tag">Em andamento, ainda não salvo</span><b>Continuar: '+esc(S.draft.treino)+'</b><span class="muted small">'+doneSets()+' séries feitas hoje</span></button>':"")+
       main.map(card).join("")+'<button data-t=""><b>Treino livre</b><span class="muted small">Começar em branco e adicionar exercícios</span></button></div>'+
       (others.length?'<details class="others"><summary>Outros treinos do histórico ('+others.length+')</summary><div class="pick">'+others.map(card).join("")+'</div></details>':"");
+    const bm=$("#b-montar-t");if(bm)bm.onclick=()=>openModelEditor(null);
     el.querySelectorAll(".pick button").forEach(b=>b.onclick=()=>{
       if(b.dataset.cont){S.picker=false;render();window.scrollTo({top:0});return}
       const name=b.dataset.t;
@@ -849,21 +858,27 @@ function renderAlunos(){
     (S.alunos.length>6?'<input class="search" id="a-busca" type="search" placeholder="Buscar aluno" value="'+esc(S.busca)+'">':"")+
     (list.length?'<div class="alist">'+list.map(a=>{const id=idade(a);return '<button class="acard'+(a.id===S.alunoId?" sel":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><b>'+esc(a.nome)+'</b>'+
       '<span class="muted small">'+[id!=null?id+" anos":"",a.objetivo].filter(Boolean).map(esc).join(" · ")+'</span>'+
-      '<span>'+(a.ativo?"":'<span class="pill bad">acesso pausado</span> ')+(a.id===S.alunoId?'<span class="pill good">aberto agora</span>':"")+'</span></button>'}).join("")+'</div>'
+      '<span>'+(a.ativo?"":'<span class="pill bad">acesso pausado</span> ')+statusPill(a)+(a.id===S.alunoId?' <span class="pill good">aberto agora</span>':"")+'</span></button>'}).join("")+'</div>'
       :'<div class="empty">'+(S.alunos.length?"Nenhum aluno com esse nome.":"Nenhum aluno ainda. Toque em <b>Novo aluno</b>. Dica: cadastre você mesmo primeiro, usando a sua planilha atual.")+'</div>');
   $("#a-new").onclick=()=>{S.alunoForm={};S.shareFor=null;renderAlunos()};
   const bs=$("#a-busca");if(bs)bs.addEventListener("input",()=>{S.busca=bs.value;const p=bs.selectionStart;renderAlunos();const n=$("#a-busca");n.focus();n.setSelectionRange(p,p)});
-  el.querySelectorAll(".acard").forEach(b=>b.onclick=()=>{S.shareFor=null;selectAluno(b.dataset.id)});
+  el.querySelectorAll(".acard").forEach(b=>b.onclick=()=>{S.shareFor=null;const a=S.alunos.find(x=>x.id===b.dataset.id);
+    if(a&&a.status==="montar treino")openModelEditor(a.id);else selectAluno(b.dataset.id)});
   bindCopy(el);
 }
 function renderAlunoForm(el){
   const f=S.alunoForm;const novo=!f.id;
   const i=(k,l,type,extra)=>'<label class="fld2">'+l+'<input data-k="'+k+'" type="'+(type||"text")+'" value="'+esc(type==="date"?brToIso(f[k]):f[k]||"")+'" '+(extra||"")+'></label>';
   el.innerHTML='<div class="session-head"><div><h2>'+(novo?"Novo aluno":"Editar "+esc(f.nome))+'</h2>'+(novo?'<div class="muted small">O app cria uma planilha só deste aluno no seu Drive e gera o link de acesso dele.</div>':"")+'</div></div>'+
-    '<div class="card"><div class="form-grid">'+i("nome","Nome completo *","text",'autocomplete="off"')+i("nasc","Data de nascimento","date")+
+    '<div class="card"><div class="form-grid">'+i("nome","Nome completo *","text",'autocomplete="off"')+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+'</div>'+
+    (novo?'<p class="muted small" style="margin:10px 0 0">O resto do cadastro (idade, altura, objetivo, restrições) <b>o aluno preenche</b> quando abrir o link pela primeira vez. Você recebe o aviso aqui no app.</p>':"")+
+    (novo?'<details style="margin-top:12px"><summary class="small">Preencher mais dados agora (opcional)</summary>':"")+
+    '<div class="form-grid" style="margin-top:12px">'+i("nasc","Data de nascimento","date")+
     '<label class="fld2">Sexo<select data-k="sexo"><option value=""></option>'+["Masculino","Feminino"].map(s=>'<option'+(f.sexo===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label>'+
-    i("altura","Altura (cm)","text",'inputmode="decimal" placeholder="ex.: 172"')+i("objetivo","Objetivo","text",'placeholder="Hipertrofia, emagrecimento…"')+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+i("email","E-mail","email")+'</div>'+
+    i("altura","Altura (cm)","text",'inputmode="decimal" placeholder="ex.: 172"')+i("peso","Peso (kg)","text",'inputmode="decimal"')+
+    i("objetivo","Objetivo","text",'placeholder="Hipertrofia, emagrecimento…"')+i("dias","Dias por semana","text",'inputmode="numeric"')+i("email","E-mail","email")+'</div>'+
     '<label class="fld2" style="margin-top:12px">Observações (lesões, restrições…)<textarea data-k="obs">'+esc(f.obs||"")+'</textarea></label>'+
+    (novo?'</details>':"")+
     (novo?'<details style="margin-top:12px"><summary class="small">Este aluno já tem uma planilha de treinos? (ex.: você mesmo)</summary><label class="fld2" style="margin-top:8px">Link da planilha existente<input data-k="planilhaExistente" placeholder="https://docs.google.com/spreadsheets/d/…" value="'+esc(f.planilhaExistente||"")+'"></label><p class="muted small">O app passa a usar essa planilha em vez de criar uma nova. Os treinos antigos continuam lá.</p></details>'
       :'<label class="show-key" style="margin-top:12px"><input type="checkbox" data-k="ativo"'+(f.ativo!==false?" checked":"")+'> Acesso ativo (desmarque para pausar o link do aluno)</label>')+
     '<p class="setup-msg" id="af-msg" role="status"></p>'+
@@ -887,6 +902,126 @@ function renderAlunoForm(el){
       Api.call("inicio").then(d=>Api.cacheSet("inicio",d)).catch(()=>{});
     }catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";btn.disabled=false}
   };
+}
+
+/* ========== CADASTRO DO ALUNO (primeira vez) ========== */
+const OBJETIVOS=["Hipertrofia (ganhar massa)","Emagrecimento","Condicionamento e saúde","Força","Outro"];
+function showCadastro(){
+  const el=$("#cadastro");if(!el.hidden)return;
+  const a=S.aluno||{};const f={nasc:a.nasc||"",sexo:a.sexo||"",altura:a.altura||"",peso:a.peso||"",objetivo:a.objetivo||"",dias:a.dias||"",obs:a.obs||"",email:a.email||""};
+  el.innerHTML='<form class="sheet-card" id="cad-form" novalidate><h2>Olá, '+esc(String(a.nome||"").split(" ")[0])+'!</h2>'+
+    '<p>Antes de começar, complete seu cadastro. Seu professor usa essas informações para montar o seu treino.</p>'+
+    '<div class="form-grid">'+
+    '<label class="fld2">Data de nascimento *<input type="date" data-k="nasc" value="'+esc(brToIso(f.nasc))+'"></label>'+
+    '<label class="fld2">Sexo *<select data-k="sexo"><option value=""></option>'+["Feminino","Masculino"].map(s=>'<option'+(f.sexo===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label>'+
+    '<label class="fld2">Altura (cm) *<input data-k="altura" inputmode="numeric" placeholder="ex.: 165" value="'+esc(f.altura)+'"></label>'+
+    '<label class="fld2">Peso (kg)<input data-k="peso" inputmode="decimal" placeholder="ex.: 62,5" value="'+esc(f.peso)+'"></label>'+
+    '<label class="fld2">Objetivo<select data-k="objetivo"><option value=""></option>'+OBJETIVOS.map(s=>'<option'+(f.objetivo===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label>'+
+    '<label class="fld2">Dias por semana para treinar<select data-k="dias"><option value=""></option>'+[1,2,3,4,5,6,7].map(n=>'<option'+(String(f.dias)===String(n)?" selected":"")+'>'+n+'</option>').join("")+'</select></label>'+
+    '</div>'+
+    '<label class="fld2">Lesões, dores ou restrições<textarea data-k="obs" placeholder="Ex.: dor no joelho direito, hérnia, nenhuma">'+esc(f.obs)+'</textarea></label>'+
+    '<label class="fld2">E-mail (opcional)<input type="email" data-k="email" value="'+esc(f.email)+'"></label>'+
+    '<p class="setup-msg" id="cad-msg" role="status"></p>'+
+    '<div class="setup-row"><button class="btn primary" id="cad-save">Enviar cadastro</button></div></form>';
+  el.hidden=false;
+  el.querySelectorAll("[data-k]").forEach(x=>x.addEventListener(x.tagName==="SELECT"?"change":"input",()=>{f[x.dataset.k]=x.type==="date"?isoToBr(x.value):x.value}));
+  $("#cad-form").addEventListener("submit",async ev=>{
+    ev.preventDefault();const msg=$("#cad-msg"),btn=$("#cad-save");
+    let alt=Body.num(f.altura);if(alt>0&&alt<3){alt=Math.round(alt*100);f.altura=String(alt)}
+    if(!parseDate(f.nasc)||!f.sexo||!(alt>100&&alt<250)){msg.textContent="Preencha data de nascimento, sexo e altura em centímetros (ex.: 165).";msg.className="setup-msg bad";return}
+    if(!navigator.onLine){msg.textContent="Sem internet. Tente de novo quando a conexão voltar.";msg.className="setup-msg bad";return}
+    btn.disabled=true;msg.className="setup-msg";msg.textContent="Enviando…";
+    try{
+      const r=await Api.call("meuCadastro",{dados:f});
+      S.aluno=r.aluno;Api.cacheSet("inicio",{papel:"aluno",aluno:r.aluno});
+      el.hidden=true;updateWho();toast("Cadastro enviado! Seu professor vai montar o seu treino.");render();
+    }catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";btn.disabled=false}
+  });
+}
+
+/* ========== AVISOS PARA O PROFESSOR ========== */
+const statusPill=a=>a.status==="montar treino"?'<span class="pill warn">cadastro feito: montar treino</span>':a.status==="aguardando cadastro"?'<span class="pill">aguardando cadastro do aluno</span>':"";
+function profNotice(){
+  const pend=S.alunos.filter(a=>a.ativo&&a.status==="montar treino");
+  const tab=document.querySelector('#tabs [data-v="alunos"]');
+  tab.textContent="Alunos"+(pend.length?" ("+pend.length+")":"");
+  if(!pend.length||$("#banner").innerHTML)return;
+  banner('<p><b>'+pend.map(a=>esc(String(a.nome).split(" ")[0])).join(", ")+'</b> '+(pend.length>1?"completaram":"completou")+' o cadastro. Falta montar o treino.</p><button class="btn" id="b-montar">Montar agora</button>');
+  $("#b-montar").onclick=()=>{banner("");openModelEditor(pend[0].id)};
+}
+
+/* ========== MONTAR TREINOS (professor) ========== */
+function openModelEditor(alunoId){
+  if(alunoId&&alunoId!==S.alunoId)selectAluno(alunoId,true);
+  S.modEdit="carregando";setView("lancar");
+  const go=()=>{S.modEdit=[...S.models.entries()].map(([nome,itens])=>({nome,itens:itens.map(it=>({ex:it.ex,series:it.series,metas:it.metas.filter(Boolean).join("; "),peso:it.pesos.filter(Boolean).join("; ")}))}));
+    if(!S.modEdit.length)S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
+  if(S.loaded)go();else{const t=setInterval(()=>{if(S.loaded){clearInterval(t);go()}},300);setTimeout(()=>clearInterval(t),30000)}
+}
+const novoItem=()=>({ex:"",series:3,metas:"12",peso:""});
+function renderModelEditor(el){
+  if(S.modEdit==="carregando"){el.innerHTML='<div class="empty">Lendo a planilha do aluno…</div>';return}
+  const M=S.modEdit;const a=S.aluno||{};
+  const seen=new Set();const names=(S.catalogo||[]).map(r=>r[0]).concat(S.exList||[],S.rows.map(r=>r.ex)).filter(n=>{const k=strip(n);if(!k||seen.has(k))return false;seen.add(k);return true}).sort((x,y)=>x.localeCompare(y,"pt-BR"));
+  el.innerHTML='<div class="session-head"><div><h2>Treinos de '+esc(String(a.nome||"").split(" ")[0])+'</h2><div class="muted small">'+
+    [a.objetivo,a.dias?a.dias+"x por semana":"",a.obs?"Restrições: "+a.obs:""].filter(Boolean).map(esc).join(" · ")+'</div></div>'+
+    '<div class="row-btns"><button class="btn ghost" id="mt-cancel">Cancelar</button><button class="btn primary" id="mt-save">Salvar treinos</button></div></div>'+
+    '<p class="setup-msg" id="mt-msg" role="status"></p>'+
+    M.map((t,ti)=>'<div class="mt" data-t="'+ti+'"><div class="mt-h"><input data-f="nome" value="'+esc(t.nome)+'" placeholder="Nome do treino (ex.: Treino A — Pernas)" aria-label="Nome do treino">'+
+      '<button class="btn ghost small" data-act="rm-t">Remover</button></div>'+
+      t.itens.map((it,ii)=>'<div class="mt-row" data-i="'+ii+'"><div class="ex-in"><input data-f="ex" list="mt-list" value="'+esc(it.ex)+'" placeholder="Exercício (busque pelo nome)" aria-label="Exercício">'+
+        '<div class="mt-acts"><button data-act="up" aria-label="Subir">↑</button><button data-act="down" aria-label="Descer">↓</button><button data-act="rm" aria-label="Remover exercício">✕</button></div></div>'+
+        '<div class="mt-nums"><label>Séries<input data-f="series" inputmode="numeric" value="'+esc(it.series)+'"></label>'+
+        '<label>Reps meta<input data-f="metas" value="'+esc(it.metas)+'" placeholder="12 ou 15; 12; 10"></label>'+
+        '<label>Peso inicial<input data-f="peso" value="'+esc(it.peso)+'" placeholder="ex.: 10 kg"></label></div></div>').join("")+
+      '<div class="mt-f"><button class="btn" data-act="add">+ Exercício</button></div></div>').join("")+
+    '<div class="row-btns" style="margin-bottom:12px"><button class="btn" id="mt-addt">+ Novo treino</button></div>'+
+    '<p class="note">Reps meta diferentes por série: separe com ponto e vírgula (15; 12; 10). Peso inicial vale até o aluno fazer o exercício a primeira vez; depois o app sugere o último peso usado.</p>'+
+    '<datalist id="mt-list">'+names.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
+  el.querySelectorAll(".mt").forEach(card=>{
+    const ti=+card.dataset.t;const t=M[ti];
+    card.querySelector('[data-f="nome"]').addEventListener("input",e=>{t.nome=e.target.value});
+    card.querySelector('[data-act="rm-t"]').onclick=e=>armed(e.target,"Toque de novo para remover","Remover",()=>{M.splice(ti,1);render()});
+    card.querySelector('[data-act="add"]').onclick=()=>{t.itens.push(novoItem());render();const r=$('.mt[data-t="'+ti+'"] .mt-row:last-of-type [data-f="ex"]');if(r)r.focus()};
+    card.querySelectorAll(".mt-row").forEach(row=>{
+      const ii=+row.dataset.i;const it=t.itens[ii];
+      row.querySelectorAll("[data-f]").forEach(inp=>inp.addEventListener("input",()=>{it[inp.dataset.f]=inp.value}));
+      row.querySelector('[data-act="rm"]').onclick=()=>{t.itens.splice(ii,1);render()};
+      row.querySelector('[data-act="up"]').onclick=()=>{if(ii>0){t.itens.splice(ii-1,0,t.itens.splice(ii,1)[0]);render()}};
+      row.querySelector('[data-act="down"]').onclick=()=>{if(ii<t.itens.length-1){t.itens.splice(ii+1,0,t.itens.splice(ii,1)[0]);render()}};
+    });
+  });
+  $("#mt-addt").onclick=()=>{M.push({nome:"Treino "+String.fromCharCode(65+M.length),itens:[novoItem()]});render();window.scrollTo({top:document.body.scrollHeight})};
+  $("#mt-cancel").onclick=()=>{S.modEdit=null;render()};
+  $("#mt-save").onclick=saveModels;
+}
+async function saveModels(){
+  const M=S.modEdit;const msg=$("#mt-msg"),btn=$("#mt-save");
+  const bad=t=>{msg.textContent=t;msg.className="setup-msg bad";window.scrollTo({top:0})};
+  const linhas=[];const nomes=new Set();
+  for(const t of M){
+    const nome=String(t.nome||"").trim();const itens=t.itens.filter(it=>String(it.ex||"").trim());
+    if(!itens.length)continue;
+    if(!nome)return bad("Dê um nome para cada treino.");
+    if(nomes.has(strip(nome)))return bad("Há dois treinos com o nome \""+nome+"\". Use nomes diferentes.");
+    nomes.add(strip(nome));
+    for(const it of itens){
+      const n=parseInt(it.series,10);if(!(n>=1&&n<=20))return bad("Séries de \""+it.ex+"\" precisa ser um número de 1 a 20.");
+      linhas.push([nome,String(it.ex).trim(),String(n),String(it.metas||"").trim(),String(it.peso||"").trim()]);
+    }
+  }
+  const known=new Set((S.catalogo||[]).map(r=>strip(r[0])).concat([...S.exMap.keys()]));
+  const novos=[];linhas.forEach(r=>{const k=strip(r[1]);if(!known.has(k)){known.add(k);novos.push([r[1],guessGroup(r[1])])}});
+  if(!navigator.onLine)return bad("Sem internet. Os treinos continuam aqui; salve quando a conexão voltar.");
+  btn.disabled=true;msg.className="setup-msg";msg.textContent="Salvando na planilha do aluno…";
+  try{
+    await callA("salvarModelos",{linhas,exerciciosNovos:novos});
+    S.catalogo=(S.catalogo||[]).concat(novos);
+    const a=S.alunos.find(x=>x.id===S.alunoId);if(a&&linhas.length)a.status="ok";
+    S.modEdit=null;toast(linhas.length?"Treinos salvos. Já aparecem no app do aluno.":"Treinos apagados.");
+    profNotice();await fetchDados();render();
+    Api.call("inicio").then(d=>Api.cacheSet("inicio",d)).catch(()=>{});
+  }catch(e){bad(errText(e)+(e.sent?" Confira a aba Modelos antes de salvar de novo.":""));btn.disabled=false}
 }
 
 /* ========== PERFIL ========== */
@@ -916,12 +1051,12 @@ function renderPerfil(){
   if(S.aluno){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div><dl class="kv">'+
-      [["Idade",id!=null?id+" anos":""],["Nascimento",a.nasc],["Sexo",a.sexo],["Altura",a.altura?a.altura+" cm":""],["Objetivo",a.objetivo],
-       ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado],["Observações",a.obs]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
+      [["Idade",id!=null?id+" anos":""],["Nascimento",a.nasc],["Sexo",a.sexo],["Altura",a.altura?a.altura+" cm":""],["Peso",a.peso?a.peso+" kg":""],["Objetivo",a.objetivo],["Dias por semana",a.dias],["Restrições",a.obs],
+       ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
       (prof?'<div class="row-btns" style="margin-top:14px"><button class="btn" id="p-edit">Editar dados</button>'+(a.planilhaUrl?'<a class="btn" href="'+esc(a.planilhaUrl)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+'</div>':"")+
       '</div>';
     if(prof)html+=shareBox(a)+'<div class="card" style="margin-bottom:14px"><h3>Segurança</h3><p class="muted small">Se o link vazar ou o aluno trocar de celular, gere um novo. O link antigo para de funcionar.</p><div class="row-btns"><button class="btn" id="p-newlink">Gerar novo link</button></div></div>';
-    if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Treinos deste aluno</h3><p class="muted small">Os treinos ficam na aba <b>Modelos</b> da planilha do aluno: uma linha por exercício (Treino, Exercício, Séries, Reps meta, Peso inicial). Mudou lá, o app já mostra.</p></div>';
+    if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Treinos deste aluno</h3><p class="muted small">'+statusPill(a)+' Monte e edite os treinos aqui pelo app (ficam na aba Modelos da planilha do aluno).</p><div class="row-btns"><button class="btn primary" id="p-montar">✎ Montar treinos</button></div></div>';
   }else if(prof){
     html+='<div class="empty" style="margin-bottom:14px">Escolha um aluno na aba <b>Alunos</b> para ver o perfil.</div>';
   }
@@ -929,6 +1064,7 @@ function renderPerfil(){
   html+='<div class="card"><h3>Este aparelho</h3><p class="muted small">'+(prof?"Você está entrando como <b>professor</b>.":"Você está entrando como aluno.")+' Para trocar de conta, saia e abra outro link.</p><div class="row-btns"><button class="btn ghost" id="p-out">Sair deste aparelho</button></div></div>';
   el.innerHTML=html;
   const pi=$("#p-install");if(pi)pi.onclick=doInstall;
+  const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);setView("alunos")};
   const pn=$("#p-newlink");if(pn)pn.onclick=()=>armed(pn,"Toque de novo: o link antigo vai parar","Gerar novo link",async()=>{
     try{const r=await callA("novoCodigo");S.aluno=Object.assign({},S.aluno,r.aluno);const i=S.alunos.findIndex(x=>x.id===r.aluno.id);if(i>=0)S.alunos[i]=r.aluno;toast("Novo link gerado. Envie para o aluno.");renderPerfil()}
