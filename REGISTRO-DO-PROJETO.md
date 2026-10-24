@@ -23,6 +23,12 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Link de professor:** abra o Painel e use o menu **Diário de Treino → Meu link de professor**. A chave fica nas Propriedades do script, não no código.
 - **Links dos alunos:** ficam no app (Perfil do aluno) e na coluna "Código de acesso" da aba Alunos.
 
+## Versão e atualização do app (desde 24/10/2026, custo zero)
+- **No app:** aba **Configurações** mostra a versão instalada e tem o botão **Buscar atualizações**. O app também confere sozinho ao abrir (no máximo a cada 6 h) e mostra "Versão nova disponível · Atualizar agora".
+- **Como funciona:** `docs/versao.json` anuncia a versão do site. O app compara com a versão dele (`docs/js/atualizacao.js`). Ao atualizar, apaga a cópia guardada pelo service worker e recarrega. O acesso e o rascunho do treino ficam guardados.
+- **A cada publicação, antes do git push:** `node tools/versao.mjs X.Y.Z "o que mudou" "outra mudança"`. O script troca a versão nos 3 lugares (versao.json, atualizacao.js e nome do cache no sw.js).
+- **Play Store/TWA foi cancelada:** o usuário quer custo zero.
+
 ## Como publicar uma mudança (feito pelo Claude neste PC)
 - **App:** editar `docs/` e depois `git push`. O GitHub Pages atualiza em cerca de 1 minuto e os celulares pegam sozinhos.
 - **Programa central:** em `backend/`, rodar `clasp push -f` e depois `clasp deploy -i <implantação> -d "descrição"`. A URL continua a mesma.

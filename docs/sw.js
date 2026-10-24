@@ -1,8 +1,8 @@
 /* Service worker: o app sempre busca a versão mais nova quando tem internet
    (assim as atualizações chegam sozinhas) e usa a cópia guardada quando está offline. */
-const CACHE = "diario-de-treino-v2";
+const CACHE = "diario-de-treino-2.4.0";
 const SHELL = [
-  "./", "index.html", "css/app.css", "js/api.js", "js/body.js", "js/metodos.js", "js/app.js",
+  "./", "index.html", "css/app.css", "js/api.js", "js/body.js", "js/metodos.js", "js/atualizacao.js", "js/app.js",
   "metodos/index.json", "metodos/metodo-par.json",
   "privacidade.html", "termos.html", "css/legal.css",
   "vendor/chart.umd.js", "fonts/fonts.css", "manifest.webmanifest",
@@ -12,6 +12,9 @@ const SHELL = [
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
+
+// "Buscar atualizações" pede para a versão nova assumir na hora
+self.addEventListener("message", e => { if (e.data === "pular-espera") self.skipWaiting(); });
 
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys()

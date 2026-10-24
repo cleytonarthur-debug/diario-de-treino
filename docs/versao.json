@@ -1,0 +1,9 @@
+{
+  "versao": "2.4.0",
+  "data": "24/10/2026",
+  "notas": [
+    "Nova aba Configurações com o botão Buscar atualizações.",
+    "Grupo muscular de cada exercício pode ser corrigido no treino.",
+    "Treinos padrão calculados pelo seu histórico."
+  ]
+}

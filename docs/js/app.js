@@ -1281,22 +1281,66 @@ function renderPerfil(){
   }else if(prof){
     html+='<div class="empty" style="margin-bottom:14px">Escolha um aluno na aba <b>Alunos</b> para ver o perfil.</div>';
   }
-  html+='<div class="card" style="margin-bottom:14px"><h3>Instalar o app</h3>'+installHtml()+'</div>';
-  html+='<div class="card"><h3>Este aparelho</h3><p class="muted small">'+(prof?"Você está entrando como <b>professor</b>.":"Você está entrando como aluno.")+' Para trocar de conta, saia e abra outro link.</p><div class="row-btns"><button class="btn ghost" id="p-out">Sair deste aparelho</button></div></div>'+
-    '<p class="note" style="text-align:center"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a></p>';
+  html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: aba <b>Configurações</b>.</p>';
   el.innerHTML=html;
-  const pi=$("#p-install");if(pi)pi.onclick=doInstall;
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);setView("alunos")};
   const pn=$("#p-newlink");if(pn)pn.onclick=()=>armed(pn,"Toque de novo: o link antigo vai parar","Gerar novo link",async()=>{
     try{const r=await callA("novoCodigo");S.aluno=Object.assign({},S.aluno,r.aluno);const i=S.alunos.findIndex(x=>x.id===r.aluno.id);if(i>=0)S.alunos[i]=r.aluno;toast("Novo link gerado. Envie para o aluno.");renderPerfil()}
     catch(e){toast(errText(e))}});
-  $("#p-out").onclick=()=>armed($("#p-out"),"Toque de novo para sair","Sair deste aparelho",()=>{Api.logout();location.hash="";location.reload()});
   bindCopy(el);
 }
 
+/* ========== CONFIGURAÇÕES ========== */
+function quando(ms){if(!ms)return "nunca";const d=new Date(ms);return (fmtDate(d)===fmtDate(new Date())?"hoje":fmtShort(d))+" às "+hhmm(d)}
+function renderConfig(){
+  const el=$("#config");const prof=S.role==="prof";const U=window.Atualizacao;const ult=U.ultima();
+  el.innerHTML='<div class="card" style="margin-bottom:14px"><h3>Atualização do app</h3>'+
+    '<dl class="kv" style="margin:8px 0"><dt>Versão instalada</dt><dd>'+esc(U.VERSAO)+' <span class="muted small">('+esc(U.DATA)+')</span></dd>'+
+    '<dt>Última verificação</dt><dd id="cf-ult">'+esc(quando(ult&&ult.em))+'</dd></dl>'+
+    '<p class="muted small">O app se atualiza sozinho quando há internet. Use o botão se quiser conferir agora. O treino em andamento e o seu acesso não são apagados.</p>'+
+    '<p class="setup-msg" id="cf-msg" role="status"></p><div id="cf-notas"></div>'+
+    '<div class="row-btns"><button class="btn primary" id="cf-check">Buscar atualizações</button><button class="btn" id="cf-apply" hidden>Atualizar agora</button></div></div>'+
+    '<div class="card" style="margin-bottom:14px"><h3>Instalar o app</h3>'+installHtml()+'</div>'+
+    '<div class="card" style="margin-bottom:14px"><h3>Este aparelho</h3><p class="muted small">'+(prof?"Você está entrando como <b>professor</b>.":"Você está entrando como aluno.")+' Para trocar de conta, saia e abra outro link.</p><div class="row-btns"><button class="btn ghost" id="p-out">Sair deste aparelho</button></div></div>'+
+    '<p class="note" style="text-align:center"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a> · gratuito</p>';
+  const pi=$("#p-install");if(pi)pi.onclick=doInstall;
+  $("#p-out").onclick=()=>armed($("#p-out"),"Toque de novo para sair","Sair deste aparelho",()=>{Api.logout();location.hash="";location.reload()});
+  $("#cf-apply").onclick=atualizarAgora;
+  $("#cf-check").onclick=async()=>{
+    const msg=$("#cf-msg"),b=$("#cf-check");b.disabled=true;msg.className="setup-msg";msg.textContent="Buscando…";
+    try{
+      const r=await U.verificar();$("#cf-ult").textContent=quando(Date.now());
+      if(r.nova){
+        msg.className="setup-msg good";msg.textContent="Versão nova disponível: "+r.remota+" ("+(r.info.data||"")+").";
+        $("#cf-notas").innerHTML=(r.info.notas||[]).length?'<ul class="small">'+r.info.notas.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':"";
+        $("#cf-apply").hidden=false;
+      }else{msg.className="setup-msg good";msg.textContent="Você já está na versão mais nova ("+r.local+")."}
+    }catch(e){msg.className="setup-msg bad";msg.textContent=e.code==="offline"?"Sem internet. Tente de novo quando a conexão voltar.":(e.message||"Não consegui buscar atualizações.")}
+    finally{b.disabled=false}
+  };
+}
+async function atualizarAgora(){
+  if(S.saving){toast("Espere terminar de salvar o treino.");return}
+  toast("Baixando a versão nova…");
+  await window.Atualizacao.aplicar();
+}
+// Verificação automática: ao abrir e ao voltar para o app (no máximo a cada 6 horas).
+async function checarAtualizacaoAuto(){
+  try{
+    const ult=window.Atualizacao.ultima();
+    if(ult&&Date.now()-ult.em<6*36e5&&!(ult.remota&&window.Atualizacao.cmp(ult.remota,window.Atualizacao.VERSAO)>0))return;
+    const r=await window.Atualizacao.verificar();
+    if(r.nova&&!$("#banner").innerHTML){
+      banner('<p><b>Versão nova disponível ('+esc(r.remota)+').</b> '+esc((r.info.notas||[])[0]||"")+'</p><button class="btn" id="b-upd">Atualizar agora</button><button class="btn ghost" id="b-upd-x">Depois</button>');
+      $("#b-upd").onclick=atualizarAgora;$("#b-upd-x").onclick=()=>banner("");
+    }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checarAtualizacaoAuto()});
+
 /* ========== navegação ========== */
-const VIEWS=["alunos","lancar","evo","aval","perfil"];
+const VIEWS=["alunos","lancar","evo","aval","perfil","config"];
 function setView(v){
   if(!VIEWS.includes(v))v="lancar";
   if(v==="alunos"&&S.role!=="prof")v="lancar";
@@ -1314,6 +1358,7 @@ function render(){
   else if(S.view==="lancar")renderLancar();
   else if(S.view==="evo")renderEvo();
   else if(S.view==="aval")renderAval();
+  else if(S.view==="config")renderConfig();
   else renderPerfil();
 }
 try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(S.view==="evo")renderEvo()})}catch(e){}
@@ -1350,6 +1395,7 @@ function boot(){
   Metodos.load().then(()=>render());
   refreshInicio();
   setTimeout(installBanner,1500);
+  setTimeout(checarAtualizacaoAuto,3000);
 }
 boot();
 })();
