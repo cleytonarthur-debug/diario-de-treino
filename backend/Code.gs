@@ -195,6 +195,7 @@ const ACOES = {
         if (add.length) acrescentar_(ss.getSheetByName(ABA_EX), add, 2);
         adicionarCatalogo_(novos);
       }
+      try { corrigirGrupos_(ss, b.grupos); } catch (x) { console.error(x); }
       if (linhas.length && al.status !== ST_OK) { al.status = ST_OK; escreverAluno_(al); }
       SpreadsheetApp.flush();
       return { linhas: linhas.length };
@@ -204,7 +205,7 @@ const ACOES = {
   },
   gravar: function (ctx, b) {
     const al = precisaAluno_(ctx);
-    return gravarTreino_(al, b.rows, b.exercicios, b.saveId);
+    return gravarTreino_(al, b.rows, b.exercicios, b.saveId, b.grupos);
   },
   avaliacao: function (ctx, b) {
     precisaProf_(ctx);
@@ -481,7 +482,28 @@ function aparar_(r) { let n = r.length; while (n > 0 && r[n - 1] === '') n--; re
 
 /* =============== gravação =============== */
 
-function gravarTreino_(al, rowsIn, exIn, saveId) {
+// Grupo muscular corrigido pelo usuário: [[exercício, grupo]]. Atualiza a aba Exercícios do
+// aluno (cria a linha se faltar) e o Catálogo do professor. Não mexe no Histórico antigo.
+function corrigirGrupos_(ss, gruposIn) {
+  const grupos = limparLinhas_(gruposIn || [], 2).filter(function (r) { return norm_(r[0]) && String(r[1]).trim(); });
+  if (!grupos.length) return 0;
+  const alvo = function (sh) {
+    const n = sh.getLastRow() - 1;
+    const nomes = n > 0 ? sh.getRange(2, 1, n, 1).getDisplayValues().map(function (r) { return norm_(r[0]); }) : [];
+    const faltam = [];
+    grupos.forEach(function (g) {
+      const i = nomes.indexOf(norm_(g[0]));
+      if (i >= 0) sh.getRange(i + 2, 2).setValue(String(g[1]));
+      else faltam.push([g[0], String(g[1])]);
+    });
+    if (faltam.length) acrescentar_(sh, faltam, 2);
+  };
+  alvo(ss.getSheetByName(ABA_EX));
+  try { alvo(abaCatalogo_()); } catch (x) { /* catálogo é opcional */ }
+  return grupos.length;
+}
+
+function gravarTreino_(al, rowsIn, exIn, saveId, grupos) {
   const rows = limparLinhas_(rowsIn, HEAD_HIST.length);
   const exs = limparLinhas_(exIn || [], HEAD_EX.length);
   if (!rows.length && !exs.length) throw appErr_('bad_request', 'Nenhuma linha para gravar');
@@ -502,6 +524,7 @@ function gravarTreino_(al, rowsIn, exIn, saveId) {
       const novos = exs.filter(function (r) { const k = norm_(r[0]); if (!k || known[k]) return false; known[k] = true; return true; });
       if (novos.length) { acrescentar_(ss.getSheetByName(ABA_EX), novos, HEAD_EX.length); exAdded = novos.length; }
     }
+    try { corrigirGrupos_(ss, grupos); } catch (x) { console.error(x); } // nunca impede gravar o treino
     SpreadsheetApp.flush();
     const res = { written: rows.length, firstRow: firstRow, exercicios: exAdded };
     if (ck) cache.put(ck, JSON.stringify(res), 21600);

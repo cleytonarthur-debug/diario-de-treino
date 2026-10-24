@@ -44,11 +44,18 @@ function setVolume(reps,peso){
 }
 function e1rm(reps,peso){if(!reps||!peso||!peso[0])return 0;const r=reps[0];if(!r||r>20)return 0;return peso[0]*(1+r/30)}
 function exKey(name){return strip(name).replace(/\b(d|e|direit[oa]|esquerd[oa]|doreita|lado d|lado e|cl|ambas?)\s*$/,"").replace(/\s+/g," ").trim()}
-const RX=[["Abdômen",/abs|abdom|prancha/],["Ombros",/elevacao lateral|elevacao frontal|desenvolvimento|face ?pull|posterior de ombro|voador reverso|ombro/],
+// A ordem importa: nomes de músculo explícitos (bíceps, tríceps) vêm antes de palavras de aparelho (cross, polia).
+const RX=[["Abdômen",/abs|abdom|prancha/],["Braços",/rosca|triceps|biceps|barra w|scott|martelo|frances|antebraco/],
+  ["Ombros",/elevacao lateral|elevacao frontal|desenvolvimento|face ?pull|posterior de ombro|voador reverso|ombro/],
   ["Peito",/supino|voador peito|peito|cross|crucifixo|peck|fly|mergulho|paralela/],["Costas",/pulley|puxada|remada|pull ?down|barra fixa|serrote|costas|lombar/],
-  ["Braços",/rosca|triceps|biceps|barra w|scott|martelo|frances|antebraco/],
   ["Inferiores",/extensora|flexora|leg|agach|hack|stiff|panturrilha|pantu|[cs]imeri[ao][nm] 45|vto[mn] 45|adutor|abdutor|glute|afundo|bulgaro|cadeira|mesa|perna|terra|pelvica/]];
 function guessGroup(name){const k=strip(name);for(const [g,rx] of RX)if(rx.test(k))return g;return "Sem grupo"}
+// Grupo muscular escolhido pelo usuário (o palpite do app pode errar).
+const GRUPOS_TODOS=["Inferiores","Costas","Peito","Braços","Ombros","Abdômen","Cardio","Sem grupo"];
+function grupoSelect(g,attrs){
+  const opts=GRUPOS_TODOS.includes(g)?GRUPOS_TODOS:[g].concat(GRUPOS_TODOS);
+  return '<select class="gsel" '+attrs+' aria-label="Grupo muscular" title="Toque para corrigir o grupo muscular">'+opts.map(x=>'<option'+(x===g?" selected":"")+'>'+esc(x)+'</option>').join("")+'</select>';
+}
 
 /* ---------- estado ---------- */
 const S={role:null,alunos:[],alunoId:null,aluno:null,rows:[],exMap:new Map(),models:new Map(),avals:[],
@@ -65,7 +72,7 @@ function ingest(values){
     const d=parseDate(r[0]);if(!d)return;
     const hor=String(r[3]||"");const skipped=/n[aã]o fiz/i.test(hor);
     const reps=skipped?null:parseReps(r[8],r[7]);const peso=parsePeso(r[9]);
-    out.push({i,date:d,dateS:r[0],dia:r[1]||"",treino:String(r[2]||"").trim(),hora:hor,grupo:r[4]||guessGroup(r[5]),ex:String(r[5]||"").trim(),
+    out.push({i,date:d,dateS:r[0],dia:r[1]||"",treino:String(r[2]||"").trim(),hora:hor,grupo:S.exMap.get(strip(r[5]))||r[4]||guessGroup(r[5]),ex:String(r[5]||"").trim(),
       serie:r[6]||"",meta:r[7]||"",feitas:r[8]||"",peso:r[9]||"",int:r[10]||"",rir:r[11]==null?"":String(r[11]),obs:r[12]||"",
       reps,pesoN:peso,vol:setVolume(reps,peso),e1:e1rm(reps,peso),done:!!reps});
   });
@@ -95,9 +102,10 @@ function ingestAvals(av){
   }).filter(a=>a.date).sort((a,b)=>a.date-b.date||a.linha-b.linha);
 }
 function ingestAll(d){
-  ingest(d.historico);
-  S.exMap=new Map();(d.exercicios||[]).forEach(r=>{if(r[0])S.exMap.set(strip(r[0]),r[1]||"")});
+  // a aba Exercícios vem primeiro: o grupo dela (que o usuário pode corrigir) vale também para treinos antigos
+  S.exMap=new Map();(d.exercicios||[]).forEach(r=>{if(r[0]&&r[1])S.exMap.set(strip(r[0]),r[1])});
   S.exList=(d.exercicios||[]).map(r=>String(r[0]||"").trim()).filter(Boolean);
+  ingest(d.historico);
   ingestModels(d.modelos);
   ingestAvals(d.avaliacoes);
   if(d.aluno)S.aluno=d.aluno;
@@ -364,7 +372,7 @@ function renderLancar(){
       (vazio?'<div class="notice"><p>'+(prof?'Este aluno ainda não tem treinos. Toque em <b>Montar treinos</b> para criar.':'Seu professor está montando o seu treino. Assim que ficar pronto, ele aparece aqui. Enquanto isso, você pode usar o <b>Treino livre</b>.')+'</p></div>':"")+
       '<div class="pick">'+(S.draft?'<button data-cont="1" class="cont"><span class="tag">Em andamento, ainda não salvo</span><b>Continuar: '+esc(S.draft.treino)+'</b><span class="muted small">'+doneSets()+' séries feitas hoje</span></button>':"")+
       main.map(card).join("")+'<button data-t=""><b>Treino livre</b><span class="muted small">Começar em branco e adicionar exercícios</span></button></div>'+
-      (others.length?'<details class="others"><summary>Outros treinos do histórico ('+others.length+')</summary><div class="pick">'+others.map(card).join("")+'</div></details>':"");
+      (others.length?'<details class="others"><summary>Outros treinos do histórico ('+others.length+') · estes copiam o último dia</summary><div class="pick">'+others.map(card).join("")+'</div></details>':"");
     const bm=$("#b-montar-t");if(bm)bm.onclick=()=>openModelEditor(null);
     el.querySelectorAll(".pick button").forEach(b=>b.onclick=()=>{
       if(b.dataset.cont){S.picker=false;render();window.scrollTo({top:0});return}
@@ -441,7 +449,7 @@ function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
   return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
-    (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3><span class="tag">'+esc(b.grupo)+'</span>'+
+    (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
     (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
@@ -494,6 +502,8 @@ function bindLancar(){
       return;
     }
     card.querySelectorAll("[data-alt]").forEach(c=>c.onclick=()=>{swapToKey(b,c.dataset.alt);b.swapping=false;saveDraft();rerenderCard(bi)});
+    const gs=card.querySelector('[data-act="grupo"]');
+    if(gs)gs.onchange=()=>{b.grupo=gs.value;b.grupoManual=true;saveDraft();rerenderCard(bi);toast("Grupo de "+b.name+": "+b.grupo+". Fica salvo ao gravar o treino.")};
     card.querySelectorAll(".set").forEach(row=>{
       const si=+row.dataset.s;const s=b.sets[si];
       row.querySelectorAll("[data-f]").forEach(inp=>{
@@ -592,7 +602,7 @@ function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;con
 function addExercise(){
   const inp=$("#new-ex");const name=inp.value.trim();if(!name)return;
   const prev=lastFor(name);
-  const grupo=(prev&&prev[0]&&prev[0].grupo)||S.exMap.get(strip(name))||guessGroup(name);
+  const grupo=S.exMap.get(strip(name))||(prev&&prev[0]&&prev[0].grupo)||guessGroup(name);
   const b={id:newId(),name:prev&&prev[0]?prev[0].ex:name,grupo,sets:[],obs:""};
   if(prev&&prev.length)prev.forEach((r,i)=>b.sets.push(makeSet(i+1,r)));else for(let i=0;i<3;i++)b.sets.push(makeSet(i+1,null));
   S.draft.blocks.push(b);saveDraft();renderLancar();
@@ -671,10 +681,12 @@ async function save(){
   if(!navigator.onLine){netBanner();updateBar();return}
   if(!S.confirm){S.confirm=true;updateBar();return}
   const d=S.draft;const day=parseDate(d.date);const dia=DIAS[day.getDay()];
-  const rows=[];const newEx=[];
+  const rows=[];const newEx=[];const grupos=[];
   let firstOfTreino=true;
   d.blocks.forEach(b=>{
-    let grupo=b.grupo;const known=S.exMap.get(strip(b.name));if(known)grupo=known;
+    let grupo=b.grupo;const known=S.exMap.get(strip(b.name));
+    if(b.grupoManual){if(known&&known!==grupo&&!grupos.some(x=>strip(x[0])===strip(b.name)))grupos.push([b.name,grupo])}
+    else if(known)grupo=known;
     if(!known&&!newEx.some(x=>strip(x[0])===strip(b.name)))newEx.push([b.name,grupo]);
     let firstOfEx=true;
     b.sets.forEach(s=>{
@@ -690,7 +702,8 @@ async function save(){
   const base=baseCounts(rows);
   S.saving=true;updateBar();setSync("busy","Gravando na planilha…");
   try{
-    const res=await callA("gravar",{rows,exercicios:newEx,saveId});
+    const res=await callA("gravar",{rows,exercicios:newEx,saveId,grupos});
+    newEx.concat(grupos).forEach(x=>S.exMap.set(strip(x[0]),x[1]));
     S.draft=null;saveDraft();S.confirm=false;S.saving=false;
     const w=(res&&res.written)||rows.length;
     toast(res&&res.duplicate?"Essas séries já estavam salvas na planilha":"Treino salvo: "+w+(w===1?" série":" séries")+" na planilha");
@@ -1114,23 +1127,35 @@ function openModelEditor(alunoId){
   if(S.loaded)go();else{const t=setInterval(()=>{if(S.loaded){clearInterval(t);go()}},300);setTimeout(()=>clearInterval(t),30000)}
 }
 const novoItem=()=>({ex:"",series:3,metas:"12",peso:""});
+const itemGrupo=it=>it.grupo||S.exMap.get(strip(it.ex))||(String(it.ex||"").trim()?guessGroup(it.ex):"Sem grupo");
+// Um dia já treinado vira lista de exercícios do treino padrão (séries, metas e peso daquele dia).
+function itensDaSessao(ses){
+  const ordem=[],por=new Map();
+  ses.rows.forEach(r=>{if(!r.ex)return;if(!por.has(r.ex)){por.set(r.ex,[]);ordem.push(r.ex)}por.get(r.ex).push(r)});
+  return ordem.map(ex=>{const rs=por.get(ex);const metas=rs.map(r=>String(r.meta||"").trim());
+    return {ex,series:rs.length,metas:metas.every(m=>m===metas[0])?metas[0]:metas.join("; "),peso:String(rs[0].peso||"").trim()}});
+}
 function renderModelEditor(el){
   if(S.modEdit==="carregando"){el.innerHTML='<div class="empty">Lendo a planilha do aluno…</div>';return}
   const M=S.modEdit;const a=S.aluno||{};
+  const sessOpts=sessions().filter(x=>x.rows.length).slice(-40).reverse().map(x=>'<option value="'+esc(x.key)+'">'+esc(fmtShort(x.date)+" · "+x.treino+" ("+(n=>n+(n===1?" exercício":" exercícios"))(new Set(x.rows.map(r=>r.ex)).size)+")")+'</option>').join("");
   const seen=new Set();const names=(S.catalogo||[]).map(r=>r[0]).concat(S.exList||[],S.rows.map(r=>r.ex)).filter(n=>{const k=strip(n);if(!k||seen.has(k))return false;seen.add(k);return true}).sort((x,y)=>x.localeCompare(y,"pt-BR"));
   el.innerHTML='<div class="session-head"><div><h2>Treinos de '+esc(String(a.nome||"").split(" ")[0])+'</h2><div class="muted small">'+
     [a.objetivo,a.dias?a.dias+"x por semana":"",a.obs?"Restrições: "+a.obs:""].filter(Boolean).map(esc).join(" · ")+'</div></div>'+
     '<div class="row-btns"><button class="btn ghost" id="mt-cancel">Cancelar</button><button class="btn primary" id="mt-save">Salvar treinos</button></div></div>'+
     '<p class="setup-msg" id="mt-msg" role="status"></p>'+
     metodoCard(a)+
-    '<div class="par-h">Treinos próprios (aba Modelos)</div>'+
+    '<div class="par-h">Treinos padrão (aba Modelos)</div>'+
+    '<p class="muted small" style="margin:0 0 10px">Estes são os <b>treinos padrão</b>. Ao escolher um treino, o app monta sempre a partir daqui (não do último dia). Do último dia ele só mostra o que foi feito e o peso usado.</p>'+
     M.map((t,ti)=>'<div class="mt" data-t="'+ti+'"><div class="mt-h"><input data-f="nome" value="'+esc(t.nome)+'" placeholder="Nome do treino (ex.: Treino A — Pernas)" aria-label="Nome do treino">'+
       '<button class="btn ghost small" data-act="rm-t">Remover</button></div>'+
+      '<div class="mt-copy"><select data-act="copiar" aria-label="Copiar exercícios de um dia já treinado"><option value="">Copiar exercícios de um dia já treinado…</option>'+sessOpts+'</select></div>'+
       t.itens.map((it,ii)=>'<div class="mt-row" data-i="'+ii+'"><div class="ex-in"><input data-f="ex" list="mt-list" value="'+esc(it.ex)+'" placeholder="Exercício (busque pelo nome)" aria-label="Exercício">'+
         '<div class="mt-acts"><button data-act="up" aria-label="Subir">↑</button><button data-act="down" aria-label="Descer">↓</button><button data-act="rm" aria-label="Remover exercício">✕</button></div></div>'+
         '<div class="mt-nums"><label>Séries<input data-f="series" inputmode="numeric" value="'+esc(it.series)+'"></label>'+
         '<label>Reps meta<input data-f="metas" value="'+esc(it.metas)+'" placeholder="12 ou 15; 12; 10"></label>'+
-        '<label>Peso inicial<input data-f="peso" value="'+esc(it.peso)+'" placeholder="ex.: 10 kg"></label></div></div>').join("")+
+        '<label>Peso inicial<input data-f="peso" value="'+esc(it.peso)+'" placeholder="ex.: 10 kg"></label>'+
+        '<label class="g">Grupo muscular'+grupoSelect(itemGrupo(it),'data-f2="grupo"')+'</label></div></div>').join("")+
       '<div class="mt-f"><button class="btn" data-act="add">+ Exercício</button></div></div>').join("")+
     '<div class="row-btns" style="margin-bottom:12px"><button class="btn" id="mt-addt">+ Novo treino</button></div>'+
     '<p class="note">Reps meta diferentes por série: separe com ponto e vírgula (15; 12; 10). Peso inicial vale até o aluno fazer o exercício a primeira vez; depois o app sugere o último peso usado.</p>'+
@@ -1138,11 +1163,17 @@ function renderModelEditor(el){
   el.querySelectorAll(".mt").forEach(card=>{
     const ti=+card.dataset.t;const t=M[ti];
     card.querySelector('[data-f="nome"]').addEventListener("input",e=>{t.nome=e.target.value});
+    card.querySelector('[data-act="copiar"]').onchange=e=>{const ses=sessions().find(x=>x.key===e.target.value);if(!ses)return;
+      t.itens=itensDaSessao(ses);if(!String(t.nome||"").trim()||/^Treino [A-Z]$/.test(t.nome))t.nome=ses.treino;render();
+      toast("Copiei "+t.itens.length+" exercícios de "+fmtShort(ses.date)+". Ajuste e toque em Salvar treinos.")};
     card.querySelector('[data-act="rm-t"]').onclick=e=>armed(e.target,"Toque de novo para remover","Remover",()=>{M.splice(ti,1);render()});
     card.querySelector('[data-act="add"]').onclick=()=>{t.itens.push(novoItem());render();const r=$('.mt[data-t="'+ti+'"] .mt-row:last-of-type [data-f="ex"]');if(r)r.focus()};
     card.querySelectorAll(".mt-row").forEach(row=>{
       const ii=+row.dataset.i;const it=t.itens[ii];
-      row.querySelectorAll("[data-f]").forEach(inp=>inp.addEventListener("input",()=>{it[inp.dataset.f]=inp.value}));
+      const gsel=row.querySelector('[data-f2="grupo"]');
+      row.querySelectorAll("[data-f]").forEach(inp=>inp.addEventListener("input",()=>{it[inp.dataset.f]=inp.value;
+        if(inp.dataset.f==="ex"&&!it.grupoManual){const g=itemGrupo(it);if(![...gsel.options].some(o=>o.value===g))gsel.add(new Option(g,g));gsel.value=g}}));
+      gsel.onchange=()=>{it.grupo=gsel.value;it.grupoManual=true};
       row.querySelector('[data-act="rm"]').onclick=()=>{t.itens.splice(ii,1);render()};
       row.querySelector('[data-act="up"]').onclick=()=>{if(ii>0){t.itens.splice(ii-1,0,t.itens.splice(ii,1)[0]);render()}};
       row.querySelector('[data-act="down"]').onclick=()=>{if(ii<t.itens.length-1){t.itens.splice(ii+1,0,t.itens.splice(ii,1)[0]);render()}};
@@ -1196,11 +1227,15 @@ async function saveModels(){
     }
   }
   const known=new Set((S.catalogo||[]).map(r=>strip(r[0])).concat([...S.exMap.keys()]));
-  const novos=[];linhas.forEach(r=>{const k=strip(r[1]);if(!known.has(k)){known.add(k);novos.push([r[1],guessGroup(r[1])])}});
+  const itensTodos=M.flatMap(t=>t.itens).filter(it=>String(it.ex||"").trim());
+  const grupoDe=n=>{const it=itensTodos.find(x=>strip(x.ex)===strip(n));return it?itemGrupo(it):guessGroup(n)};
+  const novos=[];linhas.forEach(r=>{const k=strip(r[1]);if(!known.has(k)){known.add(k);novos.push([r[1],grupoDe(r[1])])}});
+  const grupos=[];itensTodos.forEach(it=>{const k=strip(it.ex);if(it.grupoManual&&S.exMap.has(k)&&S.exMap.get(k)!==it.grupo&&!grupos.some(g=>strip(g[0])===k))grupos.push([String(it.ex).trim(),it.grupo])});
   if(!navigator.onLine)return bad("Sem internet. Os treinos continuam aqui; salve quando a conexão voltar.");
   btn.disabled=true;msg.className="setup-msg";msg.textContent="Salvando na planilha do aluno…";
   try{
-    await callA("salvarModelos",{linhas,exerciciosNovos:novos});
+    await callA("salvarModelos",{linhas,exerciciosNovos:novos,grupos});
+    novos.concat(grupos).forEach(x=>S.exMap.set(strip(x[0]),x[1]));
     S.catalogo=(S.catalogo||[]).concat(novos);
     const a=S.alunos.find(x=>x.id===S.alunoId);if(a&&linhas.length)a.status="ok";
     S.modEdit=null;toast(linhas.length?"Treinos salvos. Já aparecem no app do aluno.":"Treinos apagados.");
