@@ -52,6 +52,15 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Avisos:** "⬆ Subir carga" (progressão dupla, olhando a última sessão) e "Sem evolução há 2 semanas: conferir sono e alimentação".
 - **No Histórico:** Treino = "Método Par A" ou "Método Par B". A primeira linha leva "[Método Par · semana X · Fase]" nas Observações.
 
+## Coach, academias, unilaterais e planos (desde 01/11/2026)
+- **Coach (docs/js/coach.js):** aba para professor e alunos. Regras sem IA externa (custo zero): avaliação ao salvar o treino, resumo do mês e comparação de academias. Lê comentários por palavras-chave (sono, cansaço, ânimo, dor, alimentação, tempo, academia).
+- **Academia:** coluna N "Academia" no Histórico, criada sozinha em cada planilha. Peso e "última vez" vêm da academia escolhida.
+- **Ânimo e duração:** vão como marcação nas Observações da 1ª linha do treino: [Ânimo: bom], [Duração: 72 min].
+- **Unilaterais:** "... E" e "... D" viram um cartão com séries intercaladas (só na tela); na planilha continuam linhas com o nome do lado.
+- **Biblioteca e planos:** docs/metodos/biblioteca.json (trocas por grupo) e docs/metodos/planos.json (6 planos gerais em "Treinos prontos").
+- **Atualizar:** botão ↻ no topo relê a planilha e atualiza o app. Evolução: tocar no título fecha o bloco.
+- **Acesso master:** só o link com a chave de professor. O link do aluno não tem a chave e o programa central recusa as funções de professor (testado).
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

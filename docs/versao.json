@@ -1,9 +1,11 @@
 {
-  "versao": "2.4.0",
-  "data": "24/10/2026",
+  "versao": "2.5.0",
+  "data": "01/11/2026",
   "notas": [
-    "Nova aba Configurações com o botão Buscar atualizações.",
-    "Grupo muscular de cada exercício pode ser corrigido no treino.",
-    "Treinos padrão calculados pelo seu histórico."
+    "Nova aba Coach: avaliação ao final do treino e resumo do mês.",
+    "Unilaterais intercalados: esquerdo e direito no mesmo cartão.",
+    "Tempo de treino sempre visível e campo Academia no treino.",
+    "Treinos prontos, biblioteca de exercícios e botão ↻ de atualizar.",
+    "Evolução: toque no título para abrir ou fechar cada bloco."
   ]
 }

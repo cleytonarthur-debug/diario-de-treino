@@ -28,7 +28,7 @@ const ABA_CATALOGO = 'Catálogo de exercícios';
 
 const ABA_HIST = 'Histórico', ABA_EX = 'Exercícios', ABA_MOD = 'Modelos', ABA_AV = 'Avaliações';
 const HEAD_HIST = ['Data', 'Dia', 'Treino', 'Horário', 'Grupo', 'Exercício', 'Série', 'Reps meta',
-  'Reps feitas', 'Peso', 'Intensidade', 'Reps sobrando', 'Observações'];
+  'Reps feitas', 'Peso', 'Intensidade', 'Reps sobrando', 'Observações', 'Academia'];
 const HEAD_EX = ['Exercício', 'Grupo'];
 const HEAD_MOD = ['Treino', 'Exercício', 'Séries', 'Reps meta', 'Peso inicial'];
 const HEAD_AV = ['Data'];
@@ -438,6 +438,11 @@ function garantirAbas_(ss) {
     h.getRange('A2:A').setNumberFormat('dd/MM/yyyy');
     h.getRange('D2:D').setNumberFormat('HH:mm');
     h.setColumnWidth(6, 260); h.setColumnWidth(13, 260);
+  }
+  // planilhas antigas: acrescenta a coluna Academia no fim, sem mexer nas outras
+  if (h.getMaxColumns() < HEAD_HIST.length) h.insertColumnsAfter(h.getMaxColumns(), HEAD_HIST.length - h.getMaxColumns());
+  if (h.getLastRow() > 0 && !h.getRange(1, HEAD_HIST.length, 1, 1).getDisplayValues()[0][0]) {
+    h.getRange(1, HEAD_HIST.length, 1, 1).setValues([['Academia']]).setFontWeight('bold').setBackground('#0f1b2d').setFontColor('#ffffff');
   }
   if (!ss.getSheetByName(ABA_EX)) { const s = ss.insertSheet(ABA_EX); cab(s, HEAD_EX); s.setColumnWidth(1, 260); }
   if (!ss.getSheetByName(ABA_MOD)) {

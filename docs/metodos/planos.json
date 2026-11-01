@@ -1,0 +1,57 @@
+{
+  "descricao": "Planos gerais prontos, montados a partir de recomendações públicas (ACSM: iniciante 2–3 dias por semana; OMS: força em 2 ou mais dias por semana) e das divisões de treino mais usadas. São pontos de partida: ajuste séries, reps e cargas para cada pessoa.",
+  "planos": [
+    {
+      "id": "full-iniciante", "nome": "Corpo inteiro iniciante", "nivel": "Iniciante", "dias": "3x por semana", "local": "Academia",
+      "descricao": "Treinos A e B alternados, com um dia de descanso entre eles.",
+      "treinos": [
+        { "nome": "Corpo inteiro A", "exercicios": [["Leg press 45°", 3, "12-15"], ["Supino reto máquina", 3, "12-15"], ["Puxada frontal", 3, "12-15"], ["Desenvolvimento máquina", 2, "12-15"], ["Mesa flexora", 2, "12-15"], ["Prancha", 2, "30 s"]] },
+        { "nome": "Corpo inteiro B", "exercicios": [["Cadeira extensora", 3, "12-15"], ["Supino inclinado máquina", 3, "12-15"], ["Remada sentada máquina", 3, "12-15"], ["Elevação lateral com halteres", 2, "12-15"], ["Rosca direta com halteres", 2, "12-15"], ["Tríceps corda", 2, "12-15"], ["Abdominal no solo (crunch)", 2, "15"]] }
+      ]
+    },
+    {
+      "id": "superior-inferior", "nome": "Superior e inferior", "nivel": "Intermediário", "dias": "4x por semana", "local": "Academia",
+      "descricao": "Dois dias de parte de cima e dois de parte de baixo: Superior, Inferior, descanso, Superior, Inferior.",
+      "treinos": [
+        { "nome": "Superior 1", "exercicios": [["Supino reto com barra", 4, "6-10"], ["Remada curvada com barra", 4, "6-10"], ["Desenvolvimento com halteres sentado", 3, "8-12"], ["Puxada frontal", 3, "8-12"], ["Rosca direta barra W", 3, "10-12"], ["Tríceps na polia (barra)", 3, "10-12"]] },
+        { "nome": "Inferior 1", "exercicios": [["Agachamento livre", 4, "6-10"], ["Stiff com barra", 3, "8-10"], ["Leg press 45°", 3, "10-12"], ["Mesa flexora", 3, "10-12"], ["Panturrilha em pé", 4, "12-15"], ["Prancha", 3, "45 s"]] },
+        { "nome": "Superior 2", "exercicios": [["Supino inclinado com halteres", 4, "8-12"], ["Remada baixa no cabo", 4, "8-12"], ["Elevação lateral com halteres", 3, "12-15"], ["Voador peito (máquina)", 3, "12-15"], ["Rosca alternada com halteres", 3, "10-12"], ["Tríceps corda", 3, "10-12"]] },
+        { "nome": "Inferior 2", "exercicios": [["Agachamento hack", 4, "8-12"], ["Elevação pélvica", 3, "8-12"], ["Cadeira extensora", 3, "12-15"], ["Cadeira flexora", 3, "12-15"], ["Panturrilha sentado", 4, "12-20"], ["Abdominal na máquina", 3, "12-15"]] }
+      ]
+    },
+    {
+      "id": "empurrar-puxar-pernas", "nome": "Empurrar, puxar e pernas", "nivel": "Intermediário", "dias": "3x ou 6x por semana", "local": "Academia",
+      "descricao": "Uma sequência de 3 dias. Dá para fazer uma ou duas vezes por semana.",
+      "treinos": [
+        { "nome": "Empurrar (peito, ombro, tríceps)", "exercicios": [["Supino reto com barra", 3, "6-10"], ["Supino inclinado com halteres", 3, "8-12"], ["Desenvolvimento com halteres sentado", 3, "10-12"], ["Elevação lateral com halteres", 3, "12-15"], ["Tríceps corda", 3, "10-12"]] },
+        { "nome": "Puxar (costas, bíceps)", "exercicios": [["Barra fixa assistida", 3, "5-10"], ["Puxada frontal", 3, "8-12"], ["Remada baixa no cabo", 3, "8-12"], ["Face pull na corda", 3, "12-15"], ["Rosca direta barra W", 3, "10-12"]] },
+        { "nome": "Pernas e abdômen", "exercicios": [["Agachamento livre", 3, "6-10"], ["Stiff com barra", 3, "10-12"], ["Leg press 45°", 3, "10-12"], ["Mesa flexora", 3, "10-12"], ["Panturrilha em pé", 3, "12-15"], ["Abdominal no cabo", 3, "12-15"]] }
+      ]
+    },
+    {
+      "id": "abc", "nome": "ABC clássico", "nivel": "Intermediário", "dias": "3x ou 6x por semana", "local": "Academia",
+      "descricao": "A divisão mais comum nas academias do Brasil.",
+      "treinos": [
+        { "nome": "A: Peito e tríceps", "exercicios": [["Supino reto máquina", 4, "8-12"], ["Supino inclinado com halteres", 3, "8-12"], ["Voador peito (máquina)", 3, "12-15"], ["Tríceps na polia (barra)", 3, "10-12"], ["Tríceps francês com halter", 3, "10-12"]] },
+        { "nome": "B: Costas e bíceps", "exercicios": [["Puxada frontal", 4, "8-12"], ["Remada baixa no cabo", 3, "8-12"], ["Remada unilateral com halter (serrote)", 3, "10-12"], ["Rosca direta barra W", 3, "10-12"], ["Rosca martelo", 3, "10-12"]] },
+        { "nome": "C: Pernas e ombros", "exercicios": [["Leg press 45°", 4, "8-12"], ["Cadeira extensora", 3, "12-15"], ["Mesa flexora", 3, "12-15"], ["Desenvolvimento máquina", 3, "10-12"], ["Elevação lateral com halteres", 3, "12-15"], ["Panturrilha sentado", 3, "15"]] }
+      ]
+    },
+    {
+      "id": "so-halteres", "nome": "Só com halteres", "nivel": "Todos", "dias": "3x por semana", "local": "Academia pequena ou em casa",
+      "descricao": "Para quando a academia é pequena ou não tem os aparelhos.",
+      "treinos": [
+        { "nome": "Halteres A", "exercicios": [["Agachamento goblet", 3, "10-15"], ["Supino reto com halteres", 3, "10-12"], ["Remada unilateral com halter (serrote)", 3, "10-12"], ["Elevação lateral com halteres", 3, "12-15"], ["Prancha", 3, "30 s"]] },
+        { "nome": "Halteres B", "exercicios": [["Stiff com halteres", 3, "10-12"], ["Afundo com halteres", 3, "10-12"], ["Desenvolvimento com halteres sentado", 3, "10-12"], ["Rosca direta com halteres", 3, "10-12"], ["Tríceps francês com halter", 3, "10-12"]] }
+      ]
+    },
+    {
+      "id": "casa", "nome": "Em casa, sem equipamento", "nivel": "Iniciante", "dias": "3x por semana", "local": "Em casa",
+      "descricao": "Corpo inteiro sem aparelhos. Para progredir: mais repetições, movimento mais lento ou variação mais difícil.",
+      "treinos": [
+        { "nome": "Casa A", "exercicios": [["Agachamento sem peso", 3, "12-15"], ["Flexão de braço com joelhos apoiados", 3, "8-12"], ["Ponte de glúteo no solo", 3, "12-15"], ["Prancha", 3, "20-30 s"], ["Superman", 2, "10-15"]] },
+        { "nome": "Casa B", "exercicios": [["Afundo sem peso", 3, "10-12"], ["Flexão inclinada (mãos no banco)", 3, "8-12"], ["Panturrilha no degrau", 3, "15-20"], ["Bicicleta no solo", 3, "20"], ["Perdigueiro (bird dog)", 2, "10"], ["Polichinelo", 3, "30 s"]] }
+      ]
+    }
+  ]
+}

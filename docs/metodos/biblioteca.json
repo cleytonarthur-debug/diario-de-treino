@@ -1,0 +1,12 @@
+{
+  "descricao": "Exercícios gerais por grupo muscular, para trocar ou acrescentar quando a academia não tem o aparelho. O aluno também pode escrever qualquer outro nome.",
+  "grupos": {
+    "Peito": ["Supino reto com barra", "Supino reto com halteres", "Supino reto máquina", "Supino inclinado com barra", "Supino inclinado com halteres", "Supino inclinado máquina", "Voador peito (máquina)", "Crucifixo com halteres", "Crossover polia", "Flexão de braço", "Flexão de braço com joelhos apoiados", "Flexão inclinada (mãos no banco)"],
+    "Costas": ["Puxada frontal", "Puxada pegada neutra", "Barra fixa", "Barra fixa assistida", "Remada baixa no cabo", "Remada sentada máquina", "Remada curvada com barra", "Remada curvada com halteres", "Remada unilateral com halter (serrote)", "Pulldown na corda", "Remada com elástico", "Remada invertida (mesa ou barra baixa)"],
+    "Ombros": ["Desenvolvimento máquina", "Desenvolvimento com halteres sentado", "Desenvolvimento militar com barra", "Elevação lateral com halteres", "Elevação lateral no cabo", "Elevação frontal com halteres", "Posterior de ombro voador reverso", "Posterior de ombro com halteres", "Face pull na corda", "Flexão pike (ombros, sem equipamento)"],
+    "Braços": ["Rosca direta com barra", "Rosca direta barra W", "Rosca direta com halteres", "Rosca alternada com halteres", "Rosca martelo", "Rosca no cabo", "Rosca scott máquina", "Tríceps na polia (barra)", "Tríceps corda", "Tríceps francês com halter", "Tríceps testa", "Tríceps máquina", "Tríceps no banco (mergulho)"],
+    "Inferiores": ["Agachamento livre", "Agachamento goblet", "Agachamento smith", "Agachamento sem peso", "Agachamento hack", "Leg press 45°", "Leg press horizontal", "Cadeira extensora", "Mesa flexora", "Cadeira flexora", "Stiff com halteres", "Stiff com barra", "Levantamento terra", "Afundo com halteres", "Afundo sem peso", "Agachamento búlgaro", "Elevação pélvica", "Ponte de glúteo no solo", "Cadeira adutora", "Cadeira abdutora", "Panturrilha em pé", "Panturrilha sentado", "Panturrilha no leg press", "Panturrilha no degrau"],
+    "Abdômen": ["Prancha", "Prancha com joelhos apoiados", "Prancha lateral", "Abdominal no solo (crunch)", "Abdominal na máquina", "Abdominal no cabo", "Elevação de pernas", "Bicicleta no solo", "Superman", "Perdigueiro (bird dog)", "Extensão lombar no banco"],
+    "Cardio": ["Caminhada", "Corrida leve", "Bicicleta ergométrica", "Elíptico", "Escada", "Pular corda", "Polichinelo"]
+  }
+}
