@@ -1,7 +1,7 @@
 {
-  "versao": "2.14.0",
+  "versao": "2.14.1",
   "data": "01/11/2026",
   "notas": [
-    "Ícone novo do app: preto e prata"
+    "Ajuste para o Android detectar o ícone novo"
   ]
 }
