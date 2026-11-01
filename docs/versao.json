@@ -1,10 +1,10 @@
 {
-  "versao": "2.7.0",
+  "versao": "2.8.0",
   "data": "01/11/2026",
   "notas": [
-    "Cores grafite e azul",
-    "Comentário do coach em cada caixa da Evolução",
-    "Coach pede para renovar a motivação depois de uma sequência difícil",
-    "Base para a IA e a memória do coach"
+    "Coach com o jeito de falar do professor",
+    "Coach soma a semana e o mês antes de avaliar",
+    "Botão para falar com o professor",
+    "Aceite dos termos ao abrir o app"
   ]
 }

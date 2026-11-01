@@ -108,6 +108,7 @@ function ingestAll(d){
   ingest(d.historico);
   ingestModels(d.modelos);
   ingestAvals(d.avaliacoes);
+  if(d.professor!==undefined)S.profWhats=d.professor||"";
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
 }
@@ -158,7 +159,9 @@ function applyInicio(d,fresh){
   }else if(d.aluno){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
-    if(d.aluno.cadastroPendente)showCadastro();
+    if(d.professor!==undefined)S.profWhats=d.professor||"";
+    if(fresh&&!d.aluno.aceite)showAceite();
+    else if(d.aluno.aceite&&d.aluno.cadastroPendente)showCadastro();
   }
   updateWho();
   if(fresh&&!S.alunoId)setSync("ok","Conectado");
@@ -992,9 +995,9 @@ function comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest){
   const sess=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;const vol=rs=>rs.reduce((a,r)=>a+r.vol,0)/1000;
   const nW=Math.max(1,P.weeks.length);const porSem=sess(P.cur)/nW,ant=P.prev.length?sess(P.prev)/nW:null;
   comentarEvo("Resumo do período",!P.cur.length?"Sem treinos neste período. Cada novo treino volta a contar a sua evolução.":
-    nf1.format(porSem)+" treinos por semana"+(ant!=null&&porSem>ant?", mais que no período anterior. Continue assim.":porSem>=3?". Ótima frequência.":". Cada treino a mais acelera o resultado."));
+    nf1.format(porSem)+" treinos por semana"+(ant!=null&&porSem>ant?", mais que no período anterior. Continue assim.":porSem>=3?". Ótima frequência.":". Dá para subir essa frequência."));
   const avanc=list.map(([kk,o])=>{const f=firstBest.get(kk),l=lastBest.get(kk);return {n:o.name,p:f&&l&&f.e1?(l.e1-f.e1)/f.e1*100:0}}).sort((a,b)=>b.p-a.p)[0];
-  comentarEvo("Evolução de força",avanc&&avanc.p>=1?"Maior avanço no período: "+avanc.n+", +"+nf0.format(avanc.p)+"%. Siga subindo aos poucos.":"Força estável no período. Pequenos aumentos de carga fazem a diferença.");
+  comentarEvo("Evolução de força",avanc&&avanc.p>=1?"Maior avanço no período: "+avanc.n+", +"+nf0.format(avanc.p)+"%. É isso que eu quero ver.":"Força estável no período. Já dá para buscar um pouco mais de carga.");
   const av=S.avals||[];const ult=av[av.length-1],pen=av[av.length-2];
   const val=(a,k)=>{if(!a)return NaN;const n=Body.num(a.v[k]);if(isFinite(n))return n;const c=Body.calc(a.v,S.aluno||{},a.date);return isFinite(c[k])?c[k]:NaN};
   const dif=k=>val(ult,k)-val(pen,k);
@@ -1006,14 +1009,14 @@ function comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest){
   comentarEvo("Medidas",!pen?"As medidas ganham sentido a partir da segunda avaliação.":isFinite(cd)&&Math.abs(cd)>=.1?"Cintura "+(cd>0?"aumentou ":"diminuiu ")+nf1.format(Math.abs(cd))+" cm desde a última avaliação.":"Compare a mesma medida entre as avaliações para ver a sua evolução.");
   const n=P.weeks.length;const mud=active.map(g=>{const v=volBy[g.k]||[];const rec=v.slice(-2).reduce((a,b)=>a+b,0),pre=v.slice(-4,-2).reduce((a,b)=>a+b,0);return {g:g.k,p:pre?(rec-pre)/pre*100:null}}).filter(x=>x.p!=null).sort((a,b)=>a.p-b.p);
   const pior=mud[0],melhor=mud[mud.length-1];
-  comentarEvo("Volume semanal por grupo",n<4||!mud.length?"Com mais semanas de treino, este gráfico mostra a sua tendência.":pior.p<=-15?pior.g+" caiu nas últimas 2 semanas. Vale dar atenção para retomar o volume.":melhor.p>=10?melhor.g+" cresceu "+nf0.format(melhor.p)+"% nas últimas 2 semanas. Bom trabalho.":"Volume estável nas últimas semanas. Boa constância.");
+  comentarEvo("Volume semanal por grupo",n<4||!mud.length?"Com mais semanas de treino, este gráfico mostra a sua tendência.":pior.p<=-15?pior.g+" caiu nas últimas 2 semanas. Vale dar atenção para retomar o volume.":melhor.p>=10?melhor.g+" cresceu "+nf0.format(melhor.p)+"% nas últimas 2 semanas. Bom trabalho.":"Volume estável nas últimas semanas.");
   const tot=active.map(g=>({g:g.k,n:(setBy[g.k]||[]).reduce((a,b)=>a+b,0)})).sort((a,b)=>a.n-b.n);
   comentarEvo("Séries por semana",!tot.length||!tot[tot.length-1].n?"":tot.length>1&&tot[0].n<tot[tot.length-1].n*.5?tot[0].g+" é o grupo com menos séries no período. Vale equilibrar.":"Séries bem distribuídas entre os grupos.");
   const gr=active.map(g=>{const c=vol(P.cur.filter(r=>r.grupo===g.k)),a=vol(P.prev.filter(r=>r.grupo===g.k));return {g:g.k,p:a?(c-a)/a*100:null}}).filter(x=>x.p!=null).sort((a,b)=>b.p-a.p);
   comentarEvo("Por grupo muscular",gr.length&&gr[0].p>=2?gr[0].g+" foi o grupo que mais evoluiu no período.":"Os grupos estão estáveis em relação ao período anterior.");
   const ini=P.cur.length?Math.min(...P.cur.map(r=>+r.date)):0;
   const rec=list.filter(([kk,o])=>{const a=S.rows.filter(r=>+r.date<ini&&r.e1&&exKey(r.ex)===kk).map(r=>r.e1);return a.length&&o.best.e1>Math.max(...a)});
-  comentarEvo("Recordes por exercício",rec.length?rec.length+(rec.length===1?" recorde":" recordes")+" no período. Excelente trabalho.":"Sem novos recordes no período. A constância leva até eles.");
+  comentarEvo("Recordes por exercício",rec.length?rec.length+(rec.length===1?" recorde":" recordes")+" no período. Muito bom.":"Sem novos recordes no período. Quero ver o próximo em breve.");
   const ses=sessions().filter(s=>s.rows.some(r=>r.done));const ul=ses[ses.length-1];
   if(ul){const hoje=new Date();const d=Math.floor((hoje-ul.date)/864e5);const sug=suggestion(templates());
     comentarEvo("Últimos treinos",(d<=0?"Você treinou hoje.":d===1?"Seu último treino foi ontem.":"Seu último treino foi há "+d+" dias.")+(sug?" Próximo: "+sug+".":""))}
@@ -1256,6 +1259,27 @@ function renderAlunoForm(el){
 
 /* ========== CADASTRO DO ALUNO (primeira vez) ========== */
 const OBJETIVOS=["Hipertrofia (ganhar massa)","Emagrecimento","Condicionamento e saúde","Força","Outro"];
+/* Aceite dos termos: aparece uma vez para o aluno, ao abrir o link. Só depois ele usa o app. */
+function showAceite(){
+  const el=$("#cadastro");if(!el.hidden&&$("#ace-form"))return;
+  el.innerHTML='<form class="sheet-card" id="ace-form" novalidate><h2>Antes de começar</h2>'+
+    '<p>Seus treinos e avaliações, inclusive dados de saúde, ficam na planilha do seu professor, que usa essas informações para acompanhar você.</p>'+
+    '<p>Para escrever o parecer do coach, os números e comentários dos treinos vão para um serviço de inteligência artificial (Cloudflare), sem o seu nome, WhatsApp ou e-mail.</p>'+
+    '<label class="ace-ok"><input type="checkbox" id="ace-chk"><span>Li e aceito a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>.</span></label>'+
+    '<p class="muted small">Se não concordar, fale com o seu professor antes de usar o app.</p><p class="setup-msg" id="ace-msg" role="status"></p>'+
+    '<div class="setup-row"><button class="btn primary" id="ace-go" type="submit">Aceitar e continuar</button></div></form>';
+  el.hidden=false;
+  $("#ace-form").onsubmit=async e=>{
+    e.preventDefault();const m=$("#ace-msg");
+    if(!$("#ace-chk").checked){m.textContent="Marque a caixa para continuar.";m.className="setup-msg bad";return}
+    const b=$("#ace-go");b.disabled=true;b.textContent="Salvando…";
+    try{
+      const r=await Api.call("aceitar");S.aluno=r.aluno;el.hidden=true;el.innerHTML="";
+      Api.cacheSet("inicio",Object.assign({},Api.cacheGet("inicio")||{},{aluno:r.aluno}));
+      if(r.aluno.cadastroPendente)showCadastro();render();
+    }catch(x){m.textContent=errText(x);m.className="setup-msg bad";b.disabled=false;b.textContent="Aceitar e continuar"}
+  };
+}
 function showCadastro(){
   const el=$("#cadastro");if(!el.hidden)return;
   const a=S.aluno||{};const f={nasc:a.nasc||"",sexo:a.sexo||"",altura:a.altura||"",peso:a.peso||"",objetivo:a.objetivo||"",dias:a.dias||"",obs:a.obs||"",email:a.email||""};
@@ -1544,6 +1568,7 @@ function renderCoach(){
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
     (A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
+      (S.role==="aluno"&&S.profWhats&&(A.sequencia||A.abaixo.length||A.comentarios.some(c=>/Dor ou incômodo/.test(c)))?'<a class="btn ch-prof" href="https://wa.me/'+esc(S.profWhats)+'?text='+encodeURIComponent("Professor, queria falar sobre o meu treino.")+'" target="_blank" rel="noopener">Falar com o professor</a>':"")+
       (A.academia?'<p class="muted small" style="margin:0 0 8px">Academia: '+esc(A.academia)+'.</p>':"")+
       (AI?'<div class="ch-animo"><b>Ânimo: '+(AI.ini&&AI.fim?"chegou "+E[AI.ini]+" → saiu "+E[AI.fim]:AI.ini?"chegou "+E[AI.ini]:E[AI.fim])+'</b><br>'+esc(AI.texto)+'</div>':"")+
       (A.comp?'<h3 class="ch-comp">Comparado com '+(A.comp.n===1?"o último treino igual":"os últimos "+A.comp.n+" treinos iguais")+'</h3><div class="gr3" style="margin-bottom:10px">'+

@@ -76,7 +76,11 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Cores:** grafite e azul (opção 3), nos tons claro e escuro.
 - **IA:** Cloudflare Workers AI, plano grátis, modelo `IA_MODELO` no Code.gs. Passou do limite grátis, dá erro e não cobra: o app mantém o parecer por regras. Máximo de 6 pareceres por aluno por dia.
 - **Chaves:** `CF_CONTA` e `CF_TOKEN` nas Propriedades do script, gravadas pelo menu **Diário de Treino → Configurar IA do coach**. Nunca no código nem no celular.
-- **Quem usa:** todos os alunos, ligado em 01/11/2026 a pedido do professor (implantação @8). Para desligar, a propriedade `IA_ALUNOS` = `nenhum`. Pendente: caixa de aceite no cadastro (LGPD).
+- **Quem usa:** todos os alunos que aceitaram os termos, e sempre o professor na própria planilha (`PROF_PLANILHA`). Para desligar, a propriedade `IA_ALUNOS` = `nenhum`.
+- **Aceite:** tela única ao abrir o link do aluno. A data fica na coluna "Aceite dos termos" da aba Alunos.
+- **Voz do coach:** em `IA_SISTEMA` (Code.gs), com exemplos no jeito de falar do professor. Sem frases de efeito. O app garante uma frase final sobre o próximo treino (`fecho`).
+- **Semana e mês:** `contexto()` em coach.js soma as séries por grupo. Se algo caiu, confere se o exercício ou o grupo já foi feito na semana (veredito "ok" ou "faltou").
+- **Falar com o professor:** botão no parecer quando há queda, dor ou sequência difícil, com o WhatsApp da linha do professor na aba Alunos. Aparece só no link do aluno.
 - **Memória:** aba **Memória do Coach** em cada planilha (uma linha por treino: título, parecer, recado e resumo acumulado). A IA lê o último resumo antes de escrever.
 - **Regras do texto:** tom profissional e motivador, sem perguntas. O programa central recusa texto com número que não esteja nos fatos.
 - **Sequência difícil:** 8 ou mais treinos difíceis nos últimos 10 (ânimo baixo ou volume 15% abaixo da média) geram um pedido respeitoso para renovar a motivação.
