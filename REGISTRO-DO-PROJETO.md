@@ -76,12 +76,12 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Cores:** grafite e azul (opção 3), nos tons claro e escuro.
 - **IA:** Cloudflare Workers AI, plano grátis, modelo `IA_MODELO` no Code.gs. Passou do limite grátis, dá erro e não cobra: o app mantém o parecer por regras. Máximo de 6 pareceres por aluno por dia.
 - **Chaves:** `CF_CONTA` e `CF_TOKEN` nas Propriedades do script, gravadas pelo menu **Diário de Treino → Configurar IA do coach**. Nunca no código nem no celular.
-- **Quem usa:** durante o teste, só a planilha do professor (`IA_TESTE_PLANILHA`). Para liberar a todos, a propriedade `IA_ALUNOS` = `todos`. Antes de liberar: caixa de aceite no cadastro (LGPD).
+- **Quem usa:** todos os alunos, ligado em 01/11/2026 a pedido do professor (implantação @8). Para desligar, a propriedade `IA_ALUNOS` = `nenhum`. Pendente: caixa de aceite no cadastro (LGPD).
 - **Memória:** aba **Memória do Coach** em cada planilha (uma linha por treino: título, parecer, recado e resumo acumulado). A IA lê o último resumo antes de escrever.
 - **Regras do texto:** tom profissional e motivador, sem perguntas. O programa central recusa texto com número que não esteja nos fatos.
 - **Sequência difícil:** 8 ou mais treinos difíceis nos últimos 10 (ânimo baixo ou volume 15% abaixo da média) geram um pedido respeitoso para renovar a motivação.
 - **Evolução:** comentário curto em cada caixa, por regras, sem gastar o limite da IA.
-- **Permissão nova:** a IA exige `script.external_request`. Sequência segura: `clasp push`, o professor autoriza pelo menu, e só então `clasp deploy`. Implantar antes de autorizar pode derrubar o app.
+- **Permissão:** a IA usa `script.external_request`, já autorizada. Se uma permissão nova surgir, a sequência segura é: `clasp push`, o professor autoriza pelo menu, e só então `clasp deploy`.
 
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
