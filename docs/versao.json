@@ -1,8 +1,8 @@
 {
-  "versao": "2.9.0",
+  "versao": "2.10.0",
   "data": "01/11/2026",
   "notas": [
-    "Visual novo: preto, prata e azul",
-    "Ícones maiores e mais limpos na tela inicial"
+    "Coach avalia o volume da semana antes de pedir mais",
+    "Coach sugere a academia onde você rende melhor"
   ]
 }

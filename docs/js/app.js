@@ -995,9 +995,9 @@ function comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest){
   const sess=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;const vol=rs=>rs.reduce((a,r)=>a+r.vol,0)/1000;
   const nW=Math.max(1,P.weeks.length);const porSem=sess(P.cur)/nW,ant=P.prev.length?sess(P.prev)/nW:null;
   comentarEvo("Resumo do período",!P.cur.length?"Sem treinos neste período. Cada novo treino volta a contar a sua evolução.":
-    nf1.format(porSem)+" treinos por semana"+(ant!=null&&porSem>ant?", mais que no período anterior. Continue assim.":porSem>=3?". Ótima frequência.":". Dá para subir essa frequência."));
+    nf1.format(porSem)+" treinos por semana"+(ant!=null&&porSem>ant?", mais que no período anterior. Continue assim.":porSem>=3?". Ótima frequência.":". Mantenha essa regularidade."));
   const avanc=list.map(([kk,o])=>{const f=firstBest.get(kk),l=lastBest.get(kk);return {n:o.name,p:f&&l&&f.e1?(l.e1-f.e1)/f.e1*100:0}}).sort((a,b)=>b.p-a.p)[0];
-  comentarEvo("Evolução de força",avanc&&avanc.p>=1?"Maior avanço no período: "+avanc.n+", +"+nf0.format(avanc.p)+"%. É isso que eu quero ver.":"Força estável no período. Já dá para buscar um pouco mais de carga.");
+  comentarEvo("Evolução de força",avanc&&avanc.p>=1?"Maior avanço no período: "+avanc.n+", +"+nf0.format(avanc.p)+"%. É isso que eu quero ver.":"Força estável no período.");
   const av=S.avals||[];const ult=av[av.length-1],pen=av[av.length-2];
   const val=(a,k)=>{if(!a)return NaN;const n=Body.num(a.v[k]);if(isFinite(n))return n;const c=Body.calc(a.v,S.aluno||{},a.date);return isFinite(c[k])?c[k]:NaN};
   const dif=k=>val(ult,k)-val(pen,k);
@@ -1016,7 +1016,7 @@ function comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest){
   comentarEvo("Por grupo muscular",gr.length&&gr[0].p>=2?gr[0].g+" foi o grupo que mais evoluiu no período.":"Os grupos estão estáveis em relação ao período anterior.");
   const ini=P.cur.length?Math.min(...P.cur.map(r=>+r.date)):0;
   const rec=list.filter(([kk,o])=>{const a=S.rows.filter(r=>+r.date<ini&&r.e1&&exKey(r.ex)===kk).map(r=>r.e1);return a.length&&o.best.e1>Math.max(...a)});
-  comentarEvo("Recordes por exercício",rec.length?rec.length+(rec.length===1?" recorde":" recordes")+" no período. Muito bom.":"Sem novos recordes no período. Quero ver o próximo em breve.");
+  comentarEvo("Recordes por exercício",rec.length?rec.length+(rec.length===1?" recorde":" recordes")+" no período. Muito bom.":"Sem novos recordes no período.");
   const ses=sessions().filter(s=>s.rows.some(r=>r.done));const ul=ses[ses.length-1];
   if(ul){const hoje=new Date();const d=Math.floor((hoje-ul.date)/864e5);const sug=suggestion(templates());
     comentarEvo("Últimos treinos",(d<=0?"Você treinou hoje.":d===1?"Seu último treino foi ontem.":"Seu último treino foi há "+d+" dias.")+(sug?" Próximo: "+sug+".":""))}
@@ -1568,6 +1568,7 @@ function renderCoach(){
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
     (A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
+      (A.academiaDica?'<div class="ch-seq">'+esc(A.academiaDica)+'</div>':"")+
       (S.role==="aluno"&&S.profWhats&&(A.sequencia||A.abaixo.length||A.comentarios.some(c=>/Dor ou incômodo/.test(c)))?'<a class="btn ch-prof" href="https://wa.me/'+esc(S.profWhats)+'?text='+encodeURIComponent("Professor, queria falar sobre o meu treino.")+'" target="_blank" rel="noopener">Falar com o professor</a>':"")+
       (A.academia?'<p class="muted small" style="margin:0 0 8px">Academia: '+esc(A.academia)+'.</p>':"")+
       (AI?'<div class="ch-animo"><b>Ânimo: '+(AI.ini&&AI.fim?"chegou "+E[AI.ini]+" → saiu "+E[AI.fim]:AI.ini?"chegou "+E[AI.ini]:E[AI.fim])+'</b><br>'+esc(AI.texto)+'</div>':"")+

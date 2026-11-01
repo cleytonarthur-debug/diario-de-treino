@@ -79,6 +79,8 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Quem usa:** todos os alunos que aceitaram os termos, e sempre o professor na própria planilha (`PROF_PLANILHA`). Para desligar, a propriedade `IA_ALUNOS` = `nenhum`.
 - **Aceite:** tela única ao abrir o link do aluno. A data fica na coluna "Aceite dos termos" da aba Alunos.
 - **Voz do coach:** em `IA_SISTEMA` (Code.gs), com exemplos no jeito de falar do professor. Sem frases de efeito. O app garante uma frase final sobre o próximo treino (`fecho`).
+- **Volume:** `avaliacaoVolume` compara as séries da semana com a média das 4 semanas anteriores (alto, bom ou abaixo). O coach só pede mais quando a semana e o grupo estão abaixo; senão, as metas são manter.
+- **Academias:** com 3 treinos ou mais em pelo menos 2 academias nos últimos 120 dias, o coach compara o rendimento e sugere a melhor quando o treino não foi forte.
 - **Semana e mês:** `contexto()` em coach.js soma as séries por grupo. Se algo caiu, confere se o exercício ou o grupo já foi feito na semana (veredito "ok" ou "faltou").
 - **Falar com o professor:** botão no parecer quando há queda, dor ou sequência difícil, com o WhatsApp da linha do professor na aba Alunos. Aparece só no link do aluno.
 - **Memória:** aba **Memória do Coach** em cada planilha (uma linha por treino: título, parecer, recado e resumo acumulado). A IA lê o último resumo antes de escrever.
