@@ -54,6 +54,8 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 
 ## Coach, academias, unilaterais e planos (desde 01/11/2026)
 - **Coach (docs/js/coach.js):** aba para professor e alunos. Regras sem IA externa (custo zero): avaliação ao salvar o treino, resumo do mês e comparação de academias. Lê comentários por palavras-chave (sono, cansaço, ânimo, dor, alimentação, tempo, academia).
+- **Períodos do Coach:** últimas 4 ou 12 semanas, 6 meses, tudo, um mês ou datas escolhidas. Compara com o período anterior de mesmo tamanho.
+- **Academias antigas preenchidas pelos comentários (01/11/2026):** 05/10 Harmos, 13/10 Smartfit, 19 e 20/10 Force One Itajaí. O resto está sem academia.
 - **Academia:** coluna N "Academia" no Histórico, criada sozinha em cada planilha. Peso e "última vez" vêm da academia escolhida.
 - **Ânimo e duração:** vão como marcação nas Observações da 1ª linha do treino: [Ânimo: bom], [Duração: 72 min].
 - **Unilaterais:** "... E" e "... D" viram um cartão com séries intercaladas (só na tela); na planilha continuam linhas com o nome do lado.

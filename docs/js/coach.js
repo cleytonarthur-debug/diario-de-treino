@@ -145,13 +145,17 @@ const NOMES=["janeiro","fevereiro","março","abril","maio","junho","julho","agos
 const nomeMes=k=>{const [a,m]=k.split("-");return NOMES[+m-1]+" de "+a};
 function meses(rows){return [...new Set(rows.map(r=>chaveMes(r.date)))].sort().reverse()}
 function mes(rows,k){
-  const [a,m]=k.split("-").map(Number);const kAnt=chaveMes(new Date(a,m-2,1));
-  const cur=rows.filter(r=>chaveMes(r.date)===k),ant=rows.filter(r=>chaveMes(r.date)===kAnt);
+  const [a,m]=k.split("-").map(Number);
+  return periodo(rows,new Date(a,m-1,1),new Date(a,m,1),new Date(a,m-2,1),nomeMes(k),"mês anterior");
+}
+// Resumo de qualquer período [ini, fim). iniAnt: início do período anterior, para comparar.
+function periodo(rows,ini,fim,iniAnt,nome,rotAnt){
+  const cur=rows.filter(r=>r.date>=ini&&r.date<fim),ant=iniAnt?rows.filter(r=>r.date>=iniAnt&&r.date<ini):[];
   const nS=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;
   const fe=rs=>rs.filter(r=>r.done&&!eCardio(r));
-  const out={k,nome:nomeMes(k),treinos:nS(cur),treinosAnt:nS(ant),series:fe(cur).length,seriesAnt:fe(ant).length,volume:volumeDe(fe(cur))/1000,volumeAnt:volumeDe(fe(ant))/1000,
+  const out={nome,rotAnt:rotAnt||"período anterior",linhas:cur,treinos:nS(cur),treinosAnt:nS(ant),series:fe(cur).length,seriesAnt:fe(ant).length,volume:volumeDe(fe(cur))/1000,volumeAnt:volumeDe(fe(ant))/1000,
     grupos:[],recordes:[],evolucoes:[],comentarios:[],partes:[],animo:{bom:0,ok:0,ruim:0},duracao:null,foco:[]};
-  const ini=new Date(a,m-1,1);const antes=rows.filter(r=>r.date<ini);
+  const antes=rows.filter(r=>r.date<ini);
   const gs=[...new Set(fe(cur).map(r=>r.grupo))];
   out.grupos=gs.map(g=>{const v=volumeDe(fe(cur).filter(r=>r.grupo===g))/1000,va=volumeDe(fe(ant).filter(r=>r.grupo===g))/1000;return {g,v,dif:va?pct(v,va):null}}).filter(x=>x.v>0).sort((x,y)=>y.v-x.v);
   // recordes e evolução por exercício
@@ -204,5 +208,5 @@ function academias(rows){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {treino,mes,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,duracaoDe};
+return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,duracaoDe};
 })();

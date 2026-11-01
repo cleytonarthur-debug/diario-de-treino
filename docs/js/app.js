@@ -1421,6 +1421,23 @@ async function atualizarTudo(comApp){
 $("#b-refresh").onclick=()=>atualizarTudo(true);
 
 /* ========== COACH ========== */
+// Monta o resumo do período escolhido e compara com o período anterior de mesmo tamanho.
+function resumoCoach(sel){
+  const hoje=new Date();const amanha=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()+1);
+  const dias=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+  if(/^\d{4}-\d{2}$/.test(sel))return Coach.mes(S.rows,sel);
+  if(sel==="tudo"){const ini=new Date(Math.min(...S.rows.map(r=>+r.date)));return Coach.periodo(S.rows,ini,amanha,null,"Todo o histórico","período anterior")}
+  if(sel==="datas"){
+    const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+    if(!S.coachDe)S.coachDe=iso(dias(hoje,-30));if(!S.coachAte)S.coachAte=iso(hoje);
+    const p=s=>{const [a,m,d]=s.split("-").map(Number);return new Date(a,m-1,d)};
+    let ini=p(S.coachDe),ult=p(S.coachAte);if(ult<ini){const t=ini;ini=ult;ult=t}
+    const n=Math.round((ult-ini)/864e5)+1;
+    return Coach.periodo(S.rows,ini,dias(ult,1),dias(ini,-n),fmtDate(ini)+" a "+fmtDate(ult),"período anterior");
+  }
+  const n=+sel.slice(1)*7;const ini=dias(amanha,-n);
+  return Coach.periodo(S.rows,ini,amanha,dias(ini,-n),"Últimos "+n+" dias","período anterior");
+}
 function renderCoach(){
   const el=$("#coach");
   if(needAluno(el))return;
@@ -1432,35 +1449,40 @@ function renderCoach(){
   const lista=(t,itens,cls)=>itens.length?'<div class="ch-sec '+(cls||"")+'"><h3>'+t+'</h3><ul>'+itens.map(x=>'<li>'+x+'</li>').join("")+'</ul></div>':"";
   const anim={bom:"😀 bom",ok:"😐 normal",ruim:"😞 baixo"};
   const meses=Coach.meses(S.rows);
-  if(!S.coachMes||!meses.includes(S.coachMes))S.coachMes=meses[0];
-  const M=S.coachMes?Coach.mes(S.rows,S.coachMes):null;
-  const dif=(a,b,u)=>b?(a>=b?'<span class="delta up">▲ ':'<span class="delta down">▼ ')+nf1.format(Math.abs(a-b))+(u||"")+' vs mês anterior</span>':'<span class="delta flat">sem mês anterior</span>';
-  const G=Coach.academias(S.rows);
+  const fixos=[["p4","Últimas 4 semanas"],["p12","Últimas 12 semanas"],["p26","Últimos 6 meses"],["tudo","Todo o histórico"],["datas","Escolher datas…"]];
+  if(!S.coachMes||!(meses.includes(S.coachMes)||fixos.some(x=>x[0]===S.coachMes)))S.coachMes=meses[0];
+  const M=S.coachMes?resumoCoach(S.coachMes):null;
+  const rot=M?M.rotAnt:"";
+  const dif=(a,b,u)=>b?(a>=b?'<span class="delta up">▲ ':'<span class="delta down">▼ ')+nf1.format(Math.abs(a-b))+(u||"")+' vs '+rot+'</span>':'<span class="delta flat">sem '+rot+'</span>';
+  const G=Coach.academias(M?M.linhas:S.rows);
   el.innerHTML='<div class="session-head"><div><h2>Coach</h2><div class="muted small">Avaliação automática, a partir dos seus números e comentários.</div></div></div>'+
     '<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do treino</h2></div>'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
     (A?'<p class="ch-tit">'+esc(A.titulo)+'</p><p class="muted small" style="margin:0 0 8px">'+esc(A.resumo+(A.academia?" Academia: "+A.academia+".":"")+(A.duracao?" Duração: "+fmtMin(A.duracao)+".":"")+(A.animo?" Ânimo: "+anim[A.animo]+".":""))+'</p>'+
       lista("✅ O que foi bem",A.bem,"bem")+lista("⚠️ O que ficou abaixo",A.abaixo,"mal")+lista("💬 O que você comentou",A.comentarios)+lista("🎯 Para o próximo treino",A.proximo,"foco")
       :'<p class="muted">Analisando o treino…</p>')+'</div>'+
-    (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Resumo do mês</h2></div>'+
-    '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</select></div>'+
+    (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do período</h2></div>'+
+    '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
+    (S.coachMes==="datas"?'<div class="ch-datas"><label class="fld2">De<input type="date" id="ch-de" value="'+esc(S.coachDe)+'"></label><label class="fld2">Até<input type="date" id="ch-ate" value="'+esc(S.coachAte)+'"></label></div>':"")+
+    (M.treinos?"":'<p class="muted small">Nenhum treino neste período.</p>')+
     '<div class="calc" style="margin-bottom:10px">'+
       '<div class="kpi"><span class="l">Treinos</span><span class="v">'+M.treinos+'</span>'+dif(M.treinos,M.treinosAnt)+'</div>'+
       '<div class="kpi"><span class="l">Séries</span><span class="v">'+M.series+'</span>'+dif(M.series,M.seriesAnt)+'</div>'+
       '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(M.volume)+'<small>t</small></span>'+dif(M.volume,M.volumeAnt," t")+'</div>'+
       (M.duracao?'<div class="kpi"><span class="l">Duração média</span><span class="v" style="font-size:24px">'+fmtMin(M.duracao)+'</span></div>':"")+'</div>'+
-    lista("🎯 Foco para o próximo mês",M.foco.map(esc),"foco")+
+    lista("🎯 Foco daqui para frente",M.foco.map(esc),"foco")+
     lista("🏆 Recordes",M.recordes.slice(0,5).map(r=>'<b>'+esc(r.nome)+'</b>: '+nf1.format(r.de)+' → '+nf1.format(r.para)+' kg (estimado)'),"bem")+
     lista("📈 Volume por grupo",M.grupos.map(x=>esc(x.g)+': '+nf1.format(x.v)+' t'+(x.dif!=null?' ('+(x.dif>0?"+":"")+x.dif+'%)':"")))+
     lista("💬 O que se repetiu nos comentários",M.comentarios.map(c=>esc(c.nome)+': '+c.n+(c.n===1?" treino":" treinos")).concat(M.partes.map(p=>'Dor/incômodo no '+esc(p.p)+': '+p.n+(p.n===1?" treino":" treinos"))))+
-    ((M.animo.bom+M.animo.ok+M.animo.ruim)?'<p class="small muted">Ânimo no mês: 😀 '+M.animo.bom+' · 😐 '+M.animo.ok+' · 😞 '+M.animo.ruim+'</p>':"")+'</div>':"")+
-    '<div class="card"><div class="card-h"><h2>Minhas academias</h2></div>'+
+    ((M.animo.bom+M.animo.ok+M.animo.ruim)?'<p class="small muted">Ânimo no período: 😀 '+M.animo.bom+' · 😐 '+M.animo.ok+' · 😞 '+M.animo.ruim+'</p>':"")+'</div>':"")+
+    '<div class="card"><div class="card-h"><h2>Minhas academias</h2><p>no período escolhido</p></div>'+
     (G.length?G.map(g=>'<details class="acad-card"><summary><b>'+esc(g.nome)+'</b> · '+g.treinos+(g.treinos===1?" treino":" treinos")+' · ânimo 😀'+g.bom+' 😐'+g.ok+' 😞'+g.ruim+'</summary>'+
       '<p class="small muted" style="margin:6px 0">Último treino: '+esc(g.ultima)+' · volume médio '+nf1.format(g.volMedio)+' t'+(g.duracao?' · '+fmtMin(g.duracao):"")+'</p>'+
       (g.cargas.length?'<div class="tbl-wrap"><table><thead><tr><th>Exercício</th><th>Última carga aqui</th></tr></thead><tbody>'+g.cargas.map(c=>'<tr><td>'+esc(c.ex)+'</td><td>'+esc(c.peso)+' × '+esc(c.reps)+'</td></tr>').join("")+'</tbody></table></div>':"")+'</details>').join("")
-      :'<p class="muted small">Escolha a academia no início do treino. Aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>';
+      :'<p class="muted small">Nenhuma academia informada neste período. Escolha a academia no início do treino: aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>';
   const cs=$("#ch-ses");if(cs)cs.onchange=e=>{S.coachSel=e.target.value;renderCoach()};
   const cm=$("#ch-mes");if(cm)cm.onchange=e=>{S.coachMes=e.target.value;renderCoach()};
+  [["#ch-de","coachDe"],["#ch-ate","coachAte"]].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{if(i.value){S[k]=i.value;renderCoach()}}});
 }
 
 /* ========== CONFIGURAÇÕES ========== */
