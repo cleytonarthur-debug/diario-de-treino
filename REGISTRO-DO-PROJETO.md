@@ -69,11 +69,11 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Recado do coach:** balão no topo da escolha do treino e do treino aberto, com o último parecer e o que esperar de hoje. Cada exercício mostra "Meta do coach". Aquecimento não vira meta.
 - **Ânimo duplo:** marcado ao chegar e na tela Finalizar treino. Vai na 1ª linha, nas Observações: [Ânimo início: x], [Ânimo fim: x]. O antigo [Ânimo: x] conta como saída.
 - **Parecer:** explica o porquê, compara com os últimos treinos iguais (volume, séries, tempo) e com outros dias de ânimo parecido, e dá metas por exercício. Continua por regras, sem IA paga (`docs/js/coach.js`).
-- **Ícones:** Tabler Icons (MIT), embutidos em `docs/js/icones.js` para funcionar sem internet.
+- **Ícones:** Phosphor Icons Light (MIT), embutidos em `docs/js/icones.js` para funcionar sem internet.
 - **Rascunhos do design:** pasta `rascunhos-design/`, só local, fora do site.
 
 ## IA do coach e memória (desde 01/11/2026, v2.7)
-- **Cores:** grafite e azul (opção 3), nos tons claro e escuro.
+- **Visual (v2.9):** preto, prata e detalhes em azul. Treinar em prata com halter em 45 graus; ícones Phosphor Light, grandes, no canto inferior direito das caixas.
 - **IA:** Cloudflare Workers AI, plano grátis, modelo `IA_MODELO` no Code.gs. Passou do limite grátis, dá erro e não cobra: o app mantém o parecer por regras. Máximo de 6 pareceres por aluno por dia.
 - **Chaves:** `CF_CONTA` e `CF_TOKEN` nas Propriedades do script, gravadas pelo menu **Diário de Treino → Configurar IA do coach**. Nunca no código nem no celular.
 - **Quem usa:** todos os alunos que aceitaram os termos, e sempre o professor na própria planilha (`PROF_PLANILHA`). Para desligar, a propriedade `IA_ALUNOS` = `nenhum`.

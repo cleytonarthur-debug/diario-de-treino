@@ -1711,7 +1711,7 @@ function textoTreinar(){
   return sug?"Próximo: "+sug:"Escolher o treino";
 }
 function renderInicio(){
-  const tile=(v,ic,nome,cor)=>'<button class="home-tile" data-ir="'+v+'" style="border-color:var('+cor+')"><span style="color:var('+cor+')">'+Icone(ic,30)+'</span>'+nome+'</button>';
+  const tile=(v,ic,nome)=>'<button class="home-tile" data-ir="'+v+'">'+nome+'<span class="home-ic">'+Icone(ic,58)+'</span></button>';
   let al="";
   if(S.role==="prof"){
     const pend=S.alunos.filter(a=>a.ativo&&a.status==="montar treino").length;
@@ -1719,9 +1719,9 @@ function renderInicio(){
       esc(pend?pend+(pend===1?" aguardando montar treino":" aguardando montar treino"):S.alunos.length+(S.alunos.length===1?" cadastrado":" cadastrados"))+'</span>'+Icone("chevron-right",22)+'</button>';
   }
   $("#inicio-tela").innerHTML='<div class="home-wrap">'+al+'<div class="home-grid">'+
-    '<button class="home-hero" data-ir="lancar">'+Icone("barbell",60)+'<span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
-    tile("coach","speakerphone","Avaliação do Coach","--t1")+tile("evo","trending-up","Evolução","--t2")+
-    tile("aval","ruler-measure","Avaliação física","--t3")+tile("perfil","user-circle","Perfil","--t4")+'</div></div>';
+    '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
+    tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+
+    tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>';
   $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
     if(b.dataset.ir==="alunos")S.alunoForm=null;
     if(b.dataset.ir==="lancar")S.picker=false;

@@ -1,10 +1,8 @@
 {
-  "versao": "2.8.0",
+  "versao": "2.9.0",
   "data": "01/11/2026",
   "notas": [
-    "Coach com o jeito de falar do professor",
-    "Coach soma a semana e o mês antes de avaliar",
-    "Botão para falar com o professor",
-    "Aceite dos termos ao abrir o app"
+    "Visual novo: preto, prata e azul",
+    "Ícones maiores e mais limpos na tela inicial"
   ]
 }
