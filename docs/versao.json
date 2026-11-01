@@ -1,8 +1,7 @@
 {
-  "versao": "2.10.0",
+  "versao": "2.11.0",
   "data": "01/11/2026",
   "notas": [
-    "Coach avalia o volume da semana antes de pedir mais",
-    "Coach sugere a academia onde você rende melhor"
+    "Nomes de academia unificados e histórico preenchido"
   ]
 }

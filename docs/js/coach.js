@@ -74,7 +74,14 @@ function sessoes(rows){
 }
 const volumeDe=rs=>sem(rs,r=>r.vol);
 const repsDe=rs=>sem(rs,r=>r.reps?r.reps.reduce((a,b)=>a+b,0):0);
-const academiaDe=rs=>{const r=rs.find(x=>x.academia);return r?r.academia:""};
+// Nomes diferentes para o mesmo lugar viram um só. Só troca quando a pessoa escreve exatamente o apelido.
+function nomeAcademia(n){
+  const t=String(n||"").trim();const k=strip(t);
+  if(/^(rex|rex ?fit|ct|rex ?ct|rex ?fit ?ct|ct rex|ct rex ?fit)$/.test(k))return "REX FIT CT";
+  if(/^smart ?fit$/.test(k))return "Smartfit Batel";
+  return t;
+}
+const academiaDe=rs=>{const r=rs.find(x=>x.academia);return r?nomeAcademia(r.academia):""};
 function porExercicio(rs){
   const m=new Map();
   rs.forEach(r=>{if(!r.ex)return;const k=base(r.ex);if(!m.has(k))m.set(k,{k,nome:semLadoNome(r.ex),rows:[]});m.get(k).rows.push(r)});
@@ -395,5 +402,5 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,EMO};
+return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,EMO};
 })();

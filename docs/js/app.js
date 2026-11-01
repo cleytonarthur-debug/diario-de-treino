@@ -486,7 +486,7 @@ function renderLancar(){
   const seen=new Set();const exNames=S.rows.map(r=>r.ex).concat(S.exList||[],window.Metodos?Metodos.bibNomes():[]).filter(n=>{const k=strip(n);if(!k||seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.localeCompare(b,"pt-BR"));
   el.innerHTML=balao(rec.html)+
     '<div class="card chegada"><h3>Como você está chegando?</h3>'+chipsAnimo("animo-ini",d.animoIni||d.animo)+'<p class="animo-msg" id="ini-msg" hidden></p>'+
-    '<label class="fld2 chegada-acad">Academia<input id="academia" list="acad-list" value="'+esc(d.academia||"")+'" placeholder="Onde você está?" autocomplete="off"></label><datalist id="acad-list">'+nomesAcademias().map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist></div>'+
+    '<label class="fld2 chegada-acad">Academia<input id="academia" list="acad-list" value="'+esc(d.academia||"")+'" placeholder="Nome e bairro, se tiver mais de uma" autocomplete="off"></label><datalist id="acad-list">'+nomesAcademias().map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist></div>'+
     '<div class="session-head"><div class="meta"><span>'+esc(d.date)+'</span><label class="inicio">Início <input type="time" id="inicio" value="'+esc(d.inicio||hhmm(new Date(d.started)))+'" aria-label="Horário de início do treino"></label><span id="clock"></span></div>'+
     '<div class="row-btns"><button class="btn ghost" id="b-trocar">Trocar treino</button><button class="btn ghost" id="b-stop" title="Marca as séries que faltam como não feitas">Parei aqui</button><button class="btn ghost" id="b-discard">Descartar</button></div></div>'+
     (d.metodo?metodoTopo(d):"")+
@@ -657,7 +657,7 @@ function bindLancar(){
     const rm=card.querySelector('[data-act="rm-set"]');if(rm)rm.onclick=()=>{b.sets.pop();if(b.uni)b.sets.pop();saveDraft();rerenderCard(bi);updateBar()};
   });
   const ini=$("#inicio");if(ini)ini.addEventListener("input",()=>{S.draft.inicio=ini.value;saveDraft()});
-  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=ac.value.trim();store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);saveDraft();renderLancar()});
+  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);saveDraft();renderLancar()});
   if(S.draft.animo&&!S.draft.animoIni){S.draft.animoIni=S.draft.animo;S.draft.animo="";saveDraft()}
   const iniMsg=()=>{const m=$("#ini-msg");const t=Coach.chegada(S.rows,S.draft.animoIni);m.textContent=t;m.hidden=!t};iniMsg();
   ligarAnimo("animo-ini","animoIni",iniMsg);

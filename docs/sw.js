@@ -1,6 +1,6 @@
 /* Service worker: o app sempre busca a versão mais nova quando tem internet
    (assim as atualizações chegam sozinhas) e usa a cópia guardada quando está offline. */
-const CACHE = "diario-de-treino-2.10.0";
+const CACHE = "diario-de-treino-2.11.0";
 const SHELL = [
   "./", "index.html", "css/app.css", "js/icones.js", "js/api.js", "js/body.js", "js/metodos.js", "js/atualizacao.js", "js/coach.js", "js/app.js",
   "metodos/index.json", "metodos/metodo-par.json", "metodos/biblioteca.json", "metodos/planos.json",
