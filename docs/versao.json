@@ -1,12 +1,10 @@
 {
-  "versao": "2.5.1",
+  "versao": "2.6.0",
   "data": "01/11/2026",
   "notas": [
-    "Coach avalia pelo período que você escolher: semanas, meses ou datas.",
-    "Nova aba Coach: avaliação ao final do treino.",
-    "Unilaterais intercalados: esquerdo e direito no mesmo cartão.",
-    "Tempo de treino sempre visível e campo Academia no treino.",
-    "Treinos prontos, biblioteca de exercícios e botão ↻ de atualizar.",
-    "Evolução: toque no título para abrir ou fechar cada bloco."
+    "Tela inicial nova, com caixas e tom claro ou escuro",
+    "Recado do coach no começo do treino",
+    "Ânimo na chegada e na saída",
+    "Parecer do coach mais completo, com metas por exercício"
   ]
 }

@@ -38,16 +38,21 @@ function partesComDor(texto){
 function analisarComentarios(rows){
   const cont={},frases={},partes={};
   rows.forEach(r=>{
-    const txt=limpa(r.obs).replace(/^[s·]+|[s·]+$/g,"").replace(/(s*·s*){2,}/g," · ");if(!txt)return;
+    const txt=limpa(r.obs).replace(/^[\s·]+|[\s·]+$/g,"").replace(/(\s*·\s*){2,}/g," · ");if(!txt)return;
     temasDe(txt).forEach(id=>{cont[id]=(cont[id]||0)+1;(frases[id]=frases[id]||[]);if(frases[id].length<2&&!frases[id].includes(txt))frases[id].push(txt)});
     partesComDor(txt).forEach(p=>{partes[p]=(partes[p]||0)+1});
   });
   return {cont,frases,partes};
 }
-// Ânimo do treino: o toque 😀😐😞 quando existe; senão, o que os comentários indicam.
+const EMO={bom:"😀",ok:"😐",ruim:"😞"},ORD={ruim:0,ok:1,bom:2};
+// Ânimo marcado na chegada e na saída. A marcação antiga, de um toque só, conta como saída.
+function animos(rows){
+  const acha=rx=>{for(const r of rows){const m=String(r.obs||"").match(rx);if(m)return m[1].toLowerCase()}return ""};
+  return {ini:acha(/\[[ÂA]nimo in[ií]cio: *(bom|ok|ruim)\]/i),fim:acha(/\[[ÂA]nimo fim: *(bom|ok|ruim)\]/i)||acha(/\[[ÂA]nimo: *(bom|ok|ruim)\]/i)};
+}
+// Ânimo do treino: o que foi marcado; senão, o que os comentários indicam.
 function animoDe(rows){
-  const tag=rows.map(r=>String(r.obs||"").match(/\[[ÂA]nimo: *(bom|ok|ruim)\]/i)).find(Boolean);
-  if(tag)return tag[1].toLowerCase();
+  const a=animos(rows);if(a.fim||a.ini)return a.fim||a.ini;
   const c=analisarComentarios(rows).cont;
   if(c.animo||c.cansaco||c.sono)return "ruim";
   return c.bem?"bom":"";
@@ -78,6 +83,39 @@ function porExercicio(rs){
 const eCardio=r=>/^cardio$/i.test(r.grupo||"");
 function topoMeta(m){const n=String(m||"").match(/\d+/g);if(!n||/completar|round|cada|min|falha/i.test(m))return null;return Math.max(...n.map(Number))}
 
+const pesoNum=p=>{const m=String(p||"").trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:kg)?\s*(cl|cada lado)?$/i);return m?{n:parseFloat(m[1].replace(",",".")),cl:!!m[2]}:null};
+const fmtP=(n,cl)=>nf(n)+" kg"+(cl?" cada lado":"");
+const incCarga=n=>n<20?1:n<60?2:5;
+const volFeito=s=>{if(s.volF==null)s.volF=volumeDe(s.rows.filter(r=>r.done&&!eCardio(r)));return s.volF};
+// Quanto um treino ficou acima ou abaixo da média dos últimos 4 treinos iguais.
+function desvio(todas,s){
+  const iguais=todas.filter(x=>x.treino===s.treino&&x.date<s.date).slice(-4);
+  const m=iguais.length?iguais.reduce((a,x)=>a+volFeito(x),0)/iguais.length:0;
+  return m?pct(volFeito(s),m):null;
+}
+/* Compara o ânimo com os outros dias parecidos, para comemorar ou ser compreensivo. */
+function analisarAnimo(todas,ses,dv){
+  const {ini,fim}=animos(ses.rows);if(!ini&&!fim)return null;
+  const humor=ini||fim;const v=[];
+  const outras=todas.filter(s=>s.date<ses.date&&animoDe(s.rows)===humor).map(s=>desvio(todas,s)).filter(x=>x!=null);
+  const melhorou=ini&&fim&&ORD[fim]>ORD[ini],piorou=ini&&fim&&ORD[fim]<ORD[ini];
+  if(melhorou)v.push("Você saiu melhor do que chegou: o treino ajudou.");
+  if(humor==="ruim"){
+    if(dv==null)v.push("Dia difícil, e você treinou mesmo assim. Isso conta.");
+    else if(outras.length>=2){
+      const m=Math.round(outras.reduce((a,b)=>a+b,0)/outras.length);
+      v.push("Nos outros "+outras.length+" dias de ânimo baixo, seu volume ficou em média "+(m===0?"igual ao normal":Math.abs(m)+"% "+(m<0?"abaixo":"acima")+" do normal")+".");
+      v.push(dv>m?"Hoje foi melhor que isso. Treinar em dias ruins está valendo a pena.":"Hoje ficou parecido, o que é normal nesses dias. Sem cobrança.");
+    }else if(dv>=-5)v.push("Mesmo com ânimo baixo, você manteve o nível.");
+    else v.push("Em dia difícil, render menos é normal. O importante foi aparecer.");
+  }else if(humor==="bom"){
+    if(dv!=null&&dv<=-15)v.push("Você chegou animado, mas o volume ficou abaixo. Vale olhar carga, descanso ou tempo de treino.");
+    else if(!melhorou)v.push("Bom ânimo, e o treino acompanhou.");
+  }else if(!melhorou&&!piorou)v.push("Dia normal, treino feito.");
+  if(piorou)v.push("Você saiu mais desanimado do que chegou. Se isso se repetir, vale conversar com o professor sobre o treino.");
+  return {ini,fim,texto:v.join(" ")};
+}
+
 /* ---------- avaliação de um treino ---------- */
 function treino(rows,key){
   const todas=sessoes(rows);const ses=todas.find(s=>s.key===key);if(!ses)return null;
@@ -86,11 +124,15 @@ function treino(rows,key){
   const out={key,dateS:ses.dateS,treino:ses.treino,academia:gym,duracao:duracaoDe(ses.rows),animo:animoDe(ses.rows),bem:[],abaixo:[],comentarios:[],proximo:[],titulo:"",resumo:""};
   const feitas=ses.rows.filter(r=>r.done&&!eCardio(r));
   const naoFeitas=ses.rows.filter(r=>!r.done&&/n[aã]o fiz/i.test(String(r.feitas)+" "+String(r.hora)));
-  const subir=[],manter=[];
+  const subir=[],manter=[],difs=[],mais=[];out.metasEx={};
   porExercicio(ses.rows.filter(r=>!eCardio(r))).forEach(ex=>{
     const dn=ex.rows.filter(r=>r.done);if(!dn.length)return;
     const anteriores=antes.filter(r=>base(r.ex)===ex.k&&r.done);
-    if(!anteriores.length){if(!antes.some(r=>base(r.ex)===ex.k))out.bem.push("Novo no seu histórico: <b>"+esc(ex.nome)+"</b>. Agora ele é a sua referência.");return}
+    const top=dn.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];const P=pesoNum(top.peso);const R=top.reps?top.reps[0]:null;
+    const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];const nv=fmtP(P.n+incCarga(P.n),P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+")",nv]};
+    const aMais=()=>!R?null:P?[fmtP(P.n,P.cl)+" × "+(R+1)+" (1 repetição a mais)",fmtP(P.n,P.cl)+" × "+(R+1)]:[(R+1)+" repetições (1 a mais)",(R+1)+" repetições"];
+    if(!anteriores.length){if(!antes.some(r=>base(r.ex)===ex.k))out.bem.push("Novo no seu histórico: <b>"+esc(ex.nome)+"</b>. Agora ele é a sua referência.");
+      const pr=aMais();if(pr){mais.push({nome:ex.nome,txt:pr[0],curto:pr[1]});out.metasEx[ex.k]=pr[1]}return}
     const mesmaGym=gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[];
     const ref=mesmaGym.length?mesmaGym:anteriores;
     const ultData=ref[ref.length-1].dateS;const prev=ref.filter(r=>r.dateS===ultData);
@@ -99,13 +141,21 @@ function treino(rows,key){
     const bestE=Math.max(0,...dn.map(r=>r.e1||0)),recE=Math.max(0,...ref.map(r=>r.e1||0));
     if(bestE&&recE&&bestE>recE+0.5)out.bem.push("🏆 Recorde em <b>"+esc(ex.nome)+"</b>: força estimada de "+nf(bestE)+" kg (antes "+nf(recE)+" kg).");
     else if(d!=null&&d>=3)out.bem.push("<b>"+esc(ex.nome)+"</b>: +"+d+"% de volume sobre "+esc(ultData.slice(0,5))+".");
-    if(d!=null&&d<=-10){out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+".");manter.push(ex.nome)}
+    const aquec=/aquec/.test(ex.k);
+    if(d!=null&&!aquec)difs.push({nome:ex.nome,d});
+    if(d!=null&&d<=-10&&!aquec)out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+".");
     // meta batida em todas as séries, sem ter ido ao limite em todas
+    let vaiSubir=false;
     const comMeta=dn.map(r=>({r,t:topoMeta(r.meta)})).filter(x=>x.t!=null);
     if(comMeta.length&&comMeta.length===dn.length&&comMeta.every(x=>x.r.reps&&x.r.reps[0]>=x.t)){
       const rirs=dn.map(r=>r.rir).filter(x=>x!=="");
-      if(!rirs.length||rirs.some(x=>+x>=1))subir.push(ex.nome);
+      if(!rirs.length||rirs.some(x=>+x>=1))vaiSubir=true;
     }
+    if(vaiSubir){const m=aSubir();subir.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
+    else if(d!=null&&d<=-10){const prevR=Math.max(0,...prev.map(r=>r.reps?r.reps[0]:0));
+      const m=P&&prevR?["manter "+fmtP(P.n,P.cl)+" e voltar às "+prevR+" repetições",fmtP(P.n,P.cl)+" × "+prevR]:["voltar ao que fez em "+ultData.slice(0,5),"voltar ao que fez em "+ultData.slice(0,5)];
+      manter.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
+    else{const m=aMais();if(m){mais.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
   });
   if(naoFeitas.length){
     const nomes=[...new Set(naoFeitas.map(r=>semLadoNome(r.ex)))];
@@ -115,6 +165,8 @@ function treino(rows,key){
   const C=analisarComentarios(ses.rows);const tem=id=>!!C.cont[id];
   TEMAS.forEach(t=>{if(C.cont[t.id])out.comentarios.push("<b>"+t.nome+":</b> “"+esc(C.frases[t.id][0].slice(0,110))+"”")});
   const justifica=[tem("sono")&&"sono",tem("cansaco")&&"cansaço",tem("animo")&&"pouco ânimo",tem("comida")&&"alimentação",tem("academia")&&"a academia"].filter(Boolean);
+  const animoIni=animos(ses.rows).ini;
+  const dificil=animoIni==="ruim"||justifica.length>0;
   if(out.abaixo.length&&justifica.length)out.abaixo.push("Faz sentido com o que você comentou ("+justifica.join(", ")+"). Não é perda de força: leve isso em conta.");
   // treino comparado com a média dos anteriores iguais
   const iguais=todas.filter(s=>s.treino===ses.treino&&s.date<ses.date).slice(-4);
@@ -122,19 +174,40 @@ function treino(rows,key){
   const media=iguais.length?iguais.reduce((a,s)=>a+volumeDe(s.rows.filter(r=>r.done&&!eCardio(r))),0)/iguais.length:0;
   const dv=media?pct(volHoje,media):null;
   out.volume=volHoje;out.series=feitas.length;out.volumeDif=dv;
-  if(dv==null){out.titulo="Treino registrado";out.resumo=feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Primeira referência deste treino."}
-  else if(dv>=5){out.titulo="Treino forte 💪";out.resumo="Volume "+dv+"% acima da sua média neste treino."}
-  else if(dv<=-15){out.titulo="Treino abaixo do normal";out.resumo="Volume "+Math.abs(dv)+"% abaixo da sua média neste treino."+(justifica.length?" Você comentou: "+justifica.join(", ")+".":"")}
-  else{out.titulo="Treino dentro do normal";out.resumo="Volume parecido com a sua média neste treino."}
+  // comparação com os últimos treinos iguais
+  const mediaDe=f=>{const a=iguais.map(f).filter(x=>x!=null&&x>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null};
+  const mSeries=mediaDe(s=>s.rows.filter(r=>r.done&&!eCardio(r)).length),mTempo=mediaDe(s=>duracaoDe(s.rows));
+  out.comp=iguais.length?{n:iguais.length,vol:volHoje/1000,volDif:dv,series:feitas.length,seriesDif:mSeries!=null?feitas.length-Math.round(mSeries):null,tempo:out.duracao,tempoDif:mTempo!=null&&out.duracao?out.duracao-Math.round(mTempo):null}:null;
+  // o texto do parecer: o que aconteceu e o porquê
+  const refA=iguais.length===1?"o último "+ses.treino:"a média dos últimos "+iguais.length+" treinos iguais";
+  const refDe=iguais.length===1?"do último "+ses.treino:"da média dos últimos "+iguais.length+" treinos iguais";
+  const motivo=justifica.length?"Você registrou "+justifica.join(", ")+". ":animoIni==="ruim"?"Você chegou com pouco ânimo. ":"";
+  const ordenado=difs.slice().sort((a,b)=>b.d-a.d);const maior=ordenado[0],menor=ordenado[ordenado.length-1];
+  const avanco=maior&&maior.d>=3?" O maior avanço foi em "+maior.nome+" (+"+maior.d+"%).":"";
+  if(dv==null){out.titulo="Treino registrado";out.frase="foi a sua primeira vez nele";
+    out.texto=motivo+feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Este treino agora é a sua referência para as próximas vezes."}
+  else if(dv>=5){out.titulo=dificil?"Treino forte, mesmo em um dia difícil":"Treino forte";
+    out.frase=(dificil?"mesmo em um dia difícil, ":"")+"você subiu "+dv+"% no volume";
+    out.texto=motivo+(dificil?"Mesmo assim, você fez ":"Você fez ")+dv+"% a mais que "+refA+"."+avanco}
+  else if(dv<=-15){out.titulo=dificil?"Dia difícil, e você apareceu":"Treino abaixo do normal";
+    out.frase=dificil?"foi um dia difícil e o volume ficou "+Math.abs(dv)+"% abaixo, sem problema":"o volume ficou "+Math.abs(dv)+"% abaixo";
+    out.texto=motivo+"O volume ficou "+Math.abs(dv)+"% abaixo "+refDe+"."+(menor&&menor.d<0?" A maior queda foi em "+menor.nome+" ("+menor.d+"%).":"")+(dificil?" Faz sentido para um dia assim.":" Sem um motivo registrado, vale observar carga, descanso ou pressa.")}
+  else{out.titulo=dificil?"Dia difícil, e você manteve o nível":"Treino dentro do normal";
+    out.frase=(dificil?"mesmo em um dia difícil, ":"")+"você ficou na sua média";
+    out.texto=motivo+"Você ficou perto "+refDe+"."+avanco}
+  out.resumo=out.texto;
+  out.animoInfo=analisarAnimo(todas,ses,dv);
   // próximo treino
-  subir.slice(0,4).forEach(n=>out.proximo.push("⬆ Suba um pouco a carga em <b>"+esc(n)+"</b>: você bateu a meta em todas as séries."));
-  manter.slice(0,3).forEach(n=>out.proximo.push("➡ Mantenha a carga em <b>"+esc(n)+"</b> e tente voltar ao que fez antes."));
+  // aquecimento não vira meta
+  Object.keys(out.metasEx).forEach(k=>{if(/aquec/.test(k))delete out.metasEx[k]});
+  out.metasLista=subir.concat(manter,mais).filter(m=>!/aquec/i.test(m.nome)).slice(0,4);
+  out.metasLista.forEach(m=>out.proximo.push("<b>"+esc(m.nome)+":</b> "+esc(m.txt)));
   Object.keys(C.partes).slice(0,3).forEach(p=>out.proximo.push("⚠ Atenção ao <b>"+esc(p)+"</b>: reduza a carga se doer e avise o professor se continuar."));
   if(tem("dor")&&!Object.keys(C.partes).length)out.proximo.push("⚠ Você comentou dor ou incômodo. Vá com calma e avise o professor se continuar.");
-  if(tem("sono"))out.proximo.push("😴 Tente dormir melhor antes do próximo treino.");
-  if(tem("comida"))out.proximo.push("🍽 Coma bem antes do próximo treino.");
-  if(naoFeitas.length)out.proximo.push("🔁 Retome as séries que ficaram para trás, se der.");
-  if(!out.proximo.length)out.proximo.push("✅ Repita o treino buscando pelo menos 1 repetição a mais nas séries principais.");
+  if(tem("sono"))out.proximo.push("<b>Sono:</b> tente dormir melhor na véspera.");
+  if(tem("comida"))out.proximo.push("<b>Alimentação:</b> coma bem antes do treino.");
+  if(naoFeitas.length)out.proximo.push("<b>Séries que faltaram:</b> retome, se der.");
+  if(!out.proximo.length)out.proximo.push("Repita o treino buscando pelo menos 1 repetição a mais nas séries principais.");
   if(!out.bem.length)out.bem.push("Você apareceu e treinou. Constância é o que mais conta.");
   return out;
 }
@@ -154,7 +227,7 @@ function periodo(rows,ini,fim,iniAnt,nome,rotAnt){
   const nS=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;
   const fe=rs=>rs.filter(r=>r.done&&!eCardio(r));
   const out={nome,rotAnt:rotAnt||"período anterior",linhas:cur,treinos:nS(cur),treinosAnt:nS(ant),series:fe(cur).length,seriesAnt:fe(ant).length,volume:volumeDe(fe(cur))/1000,volumeAnt:volumeDe(fe(ant))/1000,
-    grupos:[],recordes:[],evolucoes:[],comentarios:[],partes:[],animo:{bom:0,ok:0,ruim:0},duracao:null,foco:[]};
+    grupos:[],recordes:[],evolucoes:[],comentarios:[],partes:[],animo:{bom:0,ok:0,ruim:0},animoMudou:{melhorou:0,igual:0,piorou:0},duracao:null,foco:[]};
   const antes=rows.filter(r=>r.date<ini);
   const gs=[...new Set(fe(cur).map(r=>r.grupo))];
   out.grupos=gs.map(g=>{const v=volumeDe(fe(cur).filter(r=>r.grupo===g))/1000,va=volumeDe(fe(ant).filter(r=>r.grupo===g))/1000;return {g,v,dif:va?pct(v,va):null}}).filter(x=>x.v>0).sort((x,y)=>y.v-x.v);
@@ -172,7 +245,8 @@ function periodo(rows,ini,fim,iniAnt,nome,rotAnt){
   // comentários: quantos treinos do mês tocaram em cada tema
   const temas={},partes={};
   porSes.forEach(s=>{const C=analisarComentarios(s.rows);Object.keys(C.cont).forEach(t=>temas[t]=(temas[t]||0)+1);Object.keys(C.partes).forEach(p=>partes[p]=(partes[p]||0)+1);
-    const an=animoDe(s.rows);if(an)out.animo[an]++});
+    const an=animoDe(s.rows);if(an)out.animo[an]++;
+    const am=animos(s.rows);if(am.ini&&am.fim){const d=ORD[am.fim]-ORD[am.ini];out.animoMudou[d>0?"melhorou":d<0?"piorou":"igual"]++}});
   out.comentarios=TEMAS.filter(t=>temas[t.id]).map(t=>({nome:t.nome,id:t.id,n:temas[t.id]})).sort((x,y)=>y.n-x.n);
   out.partes=Object.entries(partes).map(([p,n])=>({p,n})).sort((x,y)=>y.n-x.n);
   // foco do próximo mês
@@ -206,7 +280,40 @@ function academias(rows){
     duracao:o.durs.length?Math.round(o.durs.reduce((a,b)=>a+b,0)/o.durs.length):null,
     cargas:[...o.cargas.values()].sort((a,b)=>b.n-a.n).slice(0,8)})).sort((a,b)=>b.treinos-a.treinos);
 }
+/* ---------- recado do coach, antes e durante o treino ---------- */
+function recado(rows,nome){
+  const ses=sessoes(rows).filter(s=>s.treino===nome&&s.rows.some(r=>r.done));
+  if(!ses.length)return {html:"Primeira vez neste treino: hoje é dia de criar referência. Escolha cargas confortáveis e anote tudo.",metas:{}};
+  const last=ses[ses.length-1];const A=treino(rows,last.key);if(!A)return {html:"",metas:{}};
+  const hoje=(A.metasLista||[]).slice(0,2);
+  return {html:"No último "+esc(nome)+" ("+esc(last.dateS.slice(0,5))+"), "+esc(A.frase)+". <b>Hoje espere:</b> "+
+    (hoje.length?hoje.map(m=>esc(m.nome)+" com "+esc(m.curto)).join(" e "):"pelo menos 1 repetição a mais nas séries principais")+".",metas:A.metasEx||{}};
+}
+function recadoPicker(rows,sug){
+  const ses=sessoes(rows).filter(s=>s.rows.some(r=>r.done));if(!ses.length)return "";
+  const last=ses[ses.length-1];const hoje=new Date();const dias=Math.round((new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate())-last.date)/864e5);
+  const A=treino(rows,last.key);
+  return (dias<=0?"Você já treinou hoje.":dias===1?"Você treinou ontem.":"Faz "+dias+" dias do seu último treino.")+(A?" Último parecer: "+esc(A.titulo.toLowerCase())+".":"")+(sug?" A sugestão de hoje é <b>"+esc(sug)+"</b>.":"");
+}
+// Resposta ao marcar como está chegando.
+function chegada(rows,ini){
+  if(ini==="bom")return "Boa! Dia bom para buscar as metas.";
+  if(ini==="ok")return "No seu ritmo. Foque em manter a técnica.";
+  if(ini!=="ruim")return "";
+  const dias=sessoes(rows).map(s=>animos(s.rows)).filter(a=>a.ini==="ruim"&&a.fim);
+  const melhor=dias.filter(a=>ORD[a.fim]>0).length;
+  return "Dia difícil? Hoje o objetivo é cumprir o treino, sem cobrança."+(dias.length>=2?" Das outras "+dias.length+" vezes que chegou assim, você saiu melhor em "+melhor+".":"");
+}
+// Resposta ao marcar como está saindo.
+function saida(ini,fim){
+  if(!fim)return "";
+  if(!ini)return fim==="ruim"?"Dia pesado, e você fez mesmo assim.":"Treino feito!";
+  const txt="Chegou "+EMO[ini]+" e saiu "+EMO[fim]+". ";
+  if(ORD[fim]>ORD[ini])return txt+"O treino levantou o seu ânimo!";
+  if(ORD[fim]<ORD[ini])return txt+"Normal em treino puxado. Vamos ver como fica no próximo.";
+  return txt+(fim==="ruim"?"Dia pesado, e você fez mesmo assim.":fim==="bom"?"Manteve o ânimo lá em cima.":"Treino feito, ânimo estável.");
+}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,duracaoDe};
+return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,EMO};
 })();

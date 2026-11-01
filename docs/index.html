@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#0f1b2d">
+<meta name="theme-color" content="#0b3550">
+<script>try{var t=localStorage.getItem("dt2-tema");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,27 +21,22 @@
 <body>
 <header class="top">
   <div class="top-row">
+    <button class="ico-btn" id="b-voltar" aria-label="Voltar" hidden></button>
     <div class="brand">
-      <h1><button id="home" class="home" title="Voltar para a escolha do treino">Diário de Treino</button></h1>
-      <button id="who" class="who" hidden></button>
+      <h1 id="top-titulo">Diário de Treino</h1>
+      <span class="top-sub" id="top-sub" hidden></span>
     </div>
     <div class="top-right"><div class="sync" id="sync"><span class="dot busy"></span><span>Abrindo…</span></div>
-      <button class="refresh" id="b-refresh" aria-label="Atualizar treinos e aplicativo" title="Atualizar treinos e aplicativo">↻</button></div>
+      <button class="ico-btn" id="b-refresh" aria-label="Atualizar treinos e aplicativo" title="Atualizar treinos e aplicativo"></button>
+      <button class="ico-btn" id="b-config" aria-label="Configurações" title="Configurações"></button></div>
   </div>
-  <nav class="tabs" role="tablist" id="tabs">
-    <button class="tab" role="tab" data-v="alunos" hidden>Alunos</button>
-    <button class="tab" role="tab" data-v="lancar">Treinar</button>
-    <button class="tab" role="tab" data-v="coach">Coach</button>
-    <button class="tab" role="tab" data-v="evo">Evolução</button>
-    <button class="tab" role="tab" data-v="aval">Avaliação</button>
-    <button class="tab" role="tab" data-v="perfil">Perfil</button>
-    <button class="tab" role="tab" data-v="config">Configurações</button>
-  </nav>
+  <div class="saudacao" id="saudacao" hidden></div>
 </header>
 
 <main>
   <div id="banner"></div>
 
+  <section id="v-inicio" class="view" hidden><div id="inicio-tela"></div></section>
   <section id="v-alunos" class="view" hidden></section>
   <section id="v-lancar" class="view" hidden><div id="lancar"></div></section>
 
@@ -107,7 +103,7 @@
     <div><div class="sb-time" id="sb-time"></div><div class="count" id="sb-count">0 séries</div><div class="rest" id="sb-rest"></div></div>
     <div class="grow"></div>
     <button class="btn ghost" id="sb-cancel" hidden>Voltar</button>
-    <button class="btn primary" id="sb-save" disabled>Salvar na planilha</button>
+    <button class="btn primary" id="sb-save" disabled>Finalizar treino</button>
   </div>
 </div>
 <div id="toast" class="toast" hidden></div>
@@ -126,6 +122,7 @@
 </div>
 
 <script src="vendor/chart.umd.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/api.js"></script>
 <script src="js/body.js"></script>
 <script src="js/metodos.js"></script>

@@ -63,6 +63,15 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Atualizar:** botão ↻ no topo relê a planilha e atualiza o app. Evolução: tocar no título fecha o bloco.
 - **Acesso master:** só o link com a chave de professor. O link do aluno não tem a chave e o programa central recusa as funções de professor (testado).
 
+## Tela inicial, tema e recado do coach (desde 01/11/2026, v2.6)
+- **Navegação:** a barra de abas saiu. Tudo começa na tela inicial (mosaico com Treinar, Avaliação do Coach, Evolução, Avaliação física e Perfil; caixa Alunos só no acesso de professor). A seta ← e o Voltar do celular levam para a tela inicial. Configurações fica na engrenagem do topo.
+- **Tema:** design Oceano, só claro ou escuro, escolhido em Configurações (`dt2-tema` no aparelho). Antes da escolha, segue o celular.
+- **Recado do coach:** balão no topo da escolha do treino e do treino aberto, com o último parecer e o que esperar de hoje. Cada exercício mostra "Meta do coach". Aquecimento não vira meta.
+- **Ânimo duplo:** marcado ao chegar e na tela Finalizar treino. Vai na 1ª linha, nas Observações: [Ânimo início: x], [Ânimo fim: x]. O antigo [Ânimo: x] conta como saída.
+- **Parecer:** explica o porquê, compara com os últimos treinos iguais (volume, séries, tempo) e com outros dias de ânimo parecido, e dá metas por exercício. Continua por regras, sem IA paga (`docs/js/coach.js`).
+- **Ícones:** Tabler Icons (MIT), embutidos em `docs/js/icones.js` para funcionar sem internet.
+- **Rascunhos do design:** pasta `rascunhos-design/`, só local, fora do site.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.
