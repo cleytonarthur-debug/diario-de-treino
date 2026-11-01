@@ -392,3 +392,7 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 .nome-g{background:linear-gradient(135deg,var(--nome1),var(--nome2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .saudacao b{font-size:34px;line-height:1.08}
 .saudacao small{font-size:18px;margin-top:2px}
+
+/* ---- frase do dia e fogos ao concluir ---- */
+.saudacao span{font-size:14px;color:var(--bar-ink);margin-top:4px}
+.fogos{position:fixed;inset:0;z-index:60;pointer-events:none}

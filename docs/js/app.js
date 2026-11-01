@@ -423,7 +423,7 @@ function renderFim(el){
       '<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(minutosTreino(d)))+'</span></div>'+
       '<div class="kpi"><span class="l">Séries</span><span class="v">'+doneSets()+'</span></div>'+
       '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(vol/1000)+'<small>t</small></span></div></div></div>'+
-    '<div class="fim-btns"><button class="btn primary" id="fim-save">Salvar e ver o parecer</button><button class="btn" id="fim-voltar">Voltar ao treino</button></div>';
+    '<div class="fim-btns"><button class="btn primary" id="fim-save">Concluir treino</button><button class="btn" id="fim-voltar">Voltar ao treino</button></div>';
   const msg=()=>{const m=$("#fim-msg");const t=Coach.saida(ini,S.draft.animoFim);m.textContent=t;m.hidden=!t};msg();
   ligarAnimo("animo-fim","animoFim",msg);
   const ob=$("#treino-obs");ob.addEventListener("input",()=>{S.draft.obs=ob.value;saveDraft()});
@@ -668,7 +668,7 @@ function bindLancar(){
   $("#b-discard").onclick=()=>armed($("#b-discard"),"Toque de novo para descartar","Descartar",()=>{S.draft=null;saveDraft();S.confirm=false;S.fim=false;render()});
   $("#b-stop").onclick=()=>armed($("#b-stop"),"Toque de novo: marcar o que falta como não feito","Parei aqui",()=>{
     let n=0;S.draft.blocks.forEach(b=>b.sets.forEach(s=>{if(!String(s.reps).trim()&&!s.skip){s.skip=true;n++}}));
-    saveDraft();renderLancar();toast(n?n+" séries marcadas como não feitas. Toque em Finalizar treino para comentar o motivo e salvar.":"Nada a marcar.");
+    saveDraft();renderLancar();toast(n?n+" séries marcadas como não feitas. Toque em Concluir treino para comentar o motivo e salvar.":"Nada a marcar.");
     const t=$("#treino-obs");if(t){t.focus();t.scrollIntoView({block:"center"})}
   });
 }
@@ -734,7 +734,7 @@ function updateBar(){
   $("#sb-count").textContent=feitas+(feitas===1?" série feita":" séries feitas")+(n>feitas?" · "+(n-feitas)+" não feita"+(n-feitas>1?"s":""):"");
   const save=$("#sb-save"),cancel=$("#sb-cancel");
   const off=!navigator.onLine;
-  const fs=$("#fim-save");if(fs){fs.disabled=S.saving||off||n===0;fs.textContent=S.saving?"Salvando…":off?"Sem internet":"Salvar e ver o parecer"}
+  const fs=$("#fim-save");if(fs){fs.disabled=S.saving||off||n===0;fs.textContent=S.saving?"Salvando…":off?"Sem internet":"Concluir treino"}
   if(S.pending){
     save.disabled=S.checking||off;cancel.hidden=true;
     save.textContent=S.checking?"Conferindo a planilha…":off?"Sem internet":"Conferir a planilha";
@@ -743,7 +743,7 @@ function updateBar(){
   save.disabled=n===0||S.saving||off||!S.alunoId;
   if(S.saving){save.textContent="Salvando…"}
   else if(off){save.textContent="Sem internet";cancel.hidden=true}
-  else{save.textContent="Finalizar treino";cancel.hidden=true}
+  else{save.textContent="Concluir treino";cancel.hidden=true}
 }
 setInterval(()=>{
   if(!S.draft||S.view!=="lancar")return;
@@ -762,6 +762,24 @@ setInterval(()=>{
   else r.textContent="toque ✓ ao terminar cada série";
 },1000);
 
+/* Fogos simples ao concluir o treino. Quem pediu menos movimento no celular não vê a animação. */
+function fogos(){
+  try{if(matchMedia("(prefers-reduced-motion: reduce)").matches)return}catch(e){}
+  const cv=document.createElement("canvas");cv.className="fogos";cv.setAttribute("aria-hidden","true");document.body.appendChild(cv);
+  const W=cv.width=innerWidth,H=cv.height=innerHeight;const c=cv.getContext("2d");
+  const fem=document.documentElement.getAttribute("data-genero")==="f";
+  const cores=(fem?["#ff8fbe","#e8488f","#ffd6e7"]:["#7db4ff","#2f74e8","#d4e8ff"]).concat(["#ffd34d","#ffffff"]);
+  const ps=[];
+  const estoura=()=>{const x=W*(.15+Math.random()*.7),y=H*(.12+Math.random()*.4);const cor=cores[Math.floor(Math.random()*cores.length)];
+    for(let i=0;i<46;i++){const a=Math.random()*6.283,v=1.5+Math.random()*4.5;ps.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,v:1,cor,r:1.5+Math.random()*2})}};
+  estoura();[260,520,820,1150].forEach(t=>setTimeout(estoura,t));setTimeout(()=>cv.remove(),3500);
+  const ini=performance.now();
+  (function quadro(t){
+    c.clearRect(0,0,W,H);
+    ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.06;p.vx*=.985;p.v-=.014;if(p.v>0){c.globalAlpha=p.v;c.fillStyle=p.cor;c.beginPath();c.arc(p.x,p.y,p.r,0,6.283);c.fill()}});
+    if(t-ini<2800)requestAnimationFrame(quadro);else cv.remove();
+  })(ini);
+}
 function intensityFromRir(rir){if(rir==="")return "";const n=+rir;return n<=0?"Máxima":n===1?"Muito alta":n===2?"Alta":n===3?"Moderada":"Leve"}
 function textCell(v){v=String(v==null?"":v).trim();if(!v)return "";if(/^\d+$/.test(v))return Number(v);return "'"+v}
 
@@ -832,6 +850,7 @@ async function save(){
     S.draft=null;saveDraft();S.confirm=false;S.saving=false;S.fim=false;
     const w=(res&&res.written)||rows.length;
     toast(res&&res.duplicate?"Essas séries já estavam salvas na planilha":"Treino salvo: "+w+(w===1?" série":" séries")+" na planilha");
+    fogos();
     banner("");S.coachSel=d.date+"|"+d.treino;S.coachEsperando=true;setView("coach");window.scrollTo({top:0});
     fetchDados().finally(()=>{S.coachEsperando=false;if(S.view==="coach")renderCoach();pedirParecerIA(S.coachSel)});
   }catch(e){
@@ -1689,21 +1708,23 @@ function aplicarCorBarra(){const m=document.querySelector('meta[name="theme-colo
 function setTema(t){document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("dt2-tema",t)}catch(e){}aplicarCorBarra()}
 
 /* ---- topo e tela inicial ---- */
+// Uma frase por dia, para animar na tela inicial.
+const FRASES=["Vamos pra cima! Hoje é dia de treinão! 💪","Bora! O treino de hoje vai render! 💪","Hoje é dia de fazer bonito! 💪","Foco no treino, o resto a gente resolve depois! 💪","Mais um dia para ficar mais forte! 💪","Chegou a hora, vamos com tudo! 💪","Treino bom é treino feito. Bora! 💪"];
+function fraseDoDia(){const h=new Date();return FRASES[Math.floor(new Date(h.getFullYear(),h.getMonth(),h.getDate())/864e5)%FRASES.length]}
 function primeiroNome(a){return String(a&&a.nome||"").trim().split(/\s+/)[0]}
 function renderTopo(){
   const home=S.view==="inicio";
   document.documentElement.setAttribute("data-genero",/^f/i.test(String(S.aluno&&S.aluno.sexo||""))?"f":"m");
   $("#b-voltar").hidden=home;
   let t=TITULOS[S.view]||"Diário de Treino";
-  if(S.view==="lancar"){if(S.fim)t="Finalizar treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
+  if(S.view==="lancar"){if(S.fim)t="Concluir treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
   $("#top-titulo").textContent=t;
   const sub=$("#top-sub");const verSub=!home&&S.role==="prof"&&S.aluno&&S.view!=="alunos"&&S.view!=="config";
   sub.hidden=!verSub;sub.textContent=verSub?"Aluno: "+S.aluno.nome:"";
   const sa=$("#saudacao");sa.hidden=!home;
   if(home){
     const nome=primeiroNome(S.aluno);
-    sa.innerHTML='<b>Olá, <i class="nome-g" style="font-style:normal">'+esc(nome||(S.role==="prof"?"professor":""))+'</i></b><small>Vamos treinar!</small>'+
-      (S.role==="prof"?'<span class="sa-sync">'+esc(($("#sync span:last-child")||{}).textContent||"")+'</span>':"");
+    sa.innerHTML='<b>Olá, <i class="nome-g" style="font-style:normal">'+esc(nome||(S.role==="prof"?"professor":""))+'</i></b><small>Vamos treinar!</small><span>'+esc(fraseDoDia())+'</span>';
   }
 }
 function textoTreinar(){

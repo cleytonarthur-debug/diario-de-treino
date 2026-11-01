@@ -82,7 +82,7 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Volume:** `avaliacaoVolume` compara as séries da semana com a média das 4 semanas anteriores (alto, bom ou abaixo). O coach só pede mais quando a semana e o grupo estão abaixo; senão, as metas são manter.
 - **Nomes de academia:** `nomeAcademia()` em coach.js. Rex, Rex Fit e CT viram REX FIT CT; Smartfit vira Smartfit Batel. PHD, Braves e Force One levam o bairro, informado no treino.
 - **Histórico preenchido em 01/11/2026 pelos comentários:** 22/07 PHD Mercês; 29/07 e 13/10 Smartfit Batel; 01/09, 16/10, 24/10, 26/10 e 29/10 REX FIT CT; 05/10 Harmos; 09/10 Braves Xaxim; 19, 20 e 22/10 Force One Itajaí.
-- **Rosa e azul:** pelo campo Sexo da pessoa aberta (`data-genero`). Feminino usa rosa, e os demais usam azul, no nome, no Treinar, nos ícones e nos botões principais. A saudação é "Olá, nome. Vamos treinar!". A frase "Planilha lida" aparece só no acesso de professor.
+- **Rosa e azul:** pelo campo Sexo da pessoa aberta (`data-genero`). Feminino usa rosa, e os demais usam azul, no nome, no Treinar, nos ícones e nos botões principais. A saudação é "Olá, nome. Vamos treinar!", com uma frase motivacional por dia (`FRASES` em app.js). O horário da planilha não aparece mais. O botão final é "Concluir treino", com fogos.
 - **Treinos iniciais:** nos 3 primeiros treinos da pessoa, o coach é mais animado, mostra a porcentagem entregue e não pede carga nem volume.
 - **Metas:** a lista "Metas" é de longo prazo e usa primeiro o que a pessoa comentou no último mês. O que fazer no próximo treino fica em lista separada.
 - **Black Bull:** academia sugerida na lista do treino. Não apareceu nos comentários antigos, então não há treino antigo preenchido.
