@@ -54,13 +54,15 @@
 <ul>
 <li><b>Você</b>, pelo seu link pessoal. Ele funciona como o seu login. Não compartilhe.</li>
 <li><b>O seu professor</b>, para montar treinos, lançar avaliações e acompanhar a evolução.</li>
-<li>O <b>Google</b> guarda as planilhas como prestador de serviço, conforme as regras dele. O app não envia dados a mais ninguém.</li>
+<li>O <b>Google</b> guarda as planilhas como prestador de serviço, conforme as regras dele. Se a inteligência artificial estiver ligada, o Cloudflare também recebe o que está descrito em Avaliação do Coach. O app não envia dados a mais ninguém.</li>
 </ul>
 </div>
 
 <div class="card">
 <h2>Avaliação do Coach</h2>
-<p>A Avaliação do Coach é calculada <b>no próprio app</b>, por regras, usando os seus números e comentários. Nada é enviado para serviços de inteligência artificial.</p>
+<p>A Avaliação do Coach é calculada <b>no próprio app</b>, por regras, usando os seus números e comentários.</p>
+<p>Quando a inteligência artificial está ligada para você, os números e comentários do treino vão para o <b>Cloudflare Workers AI</b>, que escreve o texto do parecer. Vão <b>sem</b> o seu nome, WhatsApp ou e-mail, mas os comentários podem conter dados de saúde, como uma dor que você relatou. Segundo o Cloudflare, esse conteúdo não é usado para treinar modelos nem fica guardado depois da resposta.</p>
+<p>Um resumo do que o coach precisa lembrar fica na aba <b>Memória do Coach</b> da sua planilha.</p>
 </div>
 
 <div class="card">

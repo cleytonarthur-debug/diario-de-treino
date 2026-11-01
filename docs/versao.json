@@ -1,10 +1,10 @@
 {
-  "versao": "2.6.0",
+  "versao": "2.7.0",
   "data": "01/11/2026",
   "notas": [
-    "Tela inicial nova, com caixas e tom claro ou escuro",
-    "Recado do coach no começo do treino",
-    "Ânimo na chegada e na saída",
-    "Parecer do coach mais completo, com metas por exercício"
+    "Cores grafite e azul",
+    "Comentário do coach em cada caixa da Evolução",
+    "Coach pede para renovar a motivação depois de uma sequência difícil",
+    "Base para a IA e a memória do coach"
   ]
 }

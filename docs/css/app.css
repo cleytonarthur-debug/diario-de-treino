@@ -1,11 +1,11 @@
 /* Layout: barra superior escura estilo painel BI + abas; Lançar = cartões por exercício com barra de salvar fixa; Evolução = filtros, KPIs, gráficos, cartões por grupo, recordes */
 :root{
-  --bg:#e6f1f5; --surface:#ffffff; --surface-2:#f2f8fa; --line:#cfe0e8; --line-2:#b4cdd9;
-  --ink:#0b2b3f; --ink-2:#3f5d6e; --ink-3:#587585;
-  --bar:#0b3550; --bar-ink:#ffffff; --bar-ink-2:#a9c6d6;
+  --bg:#eceef0; --surface:#ffffff; --surface-2:#f5f6f7; --line:#d8dce0; --line-2:#c2c8cd;
+  --ink:#20252a; --ink-2:#4a5157; --ink-3:#5e666d;
+  --bar:#2b3238; --bar-ink:#ffffff; --bar-ink-2:#b4bbc1;
   --action:#0b6e8f; --action-ink:#ffffff;
   --good:#0a7a4a; --good-bg:#dcf3e7; --warn:#a56300; --warn-bg:#fdf1d3; --bad:#b23a3a; --bad-bg:#fbe4e4;
-  --t1:#12507f; --t2:#0c7a7a; --t3:#2a78d6; --t4:#3b4fa8; --tint:#d6e6f3;
+  --t1:#12507f; --t2:#0c7a7a; --t3:#5e666d; --t4:#5e666d; --tint:#dfe3e6;
   --g-inf:#2a78d6; --g-cos:#eb6834; --g-pei:#1baf7a; --g-bra:#eda100; --g-omb:#e87ba4; --g-abd:#8a93a3;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
@@ -13,21 +13,21 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#071a26; --surface:#0f2a3b; --surface-2:#143347; --line:#1e4156; --line-2:#2c5a72;
-  --ink:#e6f4fa; --ink-2:#b3cbd8; --ink-3:#8fadbe;
-  --bar:#04121b; --bar-ink:#e6f4fa; --bar-ink-2:#8fadbe;
+  --bg:#15181b; --surface:#20252a; --surface-2:#2b3238; --line:#3a4148; --line-2:#4a525a;
+  --ink:#e8eaec; --ink-2:#c0c5ca; --ink-3:#a0a7ad;
+  --bar:#0d0f11; --bar-ink:#e8eaec; --bar-ink-2:#a0a7ad;
   --action:#12a0c4; --action-ink:#04202c;
   --good:#5fe0a0; --good-bg:#0f3a2c; --warn:#f0b54a; --warn-bg:#33270e; --bad:#f59a9a; --bad-bg:#401f24;
-  --t1:#7cc0f0; --t2:#5fe0d8; --t3:#8fc1ff; --t4:#aab6ff; --tint:#12344d;
+  --t1:#7cc0f0; --t2:#5fe0d8; --t3:#adb4ba; --t4:#adb4ba; --tint:#2b3238;
   --g-inf:#3987e5; --g-cos:#d95926; --g-pei:#199e70; --g-bra:#c98500; --g-omb:#d55181; --g-abd:#7d8696;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#071a26; --surface:#0f2a3b; --surface-2:#143347; --line:#1e4156; --line-2:#2c5a72;
-  --ink:#e6f4fa; --ink-2:#b3cbd8; --ink-3:#8fadbe;
-  --bar:#04121b; --bar-ink:#e6f4fa; --bar-ink-2:#8fadbe;
+  --bg:#15181b; --surface:#20252a; --surface-2:#2b3238; --line:#3a4148; --line-2:#4a525a;
+  --ink:#e8eaec; --ink-2:#c0c5ca; --ink-3:#a0a7ad;
+  --bar:#0d0f11; --bar-ink:#e8eaec; --bar-ink-2:#a0a7ad;
   --action:#12a0c4; --action-ink:#04202c;
   --good:#5fe0a0; --good-bg:#0f3a2c; --warn:#f0b54a; --warn-bg:#33270e; --bad:#f59a9a; --bad-bg:#401f24;
-  --t1:#7cc0f0; --t2:#5fe0d8; --t3:#8fc1ff; --t4:#aab6ff; --tint:#12344d;
+  --t1:#7cc0f0; --t2:#5fe0d8; --t3:#adb4ba; --t4:#adb4ba; --tint:#2b3238;
   --g-inf:#3987e5; --g-cos:#d95926; --g-pei:#199e70; --g-bra:#c98500; --g-omb:#d55181; --g-abd:#7d8696;
   color-scheme:dark}
 *{box-sizing:border-box}
@@ -232,7 +232,7 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 #v-evo .card.min .card-h{margin-bottom:0}
 #v-evo .card.min .card-h::after{content:"▸"}
 #v-evo .card.min .card-h p{display:none}
-#v-evo .card.min>:not(.card-h){display:none}
+#v-evo .card.min>:not(.card-h):not(.ev-cm){display:none}
 
 /* coach, academia, unilaterais, atualizar */
 .top-right{display:flex;align-items:center;gap:8px;flex:none}
@@ -362,3 +362,8 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 .ch-texto{margin:0 0 9px;font-size:14px}
 .ch-animo{background:var(--tint);border-radius:10px;padding:9px 10px;margin-bottom:10px;font-size:14px}
 .ch-comp{margin:0 0 6px}
+
+/* ---- comentário do coach na Evolução e aviso de sequência ---- */
+.ev-cm{display:flex;gap:7px;align-items:flex-start;background:var(--tint);border-radius:4px 10px 10px 10px;padding:7px 9px;margin-top:9px;font-size:13px;line-height:1.3}
+.ev-cm .ico{color:var(--action);margin-top:1px}
+.ch-seq{border:1.5px solid var(--action);border-radius:10px;padding:9px 10px;margin-bottom:10px;font-size:14px}

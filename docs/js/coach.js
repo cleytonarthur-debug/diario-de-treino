@@ -93,6 +93,15 @@ function desvio(todas,s){
   const m=iguais.length?iguais.reduce((a,x)=>a+volFeito(x),0)/iguais.length:0;
   return m?pct(volFeito(s),m):null;
 }
+// Treino difícil: ânimo baixo ou volume bem abaixo da média.
+function eDificil(todas,s){const d=desvio(todas,s);return animoDe(s.rows)==="ruim"||(d!=null&&d<=-15)}
+// Sequência: 8 ou mais treinos difíceis entre os últimos 10.
+function sequenciaDificil(todas,ses){
+  const ate=todas.filter(s=>s.date<=ses.date&&s.rows.some(r=>r.done)).slice(-10);
+  if(ate.length<8)return null;
+  const n=ate.filter(s=>eDificil(todas,s)).length;
+  return n>=8?{dificeis:n,total:ate.length}:null;
+}
 /* Compara o ânimo com os outros dias parecidos, para comemorar ou ser compreensivo. */
 function analisarAnimo(todas,ses,dv){
   const {ini,fim}=animos(ses.rows);if(!ini&&!fim)return null;
@@ -185,18 +194,20 @@ function treino(rows,key){
   const ordenado=difs.slice().sort((a,b)=>b.d-a.d);const maior=ordenado[0],menor=ordenado[ordenado.length-1];
   const avanco=maior&&maior.d>=3?" O maior avanço foi em "+maior.nome+" (+"+maior.d+"%).":"";
   if(dv==null){out.titulo="Treino registrado";out.frase="foi a sua primeira vez nele";
-    out.texto=motivo+feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Este treino agora é a sua referência para as próximas vezes."}
+    out.texto=motivo+feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Este treino agora é a sua referência. Bom começo."}
   else if(dv>=5){out.titulo=dificil?"Treino forte, mesmo em um dia difícil":"Treino forte";
     out.frase=(dificil?"mesmo em um dia difícil, ":"")+"você subiu "+dv+"% no volume";
-    out.texto=motivo+(dificil?"Mesmo assim, você fez ":"Você fez ")+dv+"% a mais que "+refA+"."+avanco}
-  else if(dv<=-15){out.titulo=dificil?"Dia difícil, e você apareceu":"Treino abaixo do normal";
+    out.texto=motivo+(dificil?"Mesmo assim, você fez ":"Você fez ")+dv+"% a mais que "+refA+"."+avanco+" Continue nesse ritmo."}
+  else if(dv<=-15){out.titulo=dificil?"Dia difícil, e você compareceu":"Treino abaixo da sua média";
     out.frase=dificil?"foi um dia difícil e o volume ficou "+Math.abs(dv)+"% abaixo, sem problema":"o volume ficou "+Math.abs(dv)+"% abaixo";
-    out.texto=motivo+"O volume ficou "+Math.abs(dv)+"% abaixo "+refDe+"."+(menor&&menor.d<0?" A maior queda foi em "+menor.nome+" ("+menor.d+"%).":"")+(dificil?" Faz sentido para um dia assim.":" Sem um motivo registrado, vale observar carga, descanso ou pressa.")}
-  else{out.titulo=dificil?"Dia difícil, e você manteve o nível":"Treino dentro do normal";
+    out.texto=motivo+"O volume ficou "+Math.abs(dv)+"% abaixo "+refDe+"."+(menor&&menor.d<0?" A maior queda foi em "+menor.nome+" ("+menor.d+"%).":"")+(dificil?" Faz sentido para um dia assim.":" Vale observar carga, descanso e tempo de treino.")+" Um treino não define a sua evolução. No próximo, retome o seu ritmo."}
+  else{out.titulo=dificil?"Dia difícil, e você manteve o nível":"Treino dentro da sua média";
     out.frase=(dificil?"mesmo em um dia difícil, ":"")+"você ficou na sua média";
-    out.texto=motivo+"Você ficou perto "+refDe+"."+avanco}
+    out.texto=motivo+"Você ficou perto "+refDe+"."+avanco+" A constância é o que constrói resultado."}
   out.resumo=out.texto;
   out.animoInfo=analisarAnimo(todas,ses,dv);
+  const sq=sequenciaDificil(todas,ses);
+  if(sq){out.sequencia=sq;out.sequenciaTexto=sq.dificeis+" dos seus últimos "+sq.total+" treinos foram difíceis, e você continuou comparecendo. Isso tem muito valor. Agora peço que busque algo que renove a sua motivação: relembre o seu objetivo, teste outro horário ou converse com o professor."}
   // próximo treino
   // aquecimento não vira meta
   Object.keys(out.metasEx).forEach(k=>{if(/aquec/.test(k))delete out.metasEx[k]});
@@ -208,7 +219,7 @@ function treino(rows,key){
   if(tem("comida"))out.proximo.push("<b>Alimentação:</b> coma bem antes do treino.");
   if(naoFeitas.length)out.proximo.push("<b>Séries que faltaram:</b> retome, se der.");
   if(!out.proximo.length)out.proximo.push("Repita o treino buscando pelo menos 1 repetição a mais nas séries principais.");
-  if(!out.bem.length)out.bem.push("Você apareceu e treinou. Constância é o que mais conta.");
+  if(!out.bem.length)out.bem.push("Você compareceu e treinou. A constância é o que mais conta.");
   return out;
 }
 
@@ -281,12 +292,14 @@ function academias(rows){
     cargas:[...o.cargas.values()].sort((a,b)=>b.n-a.n).slice(0,8)})).sort((a,b)=>b.treinos-a.treinos);
 }
 /* ---------- recado do coach, antes e durante o treino ---------- */
-function recado(rows,nome){
+function recado(rows,nome,memoria){
   const ses=sessoes(rows).filter(s=>s.treino===nome&&s.rows.some(r=>r.done));
   if(!ses.length)return {html:"Primeira vez neste treino: hoje é dia de criar referência. Escolha cargas confortáveis e anote tudo.",metas:{}};
   const last=ses[ses.length-1];const A=treino(rows,last.key);if(!A)return {html:"",metas:{}};
   const hoje=(A.metasLista||[]).slice(0,2);
-  return {html:"No último "+esc(nome)+" ("+esc(last.dateS.slice(0,5))+"), "+esc(A.frase)+". <b>Hoje espere:</b> "+
+  const mem=memoria&&memoria.get(last.key);
+  const seq=A.sequencia?" Nos últimos treinos tem sido mais difícil: busque hoje algo que renove a sua motivação.":"";
+  return {html:(mem&&mem.recado?esc(mem.recado):"No último "+esc(nome)+" ("+esc(last.dateS.slice(0,5))+"), "+esc(A.frase)+".")+seq+" <b>Hoje espere:</b> "+
     (hoje.length?hoje.map(m=>esc(m.nome)+" com "+esc(m.curto)).join(" e "):"pelo menos 1 repetição a mais nas séries principais")+".",metas:A.metasEx||{}};
 }
 function recadoPicker(rows,sug){
@@ -294,6 +307,15 @@ function recadoPicker(rows,sug){
   const last=ses[ses.length-1];const hoje=new Date();const dias=Math.round((new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate())-last.date)/864e5);
   const A=treino(rows,last.key);
   return (dias<=0?"Você já treinou hoje.":dias===1?"Você treinou ontem.":"Faz "+dias+" dias do seu último treino.")+(A?" Último parecer: "+esc(A.titulo.toLowerCase())+".":"")+(sug?" A sugestão de hoje é <b>"+esc(sug)+"</b>.":"");
+}
+// O que vai para a IA escrever o parecer: números e comentários, sem nome nem contato.
+function fatosIA(A){
+  const tira=s=>String(s).replace(/<[^>]+>/g,"");
+  const ai=A.animoInfo||{};
+  return {treino:A.treino,data:A.dateS,avaliacaoPorRegras:A.titulo+". "+A.texto,
+    animo:{chegou:ai.ini||"",saiu:ai.fim||"",analise:ai.texto||""},comparacao:A.comp||null,
+    destaques:A.bem.slice(0,4).map(tira),atencao:A.abaixo.slice(0,4).map(tira),comentarios:A.comentarios.map(tira),
+    metas:A.proximo.map(tira),sequenciaDificil:A.sequencia||null};
 }
 // Resposta ao marcar como está chegando.
 function chegada(rows,ini){
@@ -315,5 +337,5 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,EMO};
+return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,EMO};
 })();

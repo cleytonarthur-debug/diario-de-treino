@@ -58,7 +58,7 @@ function grupoSelect(g,attrs){
 }
 
 /* ---------- estado ---------- */
-const S={role:null,alunos:[],alunoId:null,aluno:null,rows:[],exMap:new Map(),models:new Map(),avals:[],
+const S={role:null,alunos:[],alunoId:null,aluno:null,rows:[],memoria:new Map(),iaTentou:new Set(),exMap:new Map(),models:new Map(),avals:[],
   loaded:false,loadedAt:null,error:null,view:"inicio",fim:false,period:12,groups:new Set(GROUPS.map(g=>g.k)),
   draft:null,confirm:false,saving:false,pending:null,checking:false,picker:false,
   forcaEx:null,medida:null,avSel:null,avEdit:null,avPt:null,alunoForm:null,shareFor:null,busca:""};
@@ -108,6 +108,7 @@ function ingestAll(d){
   ingest(d.historico);
   ingestModels(d.modelos);
   ingestAvals(d.avaliacoes);
+  S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
 }
 
@@ -167,7 +168,7 @@ function selectAluno(id,quiet){
   if(S.alunoId===id&&S.loaded){if(!quiet)setView("inicio");return}
   S.alunoId=id;store("dt2-aluno-sel",id);
   S.aluno=S.alunos.find(a=>a.id===id)||null;
-  S.rows=[];S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
+  S.rows=[];S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
   S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.fim=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;S.modEdit=null;
   updateWho();
   loadDados();
@@ -397,8 +398,8 @@ function savableSets(){if(!S.draft)return 0;let n=0;S.draft.blocks.forEach(b=>b.
 
 const balao=html=>html?'<div class="balao"><span class="balao-av">'+Icone("speakerphone",23)+'</span><div class="balao-tx"><b>Recado do coach</b><br>'+html+'</div></div>':"";
 function recadoDoDraft(d){
-  const k=S.rows.length+"|"+d.treino;
-  if(!S.recadoMemo||S.recadoMemo.k!==k)S.recadoMemo={k,r:Coach.recado(S.rows,d.treino)};
+  const k=S.rows.length+"|"+S.memoria.size+"|"+d.treino;
+  if(!S.recadoMemo||S.recadoMemo.k!==k)S.recadoMemo={k,r:Coach.recado(S.rows,d.treino,S.memoria)};
   return S.recadoMemo.r;
 }
 const chipsAnimo=(id,val)=>'<div class="animo" id="'+id+'">'+[["bom","😀"],["ok","😐"],["ruim","😞"]].map(([k,e])=>'<button class="an'+(val===k?" on":"")+'" data-an="'+k+'" aria-label="Ânimo '+k+'" aria-pressed="'+(val===k)+'">'+e+'</button>').join("")+'</div>';
@@ -828,7 +829,7 @@ async function save(){
     const w=(res&&res.written)||rows.length;
     toast(res&&res.duplicate?"Essas séries já estavam salvas na planilha":"Treino salvo: "+w+(w===1?" série":" séries")+" na planilha");
     banner("");S.coachSel=d.date+"|"+d.treino;S.coachEsperando=true;setView("coach");window.scrollTo({top:0});
-    fetchDados().finally(()=>{S.coachEsperando=false;if(S.view==="coach")renderCoach()});
+    fetchDados().finally(()=>{S.coachEsperando=false;if(S.view==="coach")renderCoach();pedirParecerIA(S.coachSel)});
   }catch(e){
     S.saving=false;S.confirm=false;S.fim=false;render();
     if(e&&e.sent){
@@ -973,10 +974,49 @@ function renderEvo(){
     (list.length?list.map(([kk,o])=>{const fb=firstBest.get(kk),lb=lastBest.get(kk);const ch=fb&&lb&&fb.e1?(lb.e1-fb.e1)/fb.e1*100:0;const cls=Math.abs(ch)<2?"flat":ch>0?"up":"down";
       return '<tr><td>'+esc(o.name)+'</td><td><span class="tag"><i style="background:var('+(GROUP_VAR[o.grupo]||"--g-abd")+')"></i>'+esc(o.grupo)+'</span></td><td class="n">'+nf0.format(o.best.e1)+' kg</td><td>'+esc(o.best.reps.join("+"))+' × '+esc(o.best.peso)+'</td><td>'+fmtShort(o.best.date)+'</td><td class="n"><span class="delta '+cls+'">'+(ch>0?"▲ ":ch<0?"▼ ":"")+nf0.format(Math.abs(ch))+'%</span></td></tr>'}).join("")
       :'<tr><td colspan="6" class="muted">Sem exercícios repetidos no período.</td></tr>')+'</tbody>';
+  try{comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest)}catch(e){console.error(e)}
   const ss=sessions().filter(s=>s.rows.some(r=>r.done)).slice(-8).reverse();
   $("#last").innerHTML='<thead><tr><th>Data</th><th>Treino</th><th>Grupos</th><th class="n">Séries</th><th class="n">Volume</th><th>Início</th></tr></thead><tbody>'+
     ss.map(s=>{const dn=s.rows.filter(r=>r.done);const grs=[...new Set(dn.map(r=>r.grupo))].filter(g=>GROUP_VAR[g]);const first=s.rows.find(r=>/^\d{1,2}:\d{2}/.test(r.hora));
       return '<tr><td>'+fmtShort(s.date)+' <span class="muted small">'+esc((s.rows[0].dia||"").slice(0,3))+'</span></td><td>'+esc(s.treino)+'</td><td>'+grs.map(g=>'<span class="tag"><i style="background:var('+GROUP_VAR[g]+')"></i>'+esc(g)+'</span>').join(" ")+'</td><td class="n">'+dn.length+'</td><td class="n">'+nf1.format(dn.reduce((a,r)=>a+r.vol,0)/1000)+' t</td><td>'+(first?esc(first.hora):"–")+'</td></tr>'}).join("")+'</tbody>';
+}
+/* Comentário curto do coach em cada caixa da Evolução. Fica visível mesmo com a caixa fechada. */
+function comentarEvo(titulo,texto){
+  const c=[...document.querySelectorAll("#v-evo .card")].find(x=>tituloCard(x)===titulo);if(!c)return;
+  let d=c.querySelector(":scope>.ev-cm");
+  if(!texto){if(d)d.remove();return}
+  if(!d){d=document.createElement("div");d.className="ev-cm";c.appendChild(d)}
+  d.innerHTML=Icone("speakerphone",15)+'<span>'+esc(texto)+'</span>';
+}
+function comentariosEvo(P,active,volBy,setBy,list,firstBest,lastBest){
+  const sess=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;const vol=rs=>rs.reduce((a,r)=>a+r.vol,0)/1000;
+  const nW=Math.max(1,P.weeks.length);const porSem=sess(P.cur)/nW,ant=P.prev.length?sess(P.prev)/nW:null;
+  comentarEvo("Resumo do período",!P.cur.length?"Sem treinos neste período. Cada novo treino volta a contar a sua evolução.":
+    nf1.format(porSem)+" treinos por semana"+(ant!=null&&porSem>ant?", mais que no período anterior. Continue assim.":porSem>=3?". Ótima frequência.":". Cada treino a mais acelera o resultado."));
+  const avanc=list.map(([kk,o])=>{const f=firstBest.get(kk),l=lastBest.get(kk);return {n:o.name,p:f&&l&&f.e1?(l.e1-f.e1)/f.e1*100:0}}).sort((a,b)=>b.p-a.p)[0];
+  comentarEvo("Evolução de força",avanc&&avanc.p>=1?"Maior avanço no período: "+avanc.n+", +"+nf0.format(avanc.p)+"%. Siga subindo aos poucos.":"Força estável no período. Pequenos aumentos de carga fazem a diferença.");
+  const av=S.avals||[];const ult=av[av.length-1],pen=av[av.length-2];
+  const val=(a,k)=>{if(!a)return NaN;const n=Body.num(a.v[k]);if(isFinite(n))return n;const c=Body.calc(a.v,S.aluno||{},a.date);return isFinite(c[k])?c[k]:NaN};
+  const dif=k=>val(ult,k)-val(pen,k);
+  const pd=dif("Peso (kg)"),md=dif("Massa magra (kg)");
+  comentarEvo("Peso e composição",!av.length?"A primeira avaliação física abre este acompanhamento.":!pen?"Primeira referência registrada. A próxima avaliação mostrará a sua evolução.":
+    !isFinite(pd)?"Mantenha as avaliações em dia para acompanhar a sua composição.":
+    (Math.abs(pd)<.05?"Peso estável":"Peso "+(pd>0?"subiu ":"caiu ")+nf1.format(Math.abs(pd))+" kg")+(isFinite(md)&&Math.abs(md)>=.05?", massa magra "+(md>0?"subiu ":"caiu ")+nf1.format(Math.abs(md))+" kg.":" desde a última avaliação."));
+  const cd=dif("Cintura (cm)");
+  comentarEvo("Medidas",!pen?"As medidas ganham sentido a partir da segunda avaliação.":isFinite(cd)&&Math.abs(cd)>=.1?"Cintura "+(cd>0?"aumentou ":"diminuiu ")+nf1.format(Math.abs(cd))+" cm desde a última avaliação.":"Compare a mesma medida entre as avaliações para ver a sua evolução.");
+  const n=P.weeks.length;const mud=active.map(g=>{const v=volBy[g.k]||[];const rec=v.slice(-2).reduce((a,b)=>a+b,0),pre=v.slice(-4,-2).reduce((a,b)=>a+b,0);return {g:g.k,p:pre?(rec-pre)/pre*100:null}}).filter(x=>x.p!=null).sort((a,b)=>a.p-b.p);
+  const pior=mud[0],melhor=mud[mud.length-1];
+  comentarEvo("Volume semanal por grupo",n<4||!mud.length?"Com mais semanas de treino, este gráfico mostra a sua tendência.":pior.p<=-15?pior.g+" caiu nas últimas 2 semanas. Vale dar atenção para retomar o volume.":melhor.p>=10?melhor.g+" cresceu "+nf0.format(melhor.p)+"% nas últimas 2 semanas. Bom trabalho.":"Volume estável nas últimas semanas. Boa constância.");
+  const tot=active.map(g=>({g:g.k,n:(setBy[g.k]||[]).reduce((a,b)=>a+b,0)})).sort((a,b)=>a.n-b.n);
+  comentarEvo("Séries por semana",!tot.length||!tot[tot.length-1].n?"":tot.length>1&&tot[0].n<tot[tot.length-1].n*.5?tot[0].g+" é o grupo com menos séries no período. Vale equilibrar.":"Séries bem distribuídas entre os grupos.");
+  const gr=active.map(g=>{const c=vol(P.cur.filter(r=>r.grupo===g.k)),a=vol(P.prev.filter(r=>r.grupo===g.k));return {g:g.k,p:a?(c-a)/a*100:null}}).filter(x=>x.p!=null).sort((a,b)=>b.p-a.p);
+  comentarEvo("Por grupo muscular",gr.length&&gr[0].p>=2?gr[0].g+" foi o grupo que mais evoluiu no período.":"Os grupos estão estáveis em relação ao período anterior.");
+  const ini=P.cur.length?Math.min(...P.cur.map(r=>+r.date)):0;
+  const rec=list.filter(([kk,o])=>{const a=S.rows.filter(r=>+r.date<ini&&r.e1&&exKey(r.ex)===kk).map(r=>r.e1);return a.length&&o.best.e1>Math.max(...a)});
+  comentarEvo("Recordes por exercício",rec.length?rec.length+(rec.length===1?" recorde":" recordes")+" no período. Excelente trabalho.":"Sem novos recordes no período. A constância leva até eles.");
+  const ses=sessions().filter(s=>s.rows.some(r=>r.done));const ul=ses[ses.length-1];
+  if(ul){const hoje=new Date();const d=Math.floor((hoje-ul.date)/864e5);const sug=suggestion(templates());
+    comentarEvo("Últimos treinos",(d<=0?"Você treinou hoje.":d===1?"Seu último treino foi ontem.":"Seu último treino foi há "+d+" dias.")+(sug?" Próximo: "+sug+".":""))}
 }
 function spark(cv,data,color){
   const dpr=window.devicePixelRatio||1;const w=cv.clientWidth||200,h=46;cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext("2d");c.scale(dpr,dpr);c.clearRect(0,0,w,h);
@@ -1469,6 +1509,17 @@ function resumoCoach(sel){
   const n=+sel.slice(1)*7;const ini=dias(amanha,-n);
   return Coach.periodo(S.rows,ini,amanha,dias(ini,-n),"Últimos "+n+" dias","período anterior");
 }
+/* A IA reescreve o parecer em texto. Sem ela, ou se falhar, fica o parecer por regras. */
+function pedirParecerIA(key){
+  if(!key||S.memoria.has(key)||S.iaTentou.has(key))return;
+  const A=Coach.treino(S.rows,key);if(!A)return;
+  S.iaTentou.add(key);
+  const id=S.alunoId;
+  callA("coachIA",{key,data:A.dateS,treino:A.treino,fatos:Coach.fatosIA(A)}).then(r=>{
+    if(S.alunoId!==id||!r||!r.item)return;
+    S.memoria.set(key,r.item);if(S.view==="coach")renderCoach();
+  }).catch(()=>{});
+}
 function renderCoach(){
   const el=$("#coach");
   if(needAluno(el))return;
@@ -1487,10 +1538,12 @@ function renderCoach(){
   const rot=M?M.rotAnt:"";
   const dif=(a,b,u)=>b?(a>=b?'<span class="delta up">▲ ':'<span class="delta down">▼ ')+nf1.format(Math.abs(a-b))+(u||"")+' vs '+rot+'</span>':'<span class="delta flat">sem '+rot+'</span>';
   const G=Coach.academias(M?M.linhas:S.rows);
-  const AI=A&&A.animoInfo;
+  const AI=A&&A.animoInfo;const MEM=S.memoria.get(S.coachSel);
+  if(ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
   el.innerHTML='<div class="card" style="margin-bottom:14px">'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
-    (A?'<p class="ch-tit">'+esc(A.titulo)+'</p><p class="ch-texto">'+esc(A.texto)+'</p>'+
+    (A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
+      (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
       (A.academia?'<p class="muted small" style="margin:0 0 8px">Academia: '+esc(A.academia)+'.</p>':"")+
       (AI?'<div class="ch-animo"><b>Ânimo: '+(AI.ini&&AI.fim?"chegou "+E[AI.ini]+" → saiu "+E[AI.fim]:AI.ini?"chegou "+E[AI.ini]:E[AI.fim])+'</b><br>'+esc(AI.texto)+'</div>':"")+
       (A.comp?'<h3 class="ch-comp">Comparado com '+(A.comp.n===1?"o último treino igual":"os últimos "+A.comp.n+" treinos iguais")+'</h3><div class="gr3" style="margin-bottom:10px">'+
