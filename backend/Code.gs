@@ -36,7 +36,7 @@ const MAX_ROWS_POR_ENVIO = 500;
 const ABA_MEM = 'Memória do Coach';
 const HEAD_MEM = ['Data', 'Treino', 'Título', 'Parecer', 'Recado', 'Resumo acumulado'];
 const PROF_PLANILHA = '1futpdUQZ8uzgw3Y42YHhcpfOZUgFzrBLddzABwdUS8I'; // planilha do próprio professor
-const IA_MODELO = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const IA_MODELO = '@cf/meta/llama-4-scout-17b-16e-instruct';
 const IA_MAX_POR_DIA = 6; // por aluno, para não gastar o limite grátis
 
 /* =============== menu da planilha (só o professor vê) =============== */
@@ -521,18 +521,20 @@ function whatsProfessor_() {
   return d.length >= 10 && d.length <= 11 ? '55' + d : d;
 }
 
-function chamarIA_(mensagens) {
+function chamarIA_(mensagens, modelo) {
   const props = PropertiesService.getScriptProperties();
   const conta = props.getProperty('CF_CONTA'), token = props.getProperty('CF_TOKEN');
   if (!conta || !token) throw new Error('IA não configurada');
-  const res = UrlFetchApp.fetch('https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(conta) + '/ai/run/' + IA_MODELO, {
+  const res = UrlFetchApp.fetch('https://api.cloudflare.com/client/v4/accounts/' + encodeURIComponent(conta) + '/ai/run/' + (modelo || IA_MODELO), {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { Authorization: 'Bearer ' + token },
-    payload: JSON.stringify({ messages: mensagens, max_tokens: 600, temperature: 0.7 })
+    payload: JSON.stringify({ messages: mensagens, max_tokens: 800, temperature: 0.7 })
   });
   const codigo = res.getResponseCode();
   if (codigo !== 200) throw new Error('Cloudflare respondeu ' + codigo + ': ' + res.getContentText().slice(0, 200));
-  return JSON.parse(res.getContentText()).result.response;
+  const r = JSON.parse(res.getContentText()).result;
+  if (r.response !== undefined && r.response !== null) return r.response;
+  return r.choices[0].message.content; // alguns modelos respondem neste formato
 }
 
 const IA_SISTEMA = [
@@ -572,6 +574,14 @@ function numerosOk_(texto, base) {
   return ns.every(function (n) { return b.indexOf(n.replace(',', '.')) >= 0; });
 }
 
+function mensagensIA_(memoria, fatos) {
+  return [
+    { role: 'system', content: IA_SISTEMA },
+    { role: 'user', content: 'MEMÓRIA ANTERIOR:\n' + (memoria || '(ainda vazia)') + '\n\nFATOS:\n' + fatos +
+        '\n\nLEMBRE: escreva como nos exemplos, em primeira pessoa e com jeito de gente real, nunca como relatório. Só diga que um exercício já foi feito se feitoTambemEm estiver preenchido. Se estiver vazio e houver grupoTambemEm, diga que o grupo muscular já foi treinado nesse treino da semana, citando o nome dele. O parecer precisa ter de 40 a 80 palavras e terminar com uma frase sua sobre o que você quer ver da pessoa no próximo treino. O título é a sua opinião sobre o treino, sem repetir "abaixo do normal".' }
+  ];
+}
+
 function parecerIA_(al, b) {
   const data = String(b.data || '').slice(0, 10), treino = String(b.treino || '').slice(0, 80);
   if (!data || !treino) throw appErr_('bad_request', 'Treino não informado.');
@@ -587,18 +597,14 @@ function parecerIA_(al, b) {
   const cache = CacheService.getScriptCache();
   const ck = 'ia:' + al.id + ':' + data;
   const usados = Number(cache.get(ck) || 0);
-  if (usados >= IA_MAX_POR_DIA) return { item: null, motivo: 'limite_do_dia' };
+  if (usados >= IA_MAX_POR_DIA && !eProfessor_(al)) return { item: null, motivo: 'limite_do_dia' };
   cache.put(ck, String(usados + 1), 86400);
   const anteriores = ja ? linhas.filter(function (r) { return r !== ja; }) : linhas;
   const memoria = anteriores.length ? String(anteriores[anteriores.length - 1][5] || '') : '';
   const fatos = JSON.stringify(b.fatos || {}).slice(0, 6000);
   let saida;
   try {
-    const resp = chamarIA_([
-      { role: 'system', content: IA_SISTEMA },
-      { role: 'user', content: 'MEMÓRIA ANTERIOR:\n' + (memoria || '(ainda vazia)') + '\n\nFATOS:\n' + fatos +
-        '\n\nLEMBRE: escreva como nos exemplos, em primeira pessoa e com jeito de gente real, nunca como relatório. Só diga que um exercício já foi feito se feitoTambemEm estiver preenchido. Se estiver vazio e houver grupoTambemEm, diga que o grupo muscular já foi treinado nesse treino da semana, citando o nome dele. O parecer precisa ter de 40 a 80 palavras e terminar com uma frase sua sobre o que você quer ver da pessoa no próximo treino. O título é a sua opinião sobre o treino, sem repetir "abaixo do normal".' }
-    ]);
+    const resp = chamarIA_(mensagensIA_(memoria, fatos));
     const o = typeof resp === 'object' && resp ? resp : JSON.parse(String(resp).match(/\{[\s\S]*\}/)[0]);
     saida = { titulo: String(o.titulo || '').trim().slice(0, 90), parecer: String(o.parecer || '').trim().slice(0, 800),
       recado: String(o.recado || '').trim().slice(0, 300), resumo: String(o.resumo || '').trim().slice(0, 900) };
