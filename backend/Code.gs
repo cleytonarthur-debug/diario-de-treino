@@ -548,6 +548,7 @@ const IA_SISTEMA = [
   '- Se o veredito é "faltou", diga claramente o que ainda precisa ser feito.',
   '',
   'COMO REAGIR:',
+  '- Treinos iniciais (FATOS.inicial preenchido): seja bem animado e acolhedor. Diga qual treino foi (primeiro, segundo ou terceiro), quantas séries a pessoa fez, a porcentagem entregue, que o início serve para se acostumar com a sua metodologia, e que vocês vão longe. Não peça mais carga nem mais volume.',
   '- Treino excelente, com volume acima do normal ou recorde: elogie de verdade e jogue a pessoa lá em cima.',
   '- Abaixo do normal, sem motivo: seja direto e motive sem cobrar, algo como "já te vi fazendo melhor, quero ver de novo".',
   '- Dia ruim, com sono, cansaço ou ânimo baixo: mostre que entendeu, e compare com o que a pessoa costuma fazer em dias assim.',
@@ -560,6 +561,7 @@ const IA_SISTEMA = [
   'EXEMPLOS DO TOM, para entender o jeito, sem copiar as frases:',
   '- Abaixo, mas em dia: "Hoje o volume ficou abaixo do seu normal, e você sabe disso, principalmente no remo. Mas vi que você já fez esse exercício no treino de costas dessa semana, então está tudo bem. Se estiver com dificuldade, fale com o professor. Hoje já foi, amanhã é outro dia. Descanse, quero você voando no próximo treino."',
   '- Excelente: "Que treino! Você passou do seu normal em quase tudo e ainda bateu recorde no agachamento. É isso que eu quero ver. Continua assim, você está voando."',
+  '- Treino inicial: "Esse foi o seu primeiro treino e você fez todas as séries. Parabéns, entregou tudo o que foi pedido. Esse início é para você se acostumar com a minha metodologia, mas estou vendo que vamos longe. Nos próximos treinos, teremos parâmetros legais para trabalhar."',
   '- Abaixo, sem motivo: "Hoje não foi o seu melhor. Já te vi fazendo melhor no supino, quero ver de novo. Dorme bem, come direito e chega com tudo no próximo."',
   '',
   'Responda somente com um objeto JSON com estas chaves:',
@@ -602,7 +604,7 @@ function parecerIA_(al, b) {
   if (usados >= IA_MAX_POR_DIA && !eProfessor_(al)) return { item: null, motivo: 'limite_do_dia' };
   cache.put(ck, String(usados + 1), 86400);
   const anteriores = ja ? linhas.filter(function (r) { return r !== ja; }) : linhas;
-  const memoria = anteriores.length ? String(anteriores[anteriores.length - 1][5] || '') : '';
+  const memoria = !b.soTeste && anteriores.length ? String(anteriores[anteriores.length - 1][5] || '') : '';
   const fatos = JSON.stringify(b.fatos || {}).slice(0, 6000);
   let saida;
   try {
@@ -616,10 +618,11 @@ function parecerIA_(al, b) {
   }
   // garante a frase final sobre o próximo treino, no jeito do professor
   const fecho = String((b.fatos && b.fatos.fecho) || '').slice(0, 160);
-  if (saida.parecer && fecho && !/pr[oó]xim/i.test(saida.parecer)) saida.parecer += ' ' + fecho;
+  if (saida.parecer && fecho && !/pr[oó]xim|quero (ver|voc)/i.test(saida.parecer)) saida.parecer += ' ' + fecho;
   const base = fatos + ' ' + memoria;
   if (!saida.titulo || !saida.parecer || !saida.resumo ||
       !numerosOk_(saida.titulo + ' ' + saida.parecer + ' ' + saida.recado, base)) return { item: null, motivo: 'texto_recusado' };
+  if (b.soTeste && eProfessor_(al)) return { item: paraApp([data, treino, saida.titulo, saida.parecer, saida.recado]) }; // prévia, sem gravar
   const texto = function (v) { return /^[=+\-@]/.test(v) ? "'" + v : v; };
   const nova = [data, treino, saida.titulo, saida.parecer, saida.recado, saida.resumo].map(texto);
   const lock = LockService.getScriptLock();

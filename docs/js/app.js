@@ -106,7 +106,7 @@ function ingestAll(d){
   S.exMap=new Map();(d.exercicios||[]).forEach(r=>{if(r[0]&&r[1])S.exMap.set(strip(r[0]),r[1])});
   S.exList=(d.exercicios||[]).map(r=>String(r[0]||"").trim()).filter(Boolean);
   ingest(d.historico);
-  ingestModels(d.modelos);
+  ingestModels(d.modelos);Coach.setModelos(S.models);
   ingestAvals(d.avaliacoes);
   if(d.professor!==undefined)S.profWhats=d.professor||"";
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
@@ -114,7 +114,7 @@ function ingestAll(d){
 }
 
 /* ---------- conexão ---------- */
-function setSync(kind,text){$("#sync").innerHTML='<span class="dot '+kind+'"></span><span>'+esc(text)+'</span>';$("#sync").title=text;const s=$("#saudacao span");if(s)s.textContent=text}
+function setSync(kind,text){$("#sync").innerHTML='<span class="dot '+kind+'"></span><span>'+esc(text)+'</span>';$("#sync").title=text;const s=$("#saudacao .sa-sync");if(s)s.textContent=text}
 function banner(html,bad){$("#banner").innerHTML=html?'<div class="banner'+(bad?" bad":"")+'">'+html+'</div>':""}
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,3800)}
 function errText(e){
@@ -356,7 +356,8 @@ function juntarUnilaterais(blocks){
   return out;
 }
 /* ---- Academia: peso e "última vez" vêm da academia escolhida, quando já treinou nela. ---- */
-function nomesAcademias(){const v=new Map();S.rows.forEach(r=>{if(r.academia)v.set(strip(r.academia),r.academia)});return [...v.values()].reverse()}
+const ACADEMIAS_CONHECIDAS=["REX FIT CT","Smartfit Batel","Black Bull"];
+function nomesAcademias(){const v=new Map();S.rows.forEach(r=>{if(r.academia)v.set(strip(r.academia),r.academia)});const lista=[...v.values()].reverse();ACADEMIAS_CONHECIDAS.forEach(n=>{if(!v.has(strip(n)))lista.push(n)});return lista}
 function ultimaAcademia(){const g=store("dt2-academia-"+keyA());if(g)return g;for(let i=S.rows.length-1;i>=0;i--)if(S.rows[i].academia)return S.rows[i].academia;return ""}
 function ultimaNaAcademia(nome,gym){
   const k=strip(nome),g=strip(gym);
@@ -1576,7 +1577,7 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(A.comp.vol)+'<small>t</small></span>'+difKpi(A.comp.volDif,true,"%")+'</div>'+
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
-      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("🎯 Metas do próximo "+esc(A.treino),A.proximo,"foco")
+      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("🎯 Metas",A.metasLongo||[],"foco")+lista("📌 No próximo "+esc(A.treino),A.proximo)
       :'<p class="muted">Analisando o treino…</p>')+'</div>'+
     (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do período</h2></div>'+
     '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
@@ -1691,6 +1692,7 @@ function setTema(t){document.documentElement.setAttribute("data-theme",t);try{lo
 function primeiroNome(a){return String(a&&a.nome||"").trim().split(/\s+/)[0]}
 function renderTopo(){
   const home=S.view==="inicio";
+  document.documentElement.setAttribute("data-genero",/^f/i.test(String(S.aluno&&S.aluno.sexo||""))?"f":"m");
   $("#b-voltar").hidden=home;
   let t=TITULOS[S.view]||"Diário de Treino";
   if(S.view==="lancar"){if(S.fim)t="Finalizar treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
@@ -1700,8 +1702,8 @@ function renderTopo(){
   const sa=$("#saudacao");sa.hidden=!home;
   if(home){
     const nome=primeiroNome(S.aluno);
-    sa.innerHTML=(nome?'<small>Bom treino,</small><b>'+esc(nome)+'</b>':S.role==="prof"?'<small>Olá,</small><b>professor</b>':'<small>Bom treino!</small>')+
-      '<span>'+esc(($("#sync span:last-child")||{}).textContent||"")+'</span>';
+    sa.innerHTML='<b>Olá, <i class="nome-g" style="font-style:normal">'+esc(nome||(S.role==="prof"?"professor":""))+'</i></b><small>Vamos treinar!</small>'+
+      (S.role==="prof"?'<span class="sa-sync">'+esc(($("#sync span:last-child")||{}).textContent||"")+'</span>':"");
   }
 }
 function textoTreinar(){
