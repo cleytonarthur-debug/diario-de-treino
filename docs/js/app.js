@@ -151,11 +151,11 @@ async function refreshInicio(){
 function applyInicio(d,fresh){
   if(S.role==="prof"){
     S.alunos=d.alunos||[];
-    const sel=store("dt2-aluno-sel");
+    const sel=masterId()||store("dt2-aluno-sel");
     if(!S.alunoId&&sel&&S.alunos.some(a=>a.id===sel))selectAluno(sel,true);
     else if(S.alunoId){const a=S.alunos.find(x=>x.id===S.alunoId);if(a)S.aluno=Object.assign({},S.aluno,a)}
     if(d.catalogo)S.catalogo=d.catalogo;
-    if(fresh)profNotice();
+    if(fresh){profNotice();carregarPainel()}
   }else if(d.aluno){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
@@ -850,7 +850,7 @@ async function save(){
     S.draft=null;saveDraft();S.confirm=false;S.saving=false;S.fim=false;
     const w=(res&&res.written)||rows.length;
     toast(res&&res.duplicate?"Essas séries já estavam salvas na planilha":"Treino salvo: "+w+(w===1?" série":" séries")+" na planilha");
-    fogos();
+    fogos();S.painelAt=0;
     banner("");S.coachSel=d.date+"|"+d.treino;S.coachEsperando=true;setView("coach");window.scrollTo({top:0});
     fetchDados().finally(()=>{S.coachEsperando=false;if(S.view==="coach")renderCoach();pedirParecerIA(S.coachSel)});
   }catch(e){
@@ -1210,7 +1210,7 @@ async function saveAval(){
   btn.disabled=true;msg.textContent="Salvando…";msg.className="setup-msg";
   try{
     await callA("avaliacao",{valores,linha:E.linha});
-    S.avEdit=null;S.avPt=null;S.avSel=null;toast("Avaliação salva na planilha do aluno");
+    S.avEdit=null;S.avPt=null;S.avSel=null;S.painelAt=0;toast("Avaliação salva na planilha do aluno");
     await fetchDados();render();
   }catch(e){
     msg.textContent=errText(e)+(e.sent?" Confira a aba Avaliações antes de salvar de novo.":"");msg.className="setup-msg bad";btn.disabled=false;
@@ -1233,25 +1233,6 @@ function shareBox(a){
     '<div class="row-btns"><a class="btn wa" href="'+esc(waLink(a))+'" target="_blank" rel="noopener">Enviar pelo WhatsApp</a><button class="btn" data-copy="'+esc(a.link)+'">Copiar link</button></div></div>';
 }
 function bindCopy(root){root.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);toast("Link copiado")}catch(e){prompt("Copie o link:",b.dataset.copy)}})}
-function renderAlunos(){
-  const el=$("#v-alunos");
-  if(S.alunoForm)return renderAlunoForm(el);
-  const q=strip(S.busca);
-  const list=S.alunos.filter(a=>!q||strip(a.nome).includes(q)).sort((a,b)=>(b.ativo-a.ativo)||a.nome.localeCompare(b.nome,"pt-BR"));
-  el.innerHTML='<div class="session-head"><div><h2>Alunos</h2><div class="muted small">'+S.alunos.length+' cadastrados · cada um tem a própria planilha na pasta "Diário de Treino — Alunos" do seu Drive</div></div>'+
-    '<button class="btn primary" id="a-new">+ Novo aluno</button></div>'+
-    (S.shareFor?shareBox(S.shareFor):"")+
-    (S.alunos.length>6?'<input class="search" id="a-busca" type="search" placeholder="Buscar aluno" value="'+esc(S.busca)+'">':"")+
-    (list.length?'<div class="alist">'+list.map(a=>{const id=idade(a);return '<button class="acard'+(a.id===S.alunoId?" sel":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><b>'+esc(a.nome)+'</b>'+
-      '<span class="muted small">'+[id!=null?id+" anos":"",a.objetivo].filter(Boolean).map(esc).join(" · ")+'</span>'+
-      '<span>'+(a.ativo?"":'<span class="pill bad">acesso pausado</span> ')+statusPill(a)+(a.id===S.alunoId?' <span class="pill good">aberto agora</span>':"")+'</span></button>'}).join("")+'</div>'
-      :'<div class="empty">'+(S.alunos.length?"Nenhum aluno com esse nome.":"Nenhum aluno ainda. Toque em <b>Novo aluno</b>. Dica: cadastre você mesmo primeiro, usando a sua planilha atual.")+'</div>');
-  $("#a-new").onclick=()=>{S.alunoForm={};S.shareFor=null;renderAlunos()};
-  const bs=$("#a-busca");if(bs)bs.addEventListener("input",()=>{S.busca=bs.value;const p=bs.selectionStart;renderAlunos();const n=$("#a-busca");n.focus();n.setSelectionRange(p,p)});
-  el.querySelectorAll(".acard").forEach(b=>b.onclick=()=>{S.shareFor=null;const a=S.alunos.find(x=>x.id===b.dataset.id);
-    if(a&&a.status==="montar treino")openModelEditor(a.id);else selectAluno(b.dataset.id)});
-  bindCopy(el);
-}
 function renderAlunoForm(el){
   const f=S.alunoForm;const novo=!f.id;
   const i=(k,l,type,extra)=>'<label class="fld2">'+l+'<input data-k="'+k+'" type="'+(type||"text")+'" value="'+esc(type==="date"?brToIso(f[k]):f[k]||"")+'" '+(extra||"")+'></label>';
@@ -1688,12 +1669,261 @@ async function checarAtualizacaoAuto(){
 }
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")checarAtualizacaoAuto()});
 
+
+/* ========== PÁGINAS DO PROFESSOR ==========
+   Usam o resumo de todos os alunos (ação painel). Na primeira tela o professor é o próprio aluno master;
+   ao abrir alguém pela lista, S.ctxAluno fica ligado até voltar para o início. */
+const masterId=()=>(S.alunos.find(a=>a.master)||{}).id||null;
+const ocultos=()=>store("dt2-ocultos")||[];
+let painelRodando=false;
+async function carregarPainel(forcar){
+  if(S.role!=="prof"||painelRodando)return;
+  if(!forcar&&Date.now()-(S.painelAt||0)<3e5)return;
+  painelRodando=true;
+  if(!S.painel){const c=Api.cacheGet("painel");if(c&&c.resumos){S.painel=c.resumos;redesenharPainel()}}
+  try{
+    for(let i=0;i<6;i++){
+      const d=await Api.call("painel",{});
+      S.painel=Object.assign({},S.painel||{},d.resumos);
+      Api.cacheSet("painel",{resumos:S.painel});
+      redesenharPainel();
+      if(!d.faltam)break;
+    }
+    S.painelAt=Date.now();
+  }catch(e){}finally{painelRodando=false}
+}
+function redesenharPainel(){if(["inicio","alunos","aluno","alcal"].includes(S.view)&&!S.alunoForm)render()}
+function resumoDe(id){
+  const r=S.painel&&S.painel[id];if(!r)return null;
+  if(!r.s)r.s=r.t.map(x=>({dateS:x[0],date:parseDate(x[0]),treino:x[1],vol:x[2],series:x[3],e:x[4]})).filter(x=>x.date).sort((a,b)=>a.date-b.date);
+  return r;
+}
+function diaZero(d){const h=d||new Date();return new Date(h.getFullYear(),h.getMonth(),h.getDate())}
+const diasEntre=(a,b)=>Math.round((diaZero(b)-diaZero(a))/864e5);
+const ultimoTreino=(r,ate)=>{if(!r)return null;const s=r.s.filter(x=>!ate||x.date<=ate);return s.length?s[s.length-1]:null};
+function textoDias(n){return n<=0?"hoje":n===1?"ontem":"há "+n+" dias"}
+const pedeAtencao=a=>{if(!a.ativo||a.master)return false;if(a.status==="montar treino")return true;if(a.status!=="ok")return false;
+  const r=resumoDe(a.id);if(!r)return false;const u=ultimoTreino(r);return !u||diasEntre(u.date)>=10};
+/* Força: compara o melhor de cada exercício na 1ª e na 2ª metade do período. */
+function forcaPct(r,dias){
+  if(!r)return null;const h=diaZero(),ini=+h-dias*864e5,meio=+h-dias/2*864e5,a={},b={};
+  r.s.forEach(s=>{if(+s.date<ini)return;const m=+s.date<meio?a:b;s.e.forEach(([i,f])=>{if(!m[i]||f>m[i])m[i]=f})});
+  const v=Object.keys(a).filter(i=>b[i]).map(i=>(b[i]/a[i]-1)*100);
+  return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;
+}
+const assinado=n=>(n>0?"+":n<0?"−":"")+nf1.format(Math.abs(n));
+function semanasDe(dias){
+  const h=diaZero(),out=[];let d=new Date(+h-dias*864e5);d=new Date(d.getFullYear(),d.getMonth(),d.getDate()-((d.getDay()+6)%7));
+  while(d<=h){out.push(d);d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+7)}
+  return out;
+}
+const semanaIdx=(sem,date)=>{for(let i=sem.length-1;i>=0;i--)if(date>=sem[i])return i;return -1};
+const num=Body.num;
+function gorduraDe(av,a){const n=num(av["% Gordura"]);if(isFinite(n))return n;const d=parseDate(av["Data"]);const c=Body.calc(av,a||{},d||new Date());return isFinite(c["% Gordura"])?c["% Gordura"]:NaN}
+/* Valores por semana. Força: o início de cada exercício no período vale 100. */
+function serieDe(a,met,dias){
+  const r=resumoDe(a.id);const sem=semanasDe(dias);const v=sem.map(()=>null);if(!r)return {sem,v};
+  const corte=sem[0];
+  if(met==="freq"||met==="vol"){v.fill(0);r.s.forEach(s=>{if(s.date<corte)return;const i=semanaIdx(sem,s.date);v[i]+=met==="vol"?s.vol/1000:1});return {sem,v:v.map(x=>Math.round(x*10)/10)}}
+  if(met==="forca"){
+    const base={},porSem=sem.map(()=>({}));
+    r.s.forEach(s=>{if(s.date<corte)return;const i=semanaIdx(sem,s.date);s.e.forEach(([k,f])=>{if(!base[k])base[k]=f;if(!porSem[i][k]||f>porSem[i][k])porSem[i][k]=f})});
+    porSem.forEach((o,i)=>{const ks=Object.keys(o);if(ks.length)v[i]=Math.round(ks.reduce((t,k)=>t+o[k]/base[k]*100,0)/ks.length*10)/10});
+    return {sem,v};
+  }
+  r.a.forEach(av=>{const d=parseDate(av["Data"]);if(!d||d<corte)return;const i=semanaIdx(sem,d);
+    const x=met==="gordura"?gorduraDe(av,a):num(av[met==="peso"?"Peso (kg)":"Cintura (cm)"]);if(isFinite(x))v[i]=x});
+  return {sem,v};
+}
+function linhaSvg(vals,cor){
+  const p=vals.filter(x=>x!=null);if(p.length<2)return '<svg class="mini" viewBox="0 0 150 40" preserveAspectRatio="none"><line x1="4" x2="146" y1="30" y2="30" style="stroke:var(--line-2)" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>';
+  const mx=Math.max(...p),mn=Math.min(...p),X=i=>4+i*142/(p.length-1),Y=v=>35-(v-mn)*30/((mx-mn)||1);
+  return '<svg class="mini" viewBox="0 0 150 40" preserveAspectRatio="none"><polyline fill="none" style="stroke:var('+cor+')" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="'+p.map((v,i)=>X(i)+","+Y(v)).join(" ")+'"/></svg>';
+}
+function cardAluno(a){
+  const r=resumoDe(a.id),pct=forcaPct(r,60),u=ultimoTreino(r),d=u?diasEntre(u.date):null;
+  const parado=d!=null&&d>=10;
+  const cor=!u?"--ink-3":parado?"--bad":pct==null?"--ink-3":pct>=1?"--action":pct<=-1?"--warn":"--ink-3";
+  const sub=!a.ativo?"Acesso pausado":a.status==="montar treino"?"Montar treino":a.status==="aguardando cadastro"?"Aguardando cadastro":!r?"Lendo…":!u?"Ainda sem treino":parado?d+" dias parado":(pct!=null?assinado(pct)+"% · ":"")+textoDias(d);
+  return '<button class="acard2'+(a.master?" master":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><span class="a2-h"><b>'+esc(a.nome)+'</b>'+(a.master?'<span class="pill good">Aluno master</span>':"")+'</span><span class="a2-s">'+esc(sub)+'</span>'+linhaSvg(serieDe(a,"forca",60).v,cor)+'</button>';
+}
+function abrirAluno(id){
+  const a=S.alunos.find(x=>x.id===id);S.shareFor=null;S.ctxAluno=true;S.alunoMet="forca";S.alMes=null;S.alDia=null;
+  if(a&&a.status==="montar treino"&&!a.master){openModelEditor(id);return}
+  selectAluno(id,true);abrir("aluno");
+}
+function visiveis(){const o=ocultos();return S.alunos.filter(a=>!o.includes(a.id)).sort((a,b)=>(b.master?1:0)-(a.master?1:0)||(b.ativo-a.ativo)||a.nome.localeCompare(b.nome,"pt-BR"))}
+function renderAlunos(){
+  const el=$("#v-alunos");
+  if(S.alunoForm)return renderAlunoForm(el);
+  const aba=S.alunosAba||"lista";
+  if(aba==="escolher")return renderEscolher(el);
+  if(aba==="calendario")return S.calDia?renderCalDia(el):renderCalTodos(el);
+  if(aba==="comparar")return renderComparar(el);
+  const q=strip(S.busca);const vis=visiveis();
+  const list=vis.filter(a=>!q||strip(a.nome).includes(q));const master=list.find(a=>a.master);const resto=list.filter(a=>!a.master);
+  el.innerHTML='<p class="muted small" style="margin:0 0 8px">'+vis.length+' de '+S.alunos.length+' aparecendo</p>'+
+    (S.shareFor?shareBox(S.shareFor):"")+
+    '<div class="a2-busca"><input class="search" id="a-busca" type="search" placeholder="Buscar aluno" value="'+esc(S.busca)+'"><button class="btn" id="a-esc">Escolher</button></div>'+
+    (master?cardAluno(master):"")+
+    (resto.length?'<div class="alist2">'+resto.map(cardAluno).join("")+'</div>':(master?"":'<div class="empty">'+(S.alunos.length?"Nenhum aluno para mostrar.":"Nenhum aluno ainda. Toque em <b>Novo</b>.")+'</div>'));
+  $("#a-esc").onclick=()=>{S.alunosAba="escolher";render();window.scrollTo({top:0})};
+  const bs=$("#a-busca");bs.addEventListener("input",()=>{S.busca=bs.value;const p=bs.selectionStart;renderAlunos();const n=$("#a-busca");n.focus();n.setSelectionRange(p,p)});
+  el.querySelectorAll(".acard2").forEach(b=>b.onclick=()=>abrirAluno(b.dataset.id));
+  bindCopy(el);
+}
+function renderEscolher(el){
+  const o=ocultos();const todos=[...S.alunos].sort((a,b)=>(b.master?1:0)-(a.master?1:0)||a.nome.localeCompare(b.nome,"pt-BR"));
+  el.innerHTML='<div class="av-top"><div><h2>Quem aparece</h2><span class="muted small">Toque para mostrar ou esconder.</span></div></div>'+
+    '<div class="row-btns" style="margin-bottom:10px"><button class="btn" id="e-todos">Marcar todos</button><button class="btn" id="e-ativos">Só os ativos</button></div>'+
+    '<div class="esc-lista">'+todos.map(a=>'<button class="esc-l" data-id="'+esc(a.id)+'"><span class="esc-c'+(o.includes(a.id)?"":" on")+'">'+(o.includes(a.id)?"":Icone("check",16))+'</span>'+esc(a.nome)+(a.master?" (master)":"")+(a.ativo?"":' <span class="pill bad">pausado</span>')+'</button>').join("")+'</div>'+
+    '<p class="muted small">Quem fica de fora só sai da sua tela. O aluno continua treinando normalmente.</p>'+
+    '<button class="btn primary" id="e-ok" style="width:100%">Pronto</button>';
+  el.querySelectorAll(".esc-l").forEach(b=>b.onclick=()=>{const l=ocultos();const i=l.indexOf(b.dataset.id);if(i>=0)l.splice(i,1);else l.push(b.dataset.id);store("dt2-ocultos",l);renderEscolher(el)});
+  $("#e-todos").onclick=()=>{store("dt2-ocultos",[]);renderEscolher(el)};
+  $("#e-ativos").onclick=()=>{store("dt2-ocultos",S.alunos.filter(a=>!a.ativo).map(a=>a.id));renderEscolher(el)};
+  $("#e-ok").onclick=()=>{S.alunosAba="lista";render();window.scrollTo({top:0})};
+}
+function renderCalTodos(el){
+  const n=S.calDias||14,h=diaZero(),dias=[];for(let i=n-1;i>=0;i--)dias.push(new Date(h.getFullYear(),h.getMonth(),h.getDate()-i));
+  const vis=visiveis().filter(a=>a.ativo);
+  const col=n>14?"20px":"minmax(14px,1fr)";
+  el.innerHTML='<div class="chips-l" id="cal-p">'+[[7,"7 dias"],[14,"14 dias"],[30,"30 dias"]].map(x=>'<button class="chip'+(x[0]===n?" on":"")+'" data-n="'+x[0]+'">'+x[1]+'</button>').join("")+'</div>'+
+    '<div class="card mx-wrap"><div class="mx" style="grid-template-columns:72px repeat('+n+','+col+') 24px"><span></span>'+dias.map(d=>'<button class="h" data-dia="'+fmtDate(d)+'">'+d.getDate()+'</button>').join("")+'<span class="h2">Total</span>'+
+    vis.map(a=>{const r=resumoDe(a.id);const set=new Set(r?r.s.map(s=>s.dateS):[]);let t=0;
+      return '<button class="n" data-al="'+esc(a.id)+'">'+esc(primeiroNome(a))+'</button>'+dias.map(d=>{const on=set.has(fmtDate(d));if(on)t++;return '<button class="c'+(on?" on":"")+'" data-dia="'+fmtDate(d)+'" aria-label="'+esc(primeiroNome(a))+', '+fmtShort(d)+(on?", treinou":", não treinou")+'"></button>'}).join("")+'<span class="q">'+t+'</span>'}).join("")+'</div></div>'+
+    '<div class="mx-lg"><span><i class="on"></i>Treinou</span><span><i></i>Não treinou</span></div><p class="muted small">Cada linha é um aluno. Toque em um dia para ver quem foi.</p>';
+  el.querySelectorAll("#cal-p .chip").forEach(b=>b.onclick=()=>{S.calDias=+b.dataset.n;renderAlunos()});
+  el.querySelectorAll("[data-dia]").forEach(b=>b.onclick=()=>{S.calDia=b.dataset.dia;renderAlunos();window.scrollTo({top:0})});
+  el.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>abrirAluno(b.dataset.al));
+}
+const waConversa=a=>{const d=String(a.telefone||"").replace(/\D/g,"");return d?"https://wa.me/"+(d.length>=10&&d.length<=11?"55"+d:d):""};
+function renderCalDia(el){
+  const d=parseDate(S.calDia);const vis=visiveis().filter(a=>a.ativo);const foi=[],nao=[];
+  vis.forEach(a=>{const r=resumoDe(a.id);const s=r?r.s.filter(x=>x.dateS===S.calDia):[];if(s.length)foi.push([a,s]);else nao.push(a)});
+  const nomeD=d.toLocaleDateString("pt-BR",{weekday:"long"});
+  const lin=(a,sub,dir)=>'<div class="dia-l"><button class="dia-a" data-al="'+esc(a.id)+'"><b>'+esc(a.nome)+'</b><span>'+esc(sub)+'</span></button>'+dir+'</div>';
+  el.innerHTML='<div class="av-top"><div><h2 style="text-transform:capitalize">'+esc(nomeD)+', '+fmtShort(d)+'</h2></div></div>'+
+    '<h3 class="dia-t">Treinaram ('+foi.length+')</h3>'+(foi.map(([a,s])=>lin(a,s.map(x=>x.treino).join(", "),"")).join("")||'<p class="muted small">Ninguém treinou neste dia.</p>')+
+    '<h3 class="dia-t">Não treinaram ('+nao.length+')</h3>'+nao.map(a=>{const u=ultimoTreino(resumoDe(a.id),d);const w=waConversa(a);
+      return lin(a,u?"Último treino: "+textoDias(diasEntre(u.date,d)).replace("hoje","no dia").replace("ontem","na véspera"):"Sem treino antes deste dia",w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")}).join("");
+  el.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>abrirAluno(b.dataset.al));
+}
+const METRICAS=[["forca","Força"],["freq","Frequência"],["peso","Peso"],["gordura","% Gordura"]];
+const CORES_COMP=["--g-inf","--g-cos","--g-pei","--g-bra","--g-omb"];
+function desenharLinhas(id,sets,labels,fmt){
+  if(charts[id]){charts[id].destroy();delete charts[id]}
+  const cv=$("#"+id);if(!cv)return;const line=css("--line"),ink3=css("--ink-3");
+  charts[id]=new Chart(cv,{type:"line",data:{labels,datasets:sets.map(s=>({label:s.label,data:s.data,borderColor:s.cor,backgroundColor:s.cor,borderWidth:2.5,tension:.3,pointRadius:2,spanGaps:true}))},
+    options:{maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:Object.assign(tipBase(),{callbacks:{label:c=>" "+c.dataset.label+": "+fmt(c.parsed.y)}})},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:5,color:ink3}},y:{grid:{color:line},border:{display:false},ticks:{color:ink3,maxTicksLimit:5}}}}});
+}
+function compStats(a,dias){
+  const r=resumoDe(a.id);const corte=+diaZero()-dias*864e5;const s=r?r.s.filter(x=>+x.date>=corte):[];
+  let gap=0;for(let i=1;i<s.length;i++)gap=Math.max(gap,diasEntre(s[i-1].date,s[i].date));
+  const av=(r?r.a:[]).map(x=>({d:parseDate(x["Data"]),x})).filter(x=>x.d&&+x.d>=corte).sort((p,q)=>p.d-q.d);
+  const dif=f=>{const v=av.map(y=>f(y.x)).filter(isFinite);return v.length>1?v[v.length-1]-v[0]:null};
+  return {forca:forcaPct(r,dias),treinos:s.length,sem:s.length/(dias/7),gap,peso:dif(x=>num(x["Peso (kg)"])),gord:dif(x=>gorduraDe(x,a)),cint:dif(x=>num(x["Cintura (cm)"]))};
+}
+function renderComparar(el){
+  const C=S.comp=S.comp||{ids:[],met:"forca",dias:90,modo:"grafico"};
+  const vis=visiveis();C.ids=C.ids.filter(i=>S.alunos.some(a=>a.id===i));
+  if(!C.ids.length)C.ids=vis.filter(a=>a.ativo).slice(0,3).map(a=>a.id);
+  const sel=C.ids.map(i=>S.alunos.find(a=>a.id===i));const fora=vis.filter(a=>!C.ids.includes(a.id));
+  const chipP=[[30,"1 mês"],[90,"3 meses"],[180,"6 meses"],[365,"1 ano"]];
+  let corpo="";
+  if(C.modo==="grafico"){
+    corpo='<div class="chips-l" id="c-met">'+METRICAS.map(m=>'<button class="chip'+(m[0]===C.met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
+      '<div class="card"><div class="comp-g"><canvas id="ch-comp"></canvas></div>'+(C.met==="forca"?'<p class="muted small" style="margin:6px 0 0">O começo do período vale 100.</p>':"")+'</div>';
+  }else{
+    const st=sel.map(a=>compStats(a,C.dias));const cel=(f)=>st.map(s=>'<td class="r">'+f(s)+'</td>').join("");
+    const dd=(x,u)=>x==null?"–":assinado(x)+u;
+    const sinal=x=>x==null?"–":'<span class="'+(x>=0?"up":"down-t")+'">'+assinado(x)+'%</span>';
+    corpo='<div class="card comp-t"><table><tr><th></th>'+sel.map(a=>'<th class="r">'+esc(primeiroNome(a))+'</th>').join("")+'</tr>'+
+      '<tr><td>Força</td>'+cel(s=>sinal(s.forca))+'</tr><tr><td>Treinos</td>'+cel(s=>s.treinos)+'</tr><tr><td>Por semana</td>'+cel(s=>nf1.format(s.sem))+'</tr><tr><td>Maior intervalo</td>'+cel(s=>s.gap?s.gap+" dias":"–")+'</tr>'+
+      '<tr><td>Peso</td>'+cel(s=>dd(s.peso," kg"))+'</tr><tr><td>% Gordura</td>'+cel(s=>dd(s.gord,""))+'</tr><tr><td>Cintura</td>'+cel(s=>dd(s.cint," cm"))+'</tr></table></div>';
+    if(sel.length>1){
+      const mais=st.map((s,i)=>[s.sem,i]).sort((a,b)=>b[0]-a[0])[0];const fo=st.map((s,i)=>[s.forca,i]).filter(x=>x[0]!=null).sort((a,b)=>b[0]-a[0])[0];
+      corpo+='<div class="card"><h3 class="dia-t" style="margin-top:0">Resumo</h3><p style="margin:0">'+esc(primeiroNome(sel[mais[1]]))+' foi quem mais treinou por semana'+(fo?(fo[1]===mais[1]?" e também teve a maior alta de força.":". "+esc(primeiroNome(sel[fo[1]]))+" teve a maior alta de força."):".")+'</p></div>';
+    }
+  }
+  el.innerHTML='<div class="chips-l" id="c-al">'+sel.map((a,i)=>'<button class="chip" style="border-color:var('+CORES_COMP[i]+');border-width:2px" data-x="'+esc(a.id)+'">'+esc(primeiroNome(a))+' ×</button>').join("")+
+      (C.ids.length<5&&fora.length?'<select class="chip" id="c-add" aria-label="Adicionar aluno"><option value="">+ Aluno</option>'+fora.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.nome)+'</option>').join("")+'</select>':"")+'</div>'+
+    '<div class="chips-l" id="c-modo"><button class="chip'+(C.modo==="grafico"?" on":"")+'" data-v="grafico">Gráfico</button><button class="chip'+(C.modo==="tabela"?" on":"")+'" data-v="tabela">Tabela</button></div>'+corpo+
+    '<div class="chips-l" id="c-per">'+chipP.map(p=>'<button class="chip'+(p[0]===C.dias?" on":"")+'" data-d="'+p[0]+'">'+p[1]+'</button>').join("")+'</div>';
+  el.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{C.ids=C.ids.filter(i=>i!==b.dataset.x);if(!C.ids.length)C.ids=[];renderAlunos()});
+  const add=$("#c-add");if(add)add.onchange=()=>{if(add.value){C.ids.push(add.value);renderAlunos()}};
+  el.querySelectorAll("#c-met .chip").forEach(b=>b.onclick=()=>{C.met=b.dataset.m;renderAlunos()});
+  el.querySelectorAll("#c-modo .chip").forEach(b=>b.onclick=()=>{C.modo=b.dataset.v;renderAlunos()});
+  el.querySelectorAll("#c-per .chip").forEach(b=>b.onclick=()=>{C.dias=+b.dataset.d;renderAlunos()});
+  if(C.modo==="grafico"&&sel.length){
+    const ser=sel.map(a=>serieDe(a,C.met,C.dias));
+    const u={forca:"",freq:" treinos",peso:" kg",gordura:"%"}[C.met];
+    desenharLinhas("ch-comp",ser.map((s,i)=>({label:primeiroNome(sel[i]),data:s.v,cor:css(CORES_COMP[i])})),ser[0].sem.map(fmtShort),v=>nf1.format(v)+u);
+  }
+}
+function renderAlunoPag(){
+  const el=$("#v-aluno");const a=S.aluno;if(!a){el.innerHTML='<div class="empty">Escolha um aluno.</div>';return}
+  const id=idade(a);const w=waConversa(a);const met=S.alunoMet||"forca";
+  const tile=(ir,ic,nome)=>'<button class="home-tile" data-ir="'+ir+'">'+nome+'<span class="home-ic">'+Icone(ic,46)+'</span></button>';
+  const s=serieDe(a,met,90);const tem=s.v.filter(x=>x!=null&&(met!=="vol"||x>0)).length>1;
+  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+'</div>'+
+    '<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
+    (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>'+
+    '<div class="al-box">'+tile("alcal","calendar","Calendário")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
+  el.querySelectorAll("#al-met .chip").forEach(b=>b.onclick=()=>{S.alunoMet=b.dataset.m;renderAlunoPag()});
+  el.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>irAluno(b.dataset.ir));
+  if(tem){const u={forca:"",vol:" t",peso:" kg",cintura:" cm"}[met];desenharLinhas("ch-aluno",[{label:primeiroNome(a),data:s.v,cor:css("--action")}],s.sem.map(fmtShort),v=>nf1.format(v)+u)}
+}
+function irAluno(ir){
+  if(ir==="treinos"){openModelEditor(S.alunoId);return}
+  if(ir==="comparar"){const m=masterId();S.comp=Object.assign(S.comp||{met:"forca",dias:90,modo:"grafico"},{ids:[S.alunoId].concat(m&&m!==S.alunoId?[m]:[])});S.alunosAba="comparar";S.calDia=null;S.ctxAluno=false;abrir("alunos");return}
+  abrir(ir);
+}
+function renderAlunoCal(){
+  const el=$("#alcal-c")||$("#v-alcal");const a=S.aluno;if(!a){el.innerHTML="";return}
+  const r=resumoDe(a.id);const h=diaZero();const ult=ultimoTreino(r);const base=ult?ult.date:h;const m=S.alMes||new Date(base.getFullYear(),base.getMonth(),1);
+  const fim=new Date(m.getFullYear(),m.getMonth()+1,0),n=fim.getDate();
+  const doMes=r?r.s.filter(s=>s.date>=m&&s.date<=fim):[];const set=new Map(doMes.map(s=>[s.date.getDate(),s]));
+  let g=["D","S","T","Q","Q","S","S"].map(d=>'<span class="hd">'+d+'</span>').join("");
+  for(let i=0;i<m.getDay();i++)g+="<span></span>";
+  for(let d=1;d<=n;d++)g+=set.has(d)?'<button class="on" data-d="'+d+'">'+d+'</button>':'<span class="vz">'+d+'</span>';
+  let gap=0,ant=null;doMes.forEach(s=>{if(ant)gap=Math.max(gap,diasEntre(ant,s.date));ant=s.date});
+  const corridos=Math.max(1,m.getMonth()===h.getMonth()&&m.getFullYear()===h.getFullYear()?h.getDate():n);
+  const sel=S.alDia&&set.get(S.alDia)||doMes[doMes.length-1];
+  const nome=m.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+  el.innerHTML='<div class="card"><div class="cal-h"><button class="btn ghost" id="cm-a" aria-label="Mês anterior">‹</button><b style="text-transform:capitalize">'+esc(nome)+'</b><button class="btn ghost" id="cm-p" aria-label="Próximo mês">›</button></div><div class="cal-g">'+g+'</div></div>'+
+    '<div class="calc" style="margin:10px 0"><div class="kpi"><span class="l">Treinos no mês</span><span class="v">'+doMes.length+'</span></div><div class="kpi"><span class="l">Por semana</span><span class="v">'+nf1.format(doMes.length/(corridos/7))+'</span></div><div class="kpi"><span class="l">Maior intervalo</span><span class="v">'+gap+'<small>dias</small></span></div></div>'+
+    (sel?'<div class="card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span></div>':'<p class="muted small">'+(r?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
+  $("#cm-a").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()-1,1);S.alDia=null;renderAlunoCal()};
+  $("#cm-p").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()+1,1);S.alDia=null;renderAlunoCal()};
+  el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal()});
+}
+function renderNavBaixo(){
+  const nav=$("#nav-baixo");let itens=null,on="";
+  if(S.role==="prof"&&S.view==="alunos"&&!S.alunoForm&&S.alunosAba!=="escolher"){
+    on=S.alunosAba==="calendario"?"calendario":S.alunosAba==="comparar"?"comparar":"lista";
+    itens=[["lista","squares","Alunos"],["calendario","calendar","Calendário"],["comparar","chart-line","Comparar"],["novo","user-plus","Novo"]];
+  }else if(S.role==="prof"&&S.ctxAluno&&["evo","alcal","coach","aval"].includes(S.view)&&!S.avEdit){
+    on=S.view;
+    itens=[["evo","trending-up","Evolução"],["alcal","calendar","Calendário"],["coach","speakerphone","Coach"],["aval","ruler-measure","Física"],["treinos","clipboard","Treinos"]];
+  }
+  nav.hidden=!itens;document.body.classList.toggle("tem-nav",!!itens);
+  if(!itens)return;
+  nav.innerHTML=itens.map(x=>'<button class="'+(x[0]===on?"on":"")+'" data-n="'+x[0]+'"'+(x[0]===on?' aria-current="page"':"")+'>'+Icone(x[1],24)+'<span>'+x[2]+'</span></button>').join("");
+  nav.querySelectorAll("button").forEach(b=>b.onclick=()=>{const n=b.dataset.n;
+    if(["lista","calendario","comparar"].includes(n)){S.alunosAba=n;S.calDia=null;render();window.scrollTo({top:0})}
+    else if(n==="novo"){S.alunoForm={};S.shareFor=null;render();window.scrollTo({top:0})}
+    else irAluno(n)});
+}
+
 /* ========== navegação ========== */
-const VIEWS=["inicio","alunos","lancar","coach","evo","aval","perfil","config"];
-const TITULOS={alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
+const VIEWS=["inicio","alunos","aluno","alcal","lancar","coach","evo","aval","perfil","config"];
+const TITULOS={alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
 function setView(v){
   if(!VIEWS.includes(v))v="inicio";
-  if(v==="alunos"&&S.role!=="prof")v="inicio";
+  if(["alunos","aluno","alcal"].includes(v)&&S.role!=="prof")v="inicio";
+  if(v==="inicio")S.ctxAluno=false;
   S.view=v;
   VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});
   // o botão Voltar do celular leva para a tela inicial, sem sair do app
@@ -1703,13 +1933,27 @@ function setView(v){
   render();
 }
 function abrir(v){S.fim=false;window.scrollTo({top:0});setView(v)}
+// Para onde o Voltar leva. Devolve false quando só troca de página dentro de Alunos.
+function destinoVoltar(){
+  if(S.role==="prof"){
+    if(S.view==="alunos"){
+      if(S.alunoForm){S.alunoForm=null;return "alunos"}
+      if(S.calDia){S.calDia=null;return "alunos"}
+      if(S.alunosAba&&S.alunosAba!=="lista"){S.alunosAba="lista";return "alunos"}
+      return "inicio";
+    }
+    if(S.view==="aluno")return "alunos";
+    if(S.ctxAluno&&["evo","alcal","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
+  }
+  S.alunoForm=null;return "inicio";
+}
 function voltar(){
   if(S.fim){S.fim=false;render();window.scrollTo({top:0});return}
-  S.alunoForm=null;abrir("inicio");
+  abrir(destinoVoltar());
 }
 window.addEventListener("popstate",()=>{
   if(S.fim){S.fim=false;history.pushState({dt:1},"");render();return}
-  if(S.view!=="inicio"){S.alunoForm=null;window.scrollTo({top:0});setView("inicio")}
+  if(S.view!=="inicio"){const d=destinoVoltar();window.scrollTo({top:0});if(d!=="inicio")history.pushState({dt:1},"");setView(d)}
 });
 $("#b-voltar").innerHTML=Icone("arrow-left",24);$("#b-voltar").onclick=voltar;
 $("#b-refresh").innerHTML=Icone("refresh",22);
@@ -1731,8 +1975,10 @@ function renderTopo(){
   $("#b-voltar").hidden=home;
   let t=TITULOS[S.view]||"Diário de Treino";
   if(S.view==="lancar"){if(S.fim)t="Concluir treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
+  if(S.view==="aluno"&&S.aluno)t=S.aluno.nome;
+  if(S.view==="alunos"&&!S.alunoForm)t={calendario:"Calendário",comparar:"Comparar",escolher:"Quem aparece"}[S.alunosAba]||t;
   $("#top-titulo").textContent=t;
-  const sub=$("#top-sub");const verSub=!home&&S.role==="prof"&&S.aluno&&S.view!=="alunos"&&S.view!=="config";
+  const sub=$("#top-sub");const verSub=!home&&S.role==="prof"&&S.ctxAluno&&S.aluno&&!["alunos","aluno","config"].includes(S.view);
   sub.hidden=!verSub;sub.textContent=verSub?"Aluno: "+S.aluno.nome:"";
   const sa=$("#saudacao");sa.hidden=!home;
   if(home){
@@ -1749,27 +1995,39 @@ function textoTreinar(){
 }
 function renderInicio(){
   const tile=(v,ic,nome)=>'<button class="home-tile" data-ir="'+v+'">'+nome+'<span class="home-ic">'+Icone(ic,58)+'</span></button>';
-  let al="";
   if(S.role==="prof"){
-    const pend=S.alunos.filter(a=>a.ativo&&a.status==="montar treino").length;
-    al='<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+
-      esc(pend?pend+(pend===1?" aguardando montar treino":" aguardando montar treino"):S.alunos.length+(S.alunos.length===1?" cadastrado":" cadastrados"))+'</span>'+Icone("chevron-right",22)+'</button>';
+    // A primeira tela é sempre do próprio professor: o Treinar nunca grava na planilha de outro aluno.
+    const m=masterId();if(m&&S.alunoId!==m)selectAluno(m,true);
+    carregarPainel();
+    const ativos=S.alunos.filter(a=>a.ativo&&!a.master).length,at=S.alunos.filter(pedeAtencao).length;
+    $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-prof">'+
+      '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
+      '<div class="home-col">'+tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>'+
+      '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+'</span>'+Icone("chevron-right",22)+'</button></div>';
+    $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
+      if(b.dataset.ir==="alunos"){S.alunoForm=null;S.alunosAba="lista";S.calDia=null;carregarPainel()}
+      if(b.dataset.ir==="lancar"){S.picker=false;S.modEdit=null}
+      abrir(b.dataset.ir);
+    });
+    return;
   }
-  $("#inicio-tela").innerHTML='<div class="home-wrap">'+al+'<div class="home-grid">'+
+  $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-grid">'+
     '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
     tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+
     tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>';
   $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
-    if(b.dataset.ir==="alunos")S.alunoForm=null;
     if(b.dataset.ir==="lancar")S.picker=false;
     abrir(b.dataset.ir);
   });
 }
 function render(){
   renderTopo();
+  renderNavBaixo();
   $("#savebar").hidden=S.view!=="lancar"||!S.draft||S.picker||S.fim||!S.alunoId;
   if(S.view==="inicio")renderInicio();
   else if(S.view==="alunos")renderAlunos();
+  else if(S.view==="aluno")renderAlunoPag();
+  else if(S.view==="alcal")renderAlunoCal();
   else if(S.view==="lancar")renderLancar();
   else if(S.view==="evo")renderEvo();
   else if(S.view==="aval")renderAval();

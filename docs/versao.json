@@ -1,7 +1,7 @@
 {
-  "versao": "2.15.0",
+  "versao": "2.16.0",
   "data": "01/11/2026",
   "notas": [
-    "Na avaliação física, o % de gordura agora pode ser aproximado sem adipômetro, pelas medidas com fita ou pelo peso, altura e idade."
+    "Nova área do professor: primeira tela reorganizada, cartões de alunos, calendário de todos, comparativos e página de cada aluno."
   ]
 }

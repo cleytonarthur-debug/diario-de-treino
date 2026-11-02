@@ -230,16 +230,31 @@ const ACOES = {
   },
   gravar: function (ctx, b) {
     const al = precisaAluno_(ctx);
+    esquecerResumo_(al);
     return gravarTreino_(al, b.rows, b.exercicios, b.saveId, b.grupos);
   },
   avaliacao: function (ctx, b) {
     precisaProf_(ctx);
     const al = precisaAluno_(ctx);
+    esquecerResumo_(al);
     return gravarAvaliacao_(abrirPlanilhaAluno_(al), b.valores || {}, b.linha);
   },
   alunos: function (ctx) {
     precisaProf_(ctx);
     return { alunos: listarAlunos_().map(alunoParaProfessor_) };
+  },
+  // Resumo de todos os alunos, para as páginas do professor. Se demorar, devolve parte e o app pede o resto.
+  painel: function (ctx) {
+    precisaProf_(ctx);
+    const ini = Date.now(), resumos = {};
+    let faltam = 0;
+    listarAlunos_().forEach(function (al) {
+      const r = resumoGuardado_(al);
+      if (r) { resumos[al.id] = r; return; }
+      if (Date.now() - ini > 20000) { faltam++; return; }
+      try { resumos[al.id] = resumoAluno_(al); } catch (e) { console.error(e); }
+    });
+    return { resumos: resumos, faltam: faltam };
   },
   salvarAluno: function (ctx, b) {
     precisaProf_(ctx);
@@ -373,7 +388,7 @@ function perfil_(a) {
 
 function alunoParaProfessor_(a) {
   const p = perfil_(a);
-  p.telefone = a.telefone; p.ativo = a.ativo; p.criado = a.criado;
+  p.telefone = a.telefone; p.ativo = a.ativo; p.criado = a.criado; p.master = eProfessor_(a);
   p.planilhaUrl = a.planilha ? 'https://docs.google.com/spreadsheets/d/' + idPlanilha_(a.planilha) + '/edit' : '';
   const api = apiUrl_();
   p.link = a.codigo && api ? APP_URL + '#api=' + encodeURIComponent(api) + '&t=' + a.codigo : '';
@@ -639,6 +654,67 @@ function parecerIA_(al, b) {
     lock.releaseLock();
   }
   return { item: paraApp(nova) };
+}
+
+/* =============== resumo do aluno (páginas do professor) =============== */
+
+const RESUMO_DIAS = 400, RESUMO_AV = ['Data', 'Peso (kg)', 'Altura (cm)', 'Pescoço (cm)', 'Cintura (cm)', 'Abdômen (cm)', 'Quadril (cm)', '% Gordura', '% Gordura (bioimpedância)'];
+function resumoGuardado_(al) {
+  const c = CacheService.getScriptCache().get('res:' + al.id);
+  try { return c ? JSON.parse(c) : null; } catch (e) { return null; }
+}
+function esquecerResumo_(al) { CacheService.getScriptCache().remove('res:' + al.id); }
+// Mesmas contas do app (parseReps, parsePeso e e1rm em app.js).
+function repsDe_(feitas, meta) {
+  let s = String(feitas == null ? '' : feitas).toLowerCase().trim();
+  if (!s) return null;
+  if (/^ok\b/.test(s) || s === 'feito') { s = String(meta || '').toLowerCase(); const m = s.match(/completar\s*(\d+)/); if (m) return [parseInt(m[1], 10)]; }
+  if (/min|seg|round|nao fiz|não fiz/.test(s)) return null;
+  const v = s.split('+').map(function (p) { const m = p.match(/\d+/); return m ? parseInt(m[0], 10) : null; }).filter(function (x) { return x != null && x < 200; });
+  return v.length ? v : null;
+}
+function pesosDe_(s) {
+  s = String(s || '').toLowerCase().replace(/,/g, '.');
+  if (!s.trim()) return null;
+  const cl = /\bcl\b|cada lado/.test(s);
+  const v = s.split('>').map(function (p) { const m = p.match(/(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) * (cl ? 2 : 1) : null; });
+  return v[0] == null ? null : v;
+}
+function volumeDe_(reps, peso) {
+  if (!reps || !peso) return 0;
+  if (reps.length > 1 && peso.length > 1) { let t = 0; reps.forEach(function (r, i) { const p = peso[Math.min(i, peso.length - 1)]; if (p != null) t += r * p; }); return t; }
+  return reps.reduce(function (a, b) { return a + b; }, 0) * peso[0];
+}
+function chaveEx_(n) { return norm_(n).replace(/\b(d|e|direit[oa]|esquerd[oa]|doreita|lado d|lado e|cl|ambas?)\s*$/, '').replace(/\s+/g, ' ').trim(); }
+// t: [data, treino, volume, séries, [[exercício, melhor força estimada]]]; a: avaliações, só os campos usados.
+function resumoAluno_(al) {
+  const ss = abrirPlanilhaAluno_(al);
+  const corte = Date.now() - RESUMO_DIAS * 864e5, sessoes = {}, ordem = [], ex = [], exIdx = {};
+  lerAba_(ss, ABA_HIST, HEAD_HIST.length).forEach(function (r) {
+    const m = String(r[0] || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m || new Date(+m[3], +m[2] - 1, +m[1]).getTime() < corte) return;
+    if (/n[aã]o fiz/i.test(String(r[3] || ''))) return;
+    const reps = repsDe_(r[8], r[7]);
+    if (!reps) return;
+    const k = r[0] + '|' + r[2];
+    if (!sessoes[k]) { sessoes[k] = { d: r[0], t: String(r[2] || '').trim(), v: 0, n: 0, e: {} }; ordem.push(k); }
+    const s = sessoes[k], peso = pesosDe_(r[9]);
+    s.v += volumeDe_(reps, peso); s.n++;
+    if (peso && peso[0] && reps[0] && reps[0] <= 20) {
+      const nome = chaveEx_(r[5]);
+      if (exIdx[nome] === undefined) { exIdx[nome] = ex.length; ex.push(nome); }
+      const f = peso[0] * (1 + reps[0] / 30), i = exIdx[nome];
+      if (!s.e[i] || f > s.e[i]) s.e[i] = f;
+    }
+  });
+  const av = lerAvaliacoes_(ss);
+  const out = {
+    ex: ex,
+    t: ordem.map(function (k) { const s = sessoes[k]; return [s.d, s.t, Math.round(s.v), s.n, Object.keys(s.e).map(function (i) { return [+i, Math.round(s.e[i] * 10) / 10]; })]; }),
+    a: av.linhas.map(function (l) { const o = {}; av.cabecalho.forEach(function (c, i) { if (RESUMO_AV.indexOf(c) >= 0 && l.valores[i] !== '') o[c] = l.valores[i]; }); return o; })
+  };
+  try { CacheService.getScriptCache().put('res:' + al.id, JSON.stringify(out), 21600); } catch (e) { /* grande demais: só não guarda */ }
+  return out;
 }
 
 /* =============== leitura =============== */
