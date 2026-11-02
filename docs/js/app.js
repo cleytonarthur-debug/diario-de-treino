@@ -1930,6 +1930,7 @@ function auxFatos(){
     bibDoGrupo:g=>window.Metodos?Metodos.bibDoGrupo(g):[],gorduraDe:v=>gorduraDe(v,a)});
 }
 const parseJson=s=>{try{return s?JSON.parse(s):null}catch(e){return null}};
+const MOTIVO_DEC={sem_texto:"Sua decisão foi salva. Para mudar o treino, escreva a mudança na caixa.",nao_aplicar:"Sua decisão foi salva, e o treino não mudou, porque você marcou \"Não vou aplicar\".",nao_liberada:"Sua decisão foi salva, mas o treino não mudou: o aluno ainda não aceitou os termos da IA. Use Montar treinos.",sem_chave:"Sua decisão foi salva, mas o treino não mudou: a IA não está configurada. Use Montar treinos.",limite_do_dia:"Sua decisão foi salva, mas o treino não mudou: o limite de IA de hoje acabou. Use Montar treinos.",falhou:"Sua decisão foi salva, mas o treino não mudou: a IA não respondeu. Salve de novo ou use Montar treinos."};
 const MOTIVO_AUX={nao_liberada:"O aluno ainda não aceitou os termos da IA. Abaixo está a análise por regras.",sem_chave:"A IA não está configurada. Abaixo está a análise por regras.",limite_do_dia:"O limite de IA de hoje acabou. Abaixo está a análise por regras.",texto_recusado:"A IA citou números fora dos dados, e o texto foi descartado. Abaixo está a análise por regras.",falhou:"A IA não respondeu agora. Abaixo está a análise por regras."};
 async function auxAbrir(){
   const st=S.aux={id:S.alunoId,lista:null,sel:null,chat:[],aviso:"",metodos:null,verMetodos:false};
@@ -1963,6 +1964,42 @@ function renderMetodosAux(el,st){
     try{const d=await Api.call("metodoAprovar",{linha:+b.dataset.l,aprovado:b.dataset.a==="1"});st.metodos=d.metodos;renderMetodosAux(el,st)}catch(e){toast(errText(e));b.disabled=false}});
   $("#m-ok").onclick=()=>{st.verMetodos=false;renderAuxil();window.scrollTo({top:0})};
 }
+/* Conferência: mostra só os treinos citados, já preenchidos pela IA. Nada é gravado antes de Confirmar. */
+function renderConferir(el,st){
+  const P=st.proposta;
+  const chave=x=>strip(x);
+  const estado=(t,it)=>{const a=t.antes.find(r=>chave(r[0])===chave(it.ex));if(!a)return "novo";return String(a[1])===String(it.series)&&String(a[2]||"")===String(it.metas)&&String(a[3]||"")===String(it.peso)?"":"mudou"};
+  el.innerHTML='<div class="av-top"><div><h2>Conferir mudança</h2><span class="muted small">Revise e corrija o que precisar. Nada muda no treino antes de você confirmar.</span></div></div>'+
+    '<div class="card aux-b"><h3 class="dia-t">Você escreveu</h3><p>'+esc(P.texto)+'</p>'+(P.aviso?'<p class="aux-al">'+esc(P.aviso)+'</p>':"")+'</div>'+
+    P.treinos.map((t,ti)=>{const saiu=t.antes.filter(r=>!t.itens.some(it=>chave(it.ex)===chave(r[0])));
+      return '<div class="card cf-t"><div class="st-l"><h3 class="dia-t" style="margin:0">'+esc(t.nome)+'</h3><button class="btn ghost cf-fora" data-t="'+ti+'">Não mudar este treino</button></div>'+
+      t.itens.map((it,i)=>{const e=estado(t,it);const foco=!e&&(t.foco||[]).includes(it.ex);return '<div class="cf-l'+(e||foco?" cf-m":"")+'"><div class="cf-top">'+(e?'<span class="pill '+(e==="novo"?"good":"warn")+'">'+(e==="novo"?"Novo":"Mudou")+'</span>':foco?'<span class="pill">Músculo citado</span>':'<span class="muted small">Sem mudança</span>')+'<button class="btn ghost cf-x" data-t="'+ti+'" data-i="'+i+'" aria-label="Remover '+esc(it.ex)+'">Remover</button></div>'+
+        '<label class="cf-f">Exercício<input data-t="'+ti+'" data-i="'+i+'" data-c="ex" value="'+esc(it.ex)+'"></label><div class="cf-g"><label class="cf-f">Séries<input inputmode="numeric" data-t="'+ti+'" data-i="'+i+'" data-c="series" value="'+esc(it.series)+'"></label><label class="cf-f">Repetições<input data-t="'+ti+'" data-i="'+i+'" data-c="metas" value="'+esc(it.metas)+'"></label><label class="cf-f">Carga<input data-t="'+ti+'" data-i="'+i+'" data-c="peso" value="'+esc(it.peso)+'" placeholder="Preencher"></label></div></div>'}).join("")+
+      (saiu.length?'<p class="cf-saiu"><b>Sai do treino:</b> '+saiu.map(r=>esc(r[0])).join(", ")+'</p>':"")+
+      '<button class="btn cf-add" data-t="'+ti+'">+ Exercício</button></div>'}).join("")+
+    '<p class="setup-msg bad" id="cf-msg" role="status"></p>'+
+    '<div class="row-btns"><button class="btn primary" id="cf-ok">Confirmar e salvar</button><button class="btn" id="cf-no">Cancelar</button></div>';
+  el.querySelectorAll("input[data-c]").forEach(n=>n.addEventListener("input",()=>{P.treinos[+n.dataset.t].itens[+n.dataset.i][n.dataset.c]=n.value}));
+  el.querySelectorAll(".cf-x").forEach(b=>b.onclick=()=>{P.treinos[+b.dataset.t].itens.splice(+b.dataset.i,1);renderConferir(el,st)});
+  el.querySelectorAll(".cf-add").forEach(b=>b.onclick=()=>{P.treinos[+b.dataset.t].itens.push({ex:"",series:"3",metas:"",peso:""});renderConferir(el,st)});
+  el.querySelectorAll(".cf-fora").forEach(b=>b.onclick=()=>{P.treinos.splice(+b.dataset.t,1);if(P.treinos.length)renderConferir(el,st);else{st.proposta=null;st.retorno="Nada foi alterado no treino.";renderAuxil()}});
+  $("#cf-no").onclick=()=>{st.proposta=null;st.retorno="Nada foi alterado no treino.";render();window.scrollTo({top:0})};
+  $("#cf-ok").onclick=async()=>{
+    const msg=$("#cf-msg"),bt=$("#cf-ok");
+    for(const t of P.treinos)for(const it of t.itens){const n=parseInt(it.series,10);if(String(it.ex).trim()&&!(n>=1&&n<=20)){msg.textContent="Séries de \""+it.ex+"\" precisa ser um número de 1 a 20.";return}}
+    if(!navigator.onLine){msg.textContent="Sem internet. A mudança continua aqui; confirme quando a conexão voltar.";return}
+    const conhecidos=new Set((S.catalogo||[]).map(r=>strip(r[0])).concat([...S.exMap.keys()]));
+    const novos=[];P.treinos.forEach(t=>t.itens.forEach(it=>{const k=strip(it.ex);if(k&&!conhecidos.has(k)){conhecidos.add(k);novos.push([String(it.ex).trim(),guessGroup(it.ex)])}}));
+    bt.disabled=true;bt.textContent="Salvando…";msg.textContent="";
+    try{
+      const d=await callA("auxConfirmar",{linha:P.linha,treinos:P.treinos.map(t=>({nome:t.nome,linhas:t.itens.map(it=>[it.ex,it.series,it.metas,it.peso])})),exerciciosNovos:novos});
+      if(S.aux!==st)return;
+      const rel=st.lista.find(x=>x.linha===P.linha);if(rel)rel.mudancas=d.mudancas;
+      novos.forEach(x=>S.exMap.set(strip(x[0]),x[1]));S.catalogo=(S.catalogo||[]).concat(novos);
+      st.proposta=null;st.retorno="";await fetchDados();toast("Treino alterado");window.scrollTo({top:0});render();
+    }catch(e){msg.textContent=errText(e)+(e.sent?" Confira o treino em Montar treinos antes de tentar de novo.":"");bt.disabled=false;bt.textContent="Confirmar e salvar"}
+  };
+}
 function renderAuxil(){
   const el=$("#v-auxil");
   if(!S.aluno){el.innerHTML='<div class="empty">Escolha um aluno.</div>';return}
@@ -1971,6 +2008,7 @@ function renderAuxil(){
   const st=S.aux;
   if(st.lista==null){el.innerHTML='<div class="empty">Abrindo o Auxiliar…</div>';return}
   if(st.verMetodos)return renderMetodosAux(el,st);
+  if(st.proposta)return renderConferir(el,st);
   const rel=st.lista[st.sel];const f=rel?parseJson(rel.fatos):null;const ia=rel?parseJson(rel.ia):null;
   const aprov=(st.metodos||[]).filter(m=>m.aprovado).length;
   const r=resumoDe(S.aluno.id);const base=r&&(r.ux?parseDate(r.ux):r.s.length?r.s[0].date:null);const faltam=base?30-diasEntre(base,diaZero()):null;
@@ -1994,7 +2032,9 @@ function renderAuxil(){
     if((f.exercicios||[]).length)h+='<details class="av-opc"><summary>Resposta por exercício</summary><div class="comp-t"><table><tr><th></th><th class="r">Treinos</th><th class="r">Sobrando</th><th class="r">Força</th></tr>'+f.exercicios.map(e=>'<tr><td class="aux-n">'+esc(e.nome)+'</td><td class="r">'+e.sessoes+'</td><td class="r">'+(e.rirMedio==null?"–":nf1.format(e.rirMedio))+'</td><td class="r">'+(e.forcaPct==null?"novo":sinal(e.forcaPct))+'</td></tr>').join("")+'</table></div></details>';
     if((f.grupos||[]).length)h+='<details class="av-opc"><summary>Séries por semana em cada grupo</summary><div class="comp-t"><table><tr><th></th><th class="r">Agora</th><th class="r">Antes</th></tr>'+f.grupos.map(g=>'<tr><td>'+esc(g.grupo)+'</td><td class="r">'+nf1.format(g.seriesSemana)+'</td><td class="r">'+nf1.format(g.seriesSemanaAntes)+'</td></tr>').join("")+'</table></div></details>';
     if(av)h+='<details class="av-opc"><summary>Avaliação física de '+esc(av.data)+'</summary><p class="muted small" style="margin:8px 0 0">'+[av.pesoKg!=null?"Peso: "+nf1.format(av.pesoKg)+" kg":"",av.gorduraPct!=null?"Gordura: "+nf1.format(av.gorduraPct)+"%":"",av.variacaoPesoKg!=null?"Variação de peso: "+assinado(av.variacaoPesoKg)+" kg":"",av.variacaoCinturaCm!=null?"Variação de cintura: "+assinado(av.variacaoCinturaCm)+" cm":""].filter(Boolean).map(esc).join(" · ")+'</p></details>';
-    h+='<div class="card aux-b"><h3 class="dia-t">Sua decisão</h3><div class="chips-l" id="aux-dec">'+["Vou aplicar","Vou ajustar","Não vou aplicar"].map(d=>'<button class="chip'+(rel.decisao===d?" on":"")+'" data-d="'+d+'">'+d+'</button>').join("")+'</div><textarea class="obs" id="aux-obs" style="height:64px;padding:8px 10px;width:100%" placeholder="Observação, se quiser">'+esc(rel.obs||"")+'</textarea><div class="row-btns" style="margin-top:8px"><button class="btn" id="aux-sal">Salvar decisão</button><button class="btn primary" id="aux-mon">Montar treinos</button></div></div>';
+    h+='<div class="card aux-b"><h3 class="dia-t">Sua decisão</h3><div class="chips-l" id="aux-dec">'+["Vou aplicar","Vou ajustar","Não vou aplicar"].map(d=>'<button class="chip'+(rel.decisao===d?" on":"")+'" data-d="'+d+'">'+d+'</button>').join("")+'</div><textarea class="obs" id="aux-obs" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: trocar remada baixa por unilateral, 4 séries cada lado">'+esc(rel.obs||"")+'</textarea><p class="muted small" style="margin:6px 0 0">Ao salvar, abre uma página com o treino citado já preenchido, para você conferir. Nada muda antes de você confirmar.</p><div class="row-btns" style="margin-top:8px"><button class="btn primary" id="aux-sal">Salvar e conferir</button><button class="btn" id="aux-mon">Montar treinos</button></div>'+
+      (st.retorno?'<p class="setup-msg bad" style="margin-top:8px">'+esc(st.retorno)+'</p>':"")+
+      (rel.mudancas?'<div class="aux-feito"><b>O que mudou no treino</b>'+rel.mudancas.split("\n").map(l=>'<p>'+esc(l)+'</p>').join("")+'<button class="btn" id="aux-desf">Desfazer</button></div>':"")+'</div>';
     h+='<div class="card aux-b"><h3 class="dia-t">Conversar sobre este aluno</h3><div id="aux-chat">'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+(m.papel==="ia"&&m.confere===false?'<small>Confira: esta resposta cita um número que não está nos dados.</small>':"")+'</p>').join("")+(st.pensando?'<p class="muted small">Pensando…</p>':"")+'</div><textarea class="obs" id="aux-p" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você faria com o supino?">'+esc(st.rascunho||"")+'</textarea><button class="btn primary" id="aux-env" style="width:100%;margin-top:8px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
   }
   h+='<div class="row-btns" style="margin-top:4px"><button class="btn" id="aux-met">Métodos ('+aprov+(aprov===1?' aprovado':' aprovados')+')</button><button class="btn" id="aux-ger"'+(st.gerando?" disabled":"")+'>Gerar agora</button></div>';
@@ -2005,7 +2045,17 @@ function renderAuxil(){
   on("aux-ger","onclick",()=>auxGerar(true));
   on("aux-mon","onclick",()=>openModelEditor(S.alunoId));
   el.querySelectorAll("#aux-dec .chip").forEach(b=>b.onclick=()=>{rel.decisao=b.dataset.d;rel.obs=$("#aux-obs").value;el.querySelectorAll("#aux-dec .chip").forEach(c=>c.classList.toggle("on",c===b))});
-  on("aux-sal","onclick",async()=>{rel.obs=$("#aux-obs").value;try{await callA("auxDecidir",{linha:rel.linha,decisao:rel.decisao||"",observacao:rel.obs});toast("Decisão salva na planilha do aluno")}catch(e){toast(errText(e))}});
+  on("aux-sal","onclick",async()=>{rel.obs=$("#aux-obs").value;const bt=$("#aux-sal");bt.disabled=true;bt.textContent="Preparando…";
+    try{const d=await callA("auxDecidir",{linha:rel.linha,decisao:rel.decisao||"",observacao:rel.obs});
+      if(S.aux!==st)return;
+      if(d.proposta){st.retorno="";st.proposta={linha:rel.linha,texto:rel.obs,resumo:d.proposta.resumo,aviso:d.proposta.aviso||"",treinos:d.proposta.treinos.map(t=>({nome:t.nome,foco:t.foco||[],antes:t.antes,itens:t.itens.map(x=>({ex:x[0],series:x[1],metas:x[2]||"",peso:x[3]||""}))}))};window.scrollTo({top:0});render();return}
+      st.retorno=d.aplicado?"":(d.duvida||MOTIVO_DEC[d.motivo]||"Sua decisão foi salva, mas o treino não mudou.");
+      if(d.aplicado)rel.mudancas=d.mudancas||"";toast(d.aplicado?"Essa mudança já estava aplicada":"O treino não mudou");
+    }catch(e){st.retorno=errText(e)+" Confira o treino em Montar treinos antes de tentar de novo."}
+    if(S.aux===st&&S.view==="auxil")renderAuxil()});
+  on("aux-desf","onclick",async()=>{const bt=$("#aux-desf");bt.disabled=true;
+    try{await callA("auxDesfazer",{linha:rel.linha});rel.mudancas="";st.retorno="";await fetchDados();toast("Treino voltou como estava")}catch(e){toast(errText(e));bt.disabled=false}
+    if(S.aux===st&&S.view==="auxil")renderAuxil()});
   const p=$("#aux-p");if(p)p.addEventListener("input",()=>{st.rascunho=p.value});
   on("aux-env","onclick",async()=>{const q=String(st.rascunho||"").trim();if(!q||st.pensando)return;
     const hist=st.chat.slice();st.chat.push({papel:"eu",texto:q});st.rascunho="";st.pensando=true;renderAuxil();
@@ -2042,6 +2092,7 @@ function destinoVoltar(){
       return "inicio";
     }
     if(S.view==="aluno")return "alunos";
+    if(S.view==="auxil"&&S.aux&&S.aux.proposta){S.aux.proposta=null;S.aux.retorno="Nada foi alterado no treino.";return "auxil"}
     if(S.view==="auxil"&&S.aux&&S.aux.verMetodos){S.aux.verMetodos=false;return "auxil"}
     if(S.ctxAluno&&["evo","alcal","auxil","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
   }
@@ -2076,6 +2127,7 @@ function renderTopo(){
   let t=TITULOS[S.view]||"Diário de Treino";
   if(S.view==="lancar"){if(S.fim)t="Concluir treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
   if(S.view==="aluno"&&S.aluno)t=S.aluno.nome;
+  if(S.view==="auxil"&&S.aux&&S.aux.proposta)t="Conferir mudança";
   if(S.view==="alunos"&&!S.alunoForm)t={calendario:"Calendário",comparar:"Comparar",escolher:"Quem aparece"}[S.alunosAba]||t;
   $("#top-titulo").textContent=t;
   const sub=$("#top-sub");const verSub=!home&&S.role==="prof"&&S.ctxAluno&&S.aluno&&!["alunos","aluno","config"].includes(S.view);

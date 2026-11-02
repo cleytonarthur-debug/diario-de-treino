@@ -1,7 +1,7 @@
 {
-  "versao": "2.17.0",
-  "data": "01/11/2026",
+  "versao": "2.18.0",
+  "data": "02/11/2026",
   "notas": [
-    "Auxiliar do Coach: relatório de 30 dias por aluno, com sugestões de carga, volume, exercícios e estratégia, só para o professor."
+    "Auxiliar do Coach: ao salvar a decisão, abre uma página com o treino citado já preenchido, e nada muda antes de você confirmar."
   ]
 }

@@ -37,6 +37,7 @@ const ABA_AUX = 'Auxiliar do Coach'; // na planilha do aluno, só o professor l�
 const HEAD_AUX = ['Gerado em', 'Início', 'Fim', 'Estratégia', 'Análise da IA', 'Números', 'Decisão', 'Observação'];
 const ABA_MET = 'Métodos de treino'; // no Painel do Professor
 const HEAD_MET = ['Método', 'Situações', 'Como aplicar', 'Cuidados', 'Fonte', 'Aprovado'];
+const COL_ANTES = 9, COL_MUDANCAS = 10; // treino antes da decisão (para desfazer) e o que mudou
 const AUX_MAX_POR_DIA = 40; // conversas e relatórios por dia, para não gastar o limite grátis
 const ABA_MEM = 'Memória do Coach';
 const HEAD_MEM = ['Data', 'Treino', 'Título', 'Parecer', 'Recado', 'Resumo acumulado'];
@@ -280,6 +281,14 @@ const ACOES = {
   auxDecidir: function (ctx, b) {
     precisaProf_(ctx);
     return decidirRelatorio_(precisaAluno_(ctx), b);
+  },
+  auxConfirmar: function (ctx, b) {
+    precisaProf_(ctx);
+    return confirmarDecisao_(precisaAluno_(ctx), b);
+  },
+  auxDesfazer: function (ctx, b) {
+    precisaProf_(ctx);
+    return desfazerDecisao_(precisaAluno_(ctx), b);
   },
   auxChat: function (ctx, b) {
     precisaProf_(ctx);
@@ -733,8 +742,8 @@ function abaAux_(ss) {
 function lerRelatorios_(ss) {
   const sh = ss.getSheetByName(ABA_AUX);
   if (!sh || sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, HEAD_AUX.length).getDisplayValues().map(function (r, i) {
-    return { linha: i + 2, gerado: r[0], ini: r[1], fim: r[2], estrategia: r[3], ia: r[4], fatos: r[5], decisao: r[6], obs: r[7] };
+  return sh.getRange(2, 1, sh.getLastRow() - 1, COL_MUDANCAS).getDisplayValues().map(function (r, i) {
+    return { linha: i + 2, gerado: r[0], ini: r[1], fim: r[2], estrategia: r[3], ia: r[4], fatos: r[5], decisao: r[6], obs: r[7], mudancas: r[9] || '' };
   }).filter(function (x) { return x.fim; });
 }
 const AUX_SISTEMA = [
@@ -805,11 +814,226 @@ function gerarRelatorio_(al, b) {
   }
 }
 function decidirRelatorio_(al, b) {
-  const sh = abrirPlanilhaAluno_(al).getSheetByName(ABA_AUX);
+  const ss = abrirPlanilhaAluno_(al);
+  const sh = ss.getSheetByName(ABA_AUX);
   const linha = Number(b.linha);
   if (!sh || !(linha >= 2 && linha <= sh.getLastRow() && Math.floor(linha) === linha)) throw appErr_('bad_request', 'Relatório não encontrado.');
   const obs = String(b.observacao || '').trim().slice(0, 1000);
-  sh.getRange(linha, 7, 1, 2).setValues([[String(b.decisao || '').slice(0, 40), /^[=+\-@]/.test(obs) ? "'" + obs : obs]]);
+  const decisao = String(b.decisao || '').slice(0, 40);
+  const antes = sh.getRange(linha, 7, 1, 2).getDisplayValues()[0];
+  const jaFeita = sh.getRange(linha, COL_MUDANCAS).getDisplayValues()[0][0];
+  sh.getRange(linha, 7, 1, 2).setValues([[decisao, /^[=+\-@]/.test(obs) ? "'" + obs : obs]]);
+  if (!obs || /^n[aã]o/i.test(decisao)) return { aplicado: false, motivo: obs ? 'nao_aplicar' : 'sem_texto' };
+  if (jaFeita && antes[1] === obs) return { aplicado: true, mudancas: jaFeita, repetida: true };
+  return planejarDecisao_(al, ss, obs);
+}
+const EDITOR_SISTEMA = [
+  'Você transforma a instrução de um professor de educação física em alterações de um treino. A instrução é a única fonte de mudanças: faça exatamente o que ela pede e nada além.',
+  'Responda somente com JSON: {"mudancas":[...],"duvida":""}.',
+  'Cada mudança tem: "acao" ("trocar", "remover", "adicionar" ou "alterar"); "treino" (nome exato do treino, ou "" para todos os treinos que têm o exercício); "exercicio" (nome exato como está no TREINO; em "adicionar", deixe ""); "novos" (lista para "trocar" e "adicionar", cada item com "exercicio", "series", "reps", "peso"); "series", "reps", "peso" (só para "alterar").',
+  'Deixe "" ou null em todo campo que a instrução não mencionar, para o valor atual ser mantido. Nunca invente carga nem repetições.',
+  'Exercício unilateral "cada lado" vira dois itens, terminados em " unilateral E" e " unilateral D", cada um com as séries pedidas. Trocar para unilateral mantém o nome do exercício e acrescenta " unilateral E" e " unilateral D".',
+  'Se a instrução cita só um músculo ou grupo, como "mudar um exercício de bíceps", sem dizer qual exercício nem por qual trocar, não escolha por conta própria: devolva "mudancas":[].',
+  'Se a instrução não pede mudança de treino ou se não dá para saber qual exercício ela cita, devolva "mudancas":[] e explique em "duvida" em até 25 palavras.'
+].join('\n');
+// Mantém o que a instrução não mudou e ajusta as repetições à nova quantidade de séries.
+function repsPara_(reps, series) {
+  const v = String(reps || '').split(';').map(function (x) { return x.trim(); }).filter(Boolean);
+  if (v.length <= series) return v.join('; ');
+  return v.slice(0, series - 1).concat(v[v.length - 1]).join('; ');
+}
+/* Quando o professor cita só o músculo, abre os treinos que têm esse músculo para ele escolher o exercício. */
+const MUSCULOS_EX = [['triceps', /triceps|frances|mergulho/], ['biceps', /rosca|biceps|scott|martelo/], ['antebraco', /antebraco|punho/], ['panturrilha', /panturrilha|pantu|gemeo/],
+  ['posterior', /flexora|stiff|terra|mesa/], ['gluteo', /glute|pelvica|abdutor|coice/], ['adutor', /adutor/], ['quadriceps', /extensora|agach|leg|hack|afundo|bulgaro|passada/],
+  ['ombro', /elevacao lateral|elevacao frontal|posterior de ombro|face ?pull|voador reverso|crucifixo inverso|desenvolvimento/],
+  ['peito', /supino|peito|crucifixo|peck|fly|cross/], ['costas', /pulley|pulldown|pull down|puxada|remada|barra fixa|serrote/], ['lombar', /lombar/], ['abdomen', /abs|abdom|prancha/]];
+const MUSCULOS_TEXTO = [[/bicep/, ['biceps'], 'bíceps'], [/tricep/, ['triceps'], 'tríceps'], [/antebraco/, ['antebraco'], 'antebraço'], [/\bbracos?\b/, ['biceps', 'triceps', 'antebraco'], 'braços'],
+  [/panturrilha/, ['panturrilha'], 'panturrilha'], [/quadricep/, ['quadriceps'], 'quadríceps'], [/gluteo/, ['gluteo'], 'glúteo'], [/posterior de coxa/, ['posterior'], 'posterior de coxa'],
+  [/\bpernas?\b|inferiores/, ['quadriceps', 'posterior', 'gluteo', 'adutor', 'panturrilha'], 'pernas'], [/ombro/, ['ombro'], 'ombros'], [/peito|peitoral/, ['peito'], 'peito'],
+  [/costas/, ['costas'], 'costas'], [/lombar/, ['lombar'], 'lombar'], [/abdomen|abdominal/, ['abdomen'], 'abdômen']];
+function musculoDoExercicio_(nome) {
+  const k = norm_(nome);
+  for (let i = 0; i < MUSCULOS_EX.length; i++) if (MUSCULOS_EX[i][1].test(k)) return MUSCULOS_EX[i][0];
+  return '';
+}
+function propostaPorMusculo_(atuais, obs) {
+  const t = norm_(obs);
+  const achados = MUSCULOS_TEXTO.filter(function (m) { return m[0].test(t); });
+  if (!achados.length) return null;
+  const alvos = {};
+  achados.forEach(function (m) { m[1].forEach(function (x) { alvos[x] = true; }); });
+  const nomes = [];
+  atuais.forEach(function (r) { if (alvos[musculoDoExercicio_(r[1])] && nomes.indexOf(r[0]) < 0) nomes.push(r[0]); });
+  if (!nomes.length) return null;
+  const citados = achados.map(function (m) { return m[2]; }).join(' e ');
+  return { aplicado: false, proposta: {
+    resumo: '', aviso: 'Você citou ' + citados + ', sem dizer o exercício. Abri os treinos com esse músculo. Edite o que quiser e toque em "Não mudar este treino" nos outros.',
+    treinos: nomes.map(function (n) {
+      const rows = atuais.filter(function (r) { return r[0] === n; });
+      return { nome: n, antes: rows.map(function (r) { return r.slice(1); }), itens: rows.map(function (r) { return r.slice(1); }),
+        foco: rows.filter(function (r) { return alvos[musculoDoExercicio_(r[1])]; }).map(function (r) { return r[1]; }) };
+    })
+  } };
+}
+function planejarDecisao_(al, ss, obs) {
+  if (!iaLiberada_(al)) return { aplicado: false, motivo: 'nao_liberada' };
+  if (!PropertiesService.getScriptProperties().getProperty('CF_TOKEN')) return { aplicado: false, motivo: 'sem_chave' };
+  if (!usoAuxiliar_()) return { aplicado: false, motivo: 'limite_do_dia' };
+  const atuais = lerAba_(ss, ABA_MOD, HEAD_MOD.length).map(function (r) { const c = r.slice(); while (c.length < HEAD_MOD.length) c.push(''); return c; });
+  const lista = {};
+  atuais.forEach(function (r) { (lista[r[0]] = lista[r[0]] || []).push(r[1]); });
+  let plano;
+  try {
+    const resp = chamarIA_([{ role: 'system', content: EDITOR_SISTEMA }, { role: 'user', content: 'TREINO:\n' + JSON.stringify(lista) + '\n\nINSTRUÇÃO:\n' + obs }], null, 900);
+    plano = typeof resp === 'object' && resp ? resp : JSON.parse(String(resp).match(/\{[\s\S]*\}/)[0]);
+  } catch (e) { console.error(e); return propostaPorMusculo_(atuais, obs) || { aplicado: false, motivo: 'falhou' }; }
+  const mud = Array.isArray(plano.mudancas) ? plano.mudancas : [];
+  if (!mud.length) return propostaPorMusculo_(atuais, obs) || { aplicado: false, motivo: 'duvida', duvida: String(plano.duvida || '').slice(0, 200) };
+  // Tudo ou nada: se uma alteração não bater com o treino, nada é gravado.
+  let linhas = atuais.map(function (r) { return r.slice(); });
+  const resumo = [];
+  const naoAchou = function (m) { return { aplicado: false, motivo: 'nao_achou', duvida: 'Não achei "' + String(m).slice(0, 80) + '" no treino.' }; };
+  const serieOk = function (n, atual) { const x = parseInt(n, 10); return x >= 1 && x <= 20 ? x : (parseInt(atual, 10) || 3); };
+  for (let i = 0; i < mud.length; i++) {
+    const m = mud[i] || {};
+    const acao = String(m.acao || ''), treino = String(m.treino || '').trim(), alvo = norm_(m.exercicio);
+    if (acao === 'adicionar') {
+      if (!treino || !lista[treino]) return naoAchou(treino || 'o treino');
+      const novos = (m.novos || []).filter(function (n) { return n && String(n.exercicio || '').trim(); });
+      if (!novos.length) return { aplicado: false, motivo: 'duvida', duvida: 'Não entendi qual exercício acrescentar.' };
+      let fim = -1;
+      linhas.forEach(function (r, k) { if (r[0] === treino) fim = k; });
+      const ins = novos.map(function (n) { return [treino, String(n.exercicio).trim(), String(serieOk(n.series, 3)), String(n.reps || '').trim(), String(n.peso || '').trim()]; });
+      linhas = linhas.slice(0, fim + 1).concat(ins, linhas.slice(fim + 1));
+      resumo.push(treino + ': entrou ' + ins.map(function (x) { return x[1] + ' (' + x[2] + ' séries)'; }).join(' e ') + '.');
+      continue;
+    }
+    if (['trocar', 'remover', 'alterar'].indexOf(acao) < 0) return { aplicado: false, motivo: 'duvida', duvida: 'Não entendi a alteração pedida.' };
+    const achou = linhas.filter(function (r) { return norm_(r[1]) === alvo && (!treino || r[0] === treino); });
+    if (!alvo || !achou.length) return naoAchou(m.exercicio);
+    const saida = [];
+    for (let k = 0; k < linhas.length; k++) {
+      const r = linhas[k];
+      if (norm_(r[1]) !== alvo || (treino && r[0] !== treino)) { saida.push(r); continue; }
+      if (acao === 'remover') { resumo.push(r[0] + ': saiu ' + r[1] + '.'); continue; }
+      if (acao === 'alterar') {
+        const n = serieOk(m.series, r[2]);
+        const novo = [r[0], r[1], String(n), String(m.reps || '').trim() || repsPara_(r[3], n), String(m.peso || '').trim() || r[4]];
+        saida.push(novo);
+        resumo.push(r[0] + ': ' + r[1] + ' agora tem ' + novo[2] + ' séries' + (novo[3] ? ', ' + novo[3] : '') + (novo[4] ? ', ' + novo[4] : '') + '.');
+        continue;
+      }
+      const novos = (m.novos || []).filter(function (n) { return n && String(n.exercicio || '').trim(); });
+      if (!novos.length) return { aplicado: false, motivo: 'duvida', duvida: 'Não entendi por qual exercício trocar ' + r[1] + '.' };
+      const lados = novos.length > 1;
+      const novas = novos.map(function (n) {
+        const qt = serieOk(n.series, r[2]);
+        // carga "cada lado" do aparelho vira a carga de um lado só
+        const peso = String(n.peso || '').trim() || (lados ? String(r[4]).replace(/\s*(cl|cada lado)\b/i, '').trim() : r[4]);
+        return [r[0], String(n.exercicio).trim(), String(qt), String(n.reps || '').trim() || repsPara_(r[3], qt), peso];
+      });
+      novas.forEach(function (x) { saida.push(x); });
+      resumo.push(r[0] + ': ' + r[1] + ' virou ' + novas.map(function (x) { return x[1] + ' (' + x[2] + ' séries)'; }).join(' e ') + '.');
+    }
+    linhas = saida;
+  }
+  // Nada é gravado aqui. O professor confere e confirma na página seguinte.
+  const nomes = [];
+  atuais.concat(linhas).forEach(function (r) { if (nomes.indexOf(r[0]) < 0) nomes.push(r[0]); });
+  const doTreino = function (ls, t) { return ls.filter(function (r) { return r[0] === t; }).map(function (r) { return r.slice(1); }); };
+  const treinos = nomes.filter(function (t) { return JSON.stringify(doTreino(atuais, t)) !== JSON.stringify(doTreino(linhas, t)); })
+    .map(function (t) { return { nome: t, antes: doTreino(atuais, t), itens: doTreino(linhas, t) }; });
+  if (!treinos.length) return { aplicado: false, motivo: 'duvida', duvida: 'A instrução não muda nada no treino atual.' };
+  return { aplicado: false, proposta: { treinos: treinos, resumo: resumo.join('\n') } };
+}
+function confirmarDecisao_(al, b) {
+  const ss = abrirPlanilhaAluno_(al);
+  const sh = ss.getSheetByName(ABA_AUX);
+  const linha = Number(b.linha);
+  if (!sh || !(linha >= 2 && linha <= sh.getLastRow() && Math.floor(linha) === linha)) throw appErr_('bad_request', 'Relatório não encontrado.');
+  const pedidos = Array.isArray(b.treinos) ? b.treinos : [];
+  if (!pedidos.length) throw appErr_('bad_request', 'Nenhum treino para salvar.');
+  const novos = {};
+  pedidos.forEach(function (t) {
+    const nome = String((t && t.nome) || '').trim();
+    if (!nome) throw appErr_('bad_request', 'Treino sem nome.');
+    novos[nome] = limparLinhas_(t.linhas || [], 4).map(function (r) { return r.map(String); }).filter(function (r) { return r[0].trim(); }).map(function (r) {
+      const n = parseInt(r[1], 10);
+      if (!(n >= 1 && n <= 20)) throw appErr_('bad_request', 'Séries de "' + r[0] + '" precisa ser um número de 1 a 20.');
+      return [nome, r[0].trim(), String(n), r[2].trim(), r[3].trim()];
+    });
+  });
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+  try {
+    const atuais = lerAba_(ss, ABA_MOD, HEAD_MOD.length).map(function (r) { const c = r.slice(); while (c.length < HEAD_MOD.length) c.push(''); return c; });
+    // Só os treinos confirmados mudam, cada um no lugar onde já estava.
+    const feitos = {}, saida = [], resumo = [];
+    atuais.forEach(function (r) {
+      if (!novos[r[0]]) { saida.push(r); return; }
+      if (feitos[r[0]]) return;
+      feitos[r[0]] = true;
+      novos[r[0]].forEach(function (x) { saida.push(x); });
+    });
+    Object.keys(novos).forEach(function (t) {
+      if (!feitos[t]) novos[t].forEach(function (x) { saida.push(x); });
+      const antes = atuais.filter(function (r) { return r[0] === t; });
+      const achar = function (ls, n) { return ls.filter(function (r) { return norm_(r[1]) === norm_(n); })[0]; };
+      const partes = [];
+      novos[t].forEach(function (x) {
+        const a = achar(antes, x[1]);
+        if (!a) partes.push('entrou ' + x[1] + ' (' + x[2] + ' séries)');
+        else if (a[2] !== x[2] || a[3] !== x[3] || a[4] !== x[4]) partes.push(x[1] + ' agora tem ' + x[2] + ' séries' + (x[3] ? ', ' + x[3] : '') + (x[4] ? ', ' + x[4] : ''));
+      });
+      antes.forEach(function (r) { if (!achar(novos[t], r[1])) partes.push('saiu ' + r[1]); });
+      if (partes.length) resumo.push(t + ': ' + partes.join('; ') + '.');
+    });
+    gravarModelos_(ss, saida);
+    const antesJson = JSON.stringify(atuais);
+    const texto = resumo.join('\n') || 'Sem mudança nos exercícios.';
+    sh.getRange(1, COL_ANTES, 1, 2).setValues([['Treino antes da decisão', 'O que mudou']]);
+    sh.getRange(linha, COL_ANTES).setValue(antesJson.length < 49000 ? antesJson : '');
+    sh.getRange(linha, COL_MUDANCAS).setValue(texto);
+    const ex = limparLinhas_(b.exerciciosNovos || [], 2);
+    if (ex.length) {
+      const known = {};
+      lerAba_(ss, ABA_EX, 2).forEach(function (r) { known[norm_(r[0])] = true; });
+      const add = ex.filter(function (r) { const k = norm_(r[0]); if (!k || known[k]) return false; known[k] = true; return true; });
+      if (add.length) acrescentar_(ss.getSheetByName(ABA_EX), add, 2);
+      adicionarCatalogo_(ex);
+    }
+    SpreadsheetApp.flush();
+    return { mudancas: texto };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function gravarModelos_(ss, linhas) {
+  const sh = ss.getSheetByName(ABA_MOD);
+  const last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, HEAD_MOD.length).setValues(Array.apply(null, Array(last - 1)).map(function () { return ['', '', '', '', '']; }));
+  if (linhas.length) {
+    if (linhas.length + 1 > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), linhas.length + 1 - sh.getMaxRows());
+    sh.getRange(2, 1, linhas.length, HEAD_MOD.length).setNumberFormat('@').setValues(linhas);
+  }
+}
+function desfazerDecisao_(al, b) {
+  const ss = abrirPlanilhaAluno_(al);
+  const sh = ss.getSheetByName(ABA_AUX);
+  const linha = Number(b.linha);
+  if (!sh || !(linha >= 2 && linha <= sh.getLastRow() && Math.floor(linha) === linha)) throw appErr_('bad_request', 'Relatório não encontrado.');
+  const antes = sh.getRange(linha, COL_ANTES).getDisplayValues()[0][0];
+  let linhas;
+  try { linhas = JSON.parse(antes); } catch (e) { throw appErr_('bad_request', 'Não há o que desfazer.'); }
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+  try {
+    gravarModelos_(ss, linhas.map(function (r) { return r.map(String); }));
+    sh.getRange(linha, COL_ANTES, 1, 2).setValues([['', '']]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
   return { ok: true };
 }
 function conversaAuxiliar_(al, b) {

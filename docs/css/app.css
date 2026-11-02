@@ -489,3 +489,20 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .aux-m p{margin:6px 0 0}
 .st-l{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .chip.on{background:var(--action);color:var(--action-ink);border-color:transparent}
+
+.aux-feito{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--good-bg);color:var(--ink)}
+.aux-feito p{margin:4px 0}
+.aux-feito .btn{margin-top:6px}
+
+/* ---- conferir a mudança pedida ao auxiliar ---- */
+.cf-t{margin-bottom:10px}
+.cf-fora{font-size:13px;padding:4px 8px;min-height:36px;white-space:nowrap}
+.cf-l{border-top:1px solid var(--line);padding:9px 0;margin-top:8px}
+.cf-m{border-left:3px solid var(--action);padding-left:9px}
+.cf-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.cf-x{font-size:13px;padding:2px 8px;min-height:32px}
+.cf-f{display:block;font-size:12px;font-weight:600;color:var(--ink-3)}
+.cf-f input{display:block;width:100%;height:40px;margin-top:2px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 8px;font:500 15px var(--f-body)}
+.cf-g{display:grid;grid-template-columns:62px 1fr 92px;gap:6px;margin-top:6px}
+.cf-saiu{margin:9px 0;color:var(--bad)}
+.cf-add{margin-top:8px}
