@@ -467,3 +467,25 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .cal-g .hd{font-weight:600;color:var(--ink-3);height:20px}
 .cal-g .vz{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-3)}
 .cal-g button.on{appearance:none;border:0;background:var(--action);color:var(--action-ink);font-weight:700;cursor:pointer}
+
+/* ---- auxiliar do coach ---- */
+.aux-tile{margin:9px 0 0}
+.aux-est{margin-bottom:10px}
+.aux-est b{display:block;font-size:26px;line-height:1.15;margin:2px 0 4px}
+.aux-est p,.aux-b p{margin:0 0 6px}
+.aux-al{color:var(--warn);font-weight:600}
+.aux-b{margin-bottom:10px}
+.aux-b .dia-t{margin:0 0 6px}
+.aux-b ul{margin:6px 0 0;padding-left:18px}
+.aux-b li{margin-bottom:4px}
+.aux-sel{width:100%;height:42px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 8px;margin-bottom:10px}
+.aux-up{color:var(--good);font-weight:700}.aux-dn{color:var(--bad);font-weight:700}
+.aux-n{white-space:normal!important}
+.aux-c{padding:8px 10px;border-radius:10px;margin:0 0 7px;white-space:pre-wrap;overflow-wrap:anywhere}
+.aux-c.eu{background:var(--surface-2);margin-left:24px}
+.aux-c.ia{border:1px solid var(--line);margin-right:24px}
+.aux-c small{display:block;color:var(--warn);font-weight:600;margin-top:4px}
+.aux-m{margin-bottom:10px}
+.aux-m p{margin:6px 0 0}
+.st-l{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chip.on{background:var(--action);color:var(--action-ink);border-color:transparent}

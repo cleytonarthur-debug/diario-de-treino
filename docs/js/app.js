@@ -1745,7 +1745,7 @@ function cardAluno(a){
   const parado=d!=null&&d>=10;
   const cor=!u?"--ink-3":parado?"--bad":pct==null?"--ink-3":pct>=1?"--action":pct<=-1?"--warn":"--ink-3";
   const sub=!a.ativo?"Acesso pausado":a.status==="montar treino"?"Montar treino":a.status==="aguardando cadastro"?"Aguardando cadastro":!r?"Lendo…":!u?"Ainda sem treino":parado?d+" dias parado":(pct!=null?assinado(pct)+"% · ":"")+textoDias(d);
-  return '<button class="acard2'+(a.master?" master":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><span class="a2-h"><b>'+esc(a.nome)+'</b>'+(a.master?'<span class="pill good">Aluno master</span>':"")+'</span><span class="a2-s">'+esc(sub)+'</span>'+linhaSvg(serieDe(a,"forca",60).v,cor)+'</button>';
+  return '<button class="acard2'+(a.master?" master":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><span class="a2-h"><b>'+esc(a.nome)+'</b>'+(a.master?'<span class="pill good">Aluno master</span>':"")+'</span>'+(relatorioDevido(a)?'<span class="pill warn">Relatório pronto</span>':"")+'<span class="a2-s">'+esc(sub)+'</span>'+linhaSvg(serieDe(a,"forca",60).v,cor)+'</button>';
 }
 function abrirAluno(id){
   const a=S.alunos.find(x=>x.id===id);S.shareFor=null;S.ctxAluno=true;S.alunoMet="forca";S.alMes=null;S.alDia=null;
@@ -1870,7 +1870,7 @@ function renderAlunoPag(){
   el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+'</div>'+
     '<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
     (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>'+
-    '<div class="al-box">'+tile("alcal","calendar","Calendário")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
+    '<button class="home-alunos aux-tile" data-ir="auxil">'+Icone("clipboard",28)+'<span><b>Auxiliar do Coach</b>'+(relatorioDevido(a)?"Relatório de 30 dias pronto":"Análise de 30 dias e conversa")+'</span>'+Icone("chevron-right",22)+'</button>'+'<div class="al-box">'+tile("alcal","calendar","Calendário")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
   el.querySelectorAll("#al-met .chip").forEach(b=>b.onclick=()=>{S.alunoMet=b.dataset.m;renderAlunoPag()});
   el.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>irAluno(b.dataset.ir));
   if(tem){const u={forca:"",vol:" t",peso:" kg",cintura:" cm"}[met];desenharLinhas("ch-aluno",[{label:primeiroNome(a),data:s.v,cor:css("--action")}],s.sem.map(fmtShort),v=>nf1.format(v)+u)}
@@ -1917,12 +1917,111 @@ function renderNavBaixo(){
     else irAluno(n)});
 }
 
+/* ========== AUXILIAR DO COACH (professor) ========== */
+const hojeBr=()=>fmtDate(diaZero());
+function relatorioDevido(a){
+  if(!a.ativo)return false;const r=resumoDe(a.id);if(!r||!r.s.length)return false;
+  const h=diaZero(),rec=r.s.filter(s=>diasEntre(s.date,h)<30).length;if(rec<4)return false;
+  const base=r.ux?parseDate(r.ux):r.s[0].date;return !!base&&diasEntre(base,h)>=30;
+}
+function auxFatos(){
+  const a=S.aluno;
+  return Auxiliar.analisar({rows:S.rows,avals:S.avals,aluno:a,idade:idade(a),exKey,fim:diaZero(),
+    bibDoGrupo:g=>window.Metodos?Metodos.bibDoGrupo(g):[],gorduraDe:v=>gorduraDe(v,a)});
+}
+const parseJson=s=>{try{return s?JSON.parse(s):null}catch(e){return null}};
+const MOTIVO_AUX={nao_liberada:"O aluno ainda não aceitou os termos da IA. Abaixo está a análise por regras.",sem_chave:"A IA não está configurada. Abaixo está a análise por regras.",limite_do_dia:"O limite de IA de hoje acabou. Abaixo está a análise por regras.",texto_recusado:"A IA citou números fora dos dados, e o texto foi descartado. Abaixo está a análise por regras.",falhou:"A IA não respondeu agora. Abaixo está a análise por regras."};
+async function auxAbrir(){
+  const st=S.aux={id:S.alunoId,lista:null,sel:null,chat:[],aviso:"",metodos:null,verMetodos:false};
+  try{
+    const [d,m]=await Promise.all([callA("auxLer"),Api.call("metodos",{})]);
+    if(S.aux!==st)return;
+    st.lista=d.relatorios||[];st.metodos=m.metodos||[];st.sel=st.lista.length-1;
+    if(S.aluno&&relatorioDevido(S.aluno)&&S.loaded)return auxGerar(false);
+  }catch(e){if(S.aux!==st)return;st.lista=st.lista||[];st.aviso=errText(e)}
+  if(S.view==="auxil")renderAuxil();
+}
+async function auxGerar(refazer){
+  const st=S.aux;if(!st||st.gerando)return;
+  const f=auxFatos();
+  if(f.frequencia.treinos<4){st.aviso="São necessários pelo menos 4 treinos nos últimos 30 dias.";renderAuxil();return}
+  st.gerando=true;st.aviso="";if(S.view==="auxil")renderAuxil();
+  try{
+    const d=await callA("auxGerar",{ini:f.periodo.inicio,fim:f.periodo.fim,estrategia:f.regras.estrategia,fatos:f,refazer:!!refazer});
+    if(S.aux!==st)return;
+    const i=st.lista.findIndex(x=>x.linha===d.relatorio.linha);if(i>=0)st.lista[i]=d.relatorio;else st.lista.push(d.relatorio);
+    st.sel=st.lista.indexOf(d.relatorio);st.aviso=MOTIVO_AUX[d.motivo]||"";S.painelAt=0;st.chat=[];
+  }catch(e){if(S.aux===st)st.aviso=errText(e)}
+  st.gerando=false;if(S.aux===st&&S.view==="auxil")renderAuxil();
+}
+function renderMetodosAux(el,st){
+  const ms=st.metodos||[];
+  el.innerHTML='<div class="av-top"><div><h2>Métodos de treino</h2><span class="muted small">A IA só pode sugerir o que você aprovar. Eles ficam na aba "Métodos de treino" do Painel, onde você também pode acrescentar os seus.</span></div></div>'+
+    ms.map(m=>'<div class="card aux-m"><div class="st-l"><b>'+esc(m.metodo)+'</b><button class="chip'+(m.aprovado?" on":"")+'" data-l="'+m.linha+'" data-a="'+(m.aprovado?"0":"1")+'">'+(m.aprovado?"Aprovado":"Aprovar")+'</button></div><p>'+esc(m.como)+'</p><p class="muted small"><b>Cuidados:</b> '+esc(m.cuidados)+'</p><p class="muted small"><b>Fonte:</b> '+esc(m.fonte)+'</p></div>').join("")+
+    '<button class="btn" id="m-ok" style="width:100%">Voltar ao relatório</button>';
+  el.querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{b.disabled=true;
+    try{const d=await Api.call("metodoAprovar",{linha:+b.dataset.l,aprovado:b.dataset.a==="1"});st.metodos=d.metodos;renderMetodosAux(el,st)}catch(e){toast(errText(e));b.disabled=false}});
+  $("#m-ok").onclick=()=>{st.verMetodos=false;renderAuxil();window.scrollTo({top:0})};
+}
+function renderAuxil(){
+  const el=$("#v-auxil");
+  if(!S.aluno){el.innerHTML='<div class="empty">Escolha um aluno.</div>';return}
+  if(!S.loaded){el.innerHTML='<div class="empty">Lendo a planilha…</div>';return}
+  if(!S.aux||S.aux.id!==S.alunoId){el.innerHTML='<div class="empty">Abrindo o Auxiliar…</div>';auxAbrir();return}
+  const st=S.aux;
+  if(st.lista==null){el.innerHTML='<div class="empty">Abrindo o Auxiliar…</div>';return}
+  if(st.verMetodos)return renderMetodosAux(el,st);
+  const rel=st.lista[st.sel];const f=rel?parseJson(rel.fatos):null;const ia=rel?parseJson(rel.ia):null;
+  const aprov=(st.metodos||[]).filter(m=>m.aprovado).length;
+  const r=resumoDe(S.aluno.id);const base=r&&(r.ux?parseDate(r.ux):r.s.length?r.s[0].date:null);const faltam=base?30-diasEntre(base,diaZero()):null;
+  let h='<div class="av-top"><div><h2>Auxiliar do Coach</h2><span class="muted small">Sugestões para você decidir. Nada muda no treino do aluno sozinho.</span></div></div>';
+  if(st.aviso)h+='<p class="setup-msg bad">'+esc(st.aviso)+'</p>';
+  if(st.gerando)h+='<div class="empty">Analisando os últimos 30 dias…</div>';
+  if(!rel&&!st.gerando)h+='<div class="empty">Ainda não há relatório. '+(faltam>0?"O primeiro fica pronto em "+faltam+(faltam===1?" dia":" dias")+" de treino.":"")+'</div>';
+  if(st.lista.length>1)h+='<select id="aux-sel" class="aux-sel" aria-label="Escolher relatório">'+st.lista.map((x,i)=>'<option value="'+i+'"'+(i===st.sel?" selected":"")+'>'+esc(x.ini)+" a "+esc(x.fim)+'</option>').join("")+'</select>';
+  if(f&&!st.gerando){
+    const reg=f.regras||{};const fr=f.frequencia||{};const av=f.avaliacao;
+    const bloco=(t,txt,itens)=>(!txt&&!(itens&&itens.length))?"":'<div class="card aux-b"><h3 class="dia-t">'+t+'</h3>'+(txt?'<p>'+esc(txt)+'</p>':"")+(itens&&itens.length?'<ul>'+itens.map(x=>'<li>'+x+'</li>').join("")+'</ul>':"")+'</div>';
+    const sinal=n=>n==null?"–":'<span class="'+(n>=0?"aux-up":"aux-dn")+'">'+assinado(n)+'%</span>';
+    h+='<div class="card aux-est"><span class="muted small">Estratégia sugerida · '+esc(rel.ini)+' a '+esc(rel.fim)+'</span><b>'+esc(Auxiliar.nomeEstrategia[rel.estrategia]||rel.estrategia)+'</b><p>'+esc(reg.motivo||"")+'</p>'+(reg.sinais||[]).map(s=>'<p class="aux-al">'+esc(s)+'</p>').join("")+(ia&&ia.estrategia?'<p>'+esc(ia.estrategia)+'</p>':"")+'</div>';
+    h+=bloco("O que aconteceu",ia&&ia.leitura);
+    h+='<div class="calc" style="margin:0 0 10px"><div class="kpi"><span class="l">Treinos</span><span class="v">'+fr.treinos+'</span></div><div class="kpi"><span class="l">Mês anterior</span><span class="v">'+fr.treinosMesAnterior+'</span></div>'+(fr.aderenciaPct!=null?'<div class="kpi"><span class="l">Do previsto</span><span class="v">'+fr.aderenciaPct+'<small>%</small></span></div>':"")+'<div class="kpi"><span class="l">Maior intervalo</span><span class="v">'+fr.maiorIntervaloDias+'<small>dias</small></span></div></div>';
+    const porSug=new Map();(reg.carga||[]).forEach(c=>{if(!porSug.has(c.sugestao))porSug.set(c.sugestao,[]);porSug.get(c.sugestao).push(c.exercicio)});
+    h+=bloco("Cargas",ia&&ia.carga,[...porSug].map(([s,ex])=>'<b>'+esc(s)+':</b> '+ex.map(esc).join(", ")));
+    h+=bloco("Volume",ia&&ia.volume,(reg.volume||[]).map(c=>'<b>'+esc(c.grupo)+':</b> '+esc(c.sugestao)));
+    h+=bloco("Exercícios",ia&&ia.exercicios,(reg.trocar||[]).map(c=>'<b>'+esc(c.exercicio)+':</b> sem evolução'+(c.alternativas&&c.alternativas.length?'. Opções: '+c.alternativas.map(esc).join(", "):"")));
+    h+=bloco("Método",ia&&ia.metodo?ia.metodo:(aprov?"":"Você ainda não aprovou nenhum método, então a IA não sugere nenhum."));
+    if((f.exercicios||[]).length)h+='<details class="av-opc"><summary>Resposta por exercício</summary><div class="comp-t"><table><tr><th></th><th class="r">Treinos</th><th class="r">Sobrando</th><th class="r">Força</th></tr>'+f.exercicios.map(e=>'<tr><td class="aux-n">'+esc(e.nome)+'</td><td class="r">'+e.sessoes+'</td><td class="r">'+(e.rirMedio==null?"–":nf1.format(e.rirMedio))+'</td><td class="r">'+(e.forcaPct==null?"novo":sinal(e.forcaPct))+'</td></tr>').join("")+'</table></div></details>';
+    if((f.grupos||[]).length)h+='<details class="av-opc"><summary>Séries por semana em cada grupo</summary><div class="comp-t"><table><tr><th></th><th class="r">Agora</th><th class="r">Antes</th></tr>'+f.grupos.map(g=>'<tr><td>'+esc(g.grupo)+'</td><td class="r">'+nf1.format(g.seriesSemana)+'</td><td class="r">'+nf1.format(g.seriesSemanaAntes)+'</td></tr>').join("")+'</table></div></details>';
+    if(av)h+='<details class="av-opc"><summary>Avaliação física de '+esc(av.data)+'</summary><p class="muted small" style="margin:8px 0 0">'+[av.pesoKg!=null?"Peso: "+nf1.format(av.pesoKg)+" kg":"",av.gorduraPct!=null?"Gordura: "+nf1.format(av.gorduraPct)+"%":"",av.variacaoPesoKg!=null?"Variação de peso: "+assinado(av.variacaoPesoKg)+" kg":"",av.variacaoCinturaCm!=null?"Variação de cintura: "+assinado(av.variacaoCinturaCm)+" cm":""].filter(Boolean).map(esc).join(" · ")+'</p></details>';
+    h+='<div class="card aux-b"><h3 class="dia-t">Sua decisão</h3><div class="chips-l" id="aux-dec">'+["Vou aplicar","Vou ajustar","Não vou aplicar"].map(d=>'<button class="chip'+(rel.decisao===d?" on":"")+'" data-d="'+d+'">'+d+'</button>').join("")+'</div><textarea class="obs" id="aux-obs" style="height:64px;padding:8px 10px;width:100%" placeholder="Observação, se quiser">'+esc(rel.obs||"")+'</textarea><div class="row-btns" style="margin-top:8px"><button class="btn" id="aux-sal">Salvar decisão</button><button class="btn primary" id="aux-mon">Montar treinos</button></div></div>';
+    h+='<div class="card aux-b"><h3 class="dia-t">Conversar sobre este aluno</h3><div id="aux-chat">'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+(m.papel==="ia"&&m.confere===false?'<small>Confira: esta resposta cita um número que não está nos dados.</small>':"")+'</p>').join("")+(st.pensando?'<p class="muted small">Pensando…</p>':"")+'</div><textarea class="obs" id="aux-p" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você faria com o supino?">'+esc(st.rascunho||"")+'</textarea><button class="btn primary" id="aux-env" style="width:100%;margin-top:8px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
+  }
+  h+='<div class="row-btns" style="margin-top:4px"><button class="btn" id="aux-met">Métodos ('+aprov+(aprov===1?' aprovado':' aprovados')+')</button><button class="btn" id="aux-ger"'+(st.gerando?" disabled":"")+'>Gerar agora</button></div>';
+  el.innerHTML=h;
+  const on=(id,ev,fn)=>{const n=$("#"+id);if(n)n[ev]=fn};
+  on("aux-sel","onchange",e=>{st.sel=+e.target.value;st.chat=[];renderAuxil()});
+  on("aux-met","onclick",()=>{st.verMetodos=true;renderAuxil();window.scrollTo({top:0})});
+  on("aux-ger","onclick",()=>auxGerar(true));
+  on("aux-mon","onclick",()=>openModelEditor(S.alunoId));
+  el.querySelectorAll("#aux-dec .chip").forEach(b=>b.onclick=()=>{rel.decisao=b.dataset.d;rel.obs=$("#aux-obs").value;el.querySelectorAll("#aux-dec .chip").forEach(c=>c.classList.toggle("on",c===b))});
+  on("aux-sal","onclick",async()=>{rel.obs=$("#aux-obs").value;try{await callA("auxDecidir",{linha:rel.linha,decisao:rel.decisao||"",observacao:rel.obs});toast("Decisão salva na planilha do aluno")}catch(e){toast(errText(e))}});
+  const p=$("#aux-p");if(p)p.addEventListener("input",()=>{st.rascunho=p.value});
+  on("aux-env","onclick",async()=>{const q=String(st.rascunho||"").trim();if(!q||st.pensando)return;
+    const hist=st.chat.slice();st.chat.push({papel:"eu",texto:q});st.rascunho="";st.pensando=true;renderAuxil();
+    try{const d=await callA("auxChat",{pergunta:q,historico:hist,fatos:f,});
+      if(S.aux!==st)return;
+      st.chat.push(d.resposta?{papel:"ia",texto:d.resposta,confere:d.confere}:{papel:"ia",texto:MOTIVO_AUX[d.motivo]?MOTIVO_AUX[d.motivo].replace(" Abaixo está a análise por regras.",""):"Sem resposta agora."});
+    }catch(e){st.chat.push({papel:"ia",texto:errText(e)})}
+    st.pensando=false;if(S.aux===st&&S.view==="auxil")renderAuxil()});
+}
+
 /* ========== navegação ========== */
-const VIEWS=["inicio","alunos","aluno","alcal","lancar","coach","evo","aval","perfil","config"];
-const TITULOS={alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
+const VIEWS=["inicio","alunos","aluno","alcal","auxil","lancar","coach","evo","aval","perfil","config"];
+const TITULOS={auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
 function setView(v){
   if(!VIEWS.includes(v))v="inicio";
-  if(["alunos","aluno","alcal"].includes(v)&&S.role!=="prof")v="inicio";
+  if(["alunos","aluno","alcal","auxil"].includes(v)&&S.role!=="prof")v="inicio";
   if(v==="inicio")S.ctxAluno=false;
   S.view=v;
   VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});
@@ -1943,7 +2042,8 @@ function destinoVoltar(){
       return "inicio";
     }
     if(S.view==="aluno")return "alunos";
-    if(S.ctxAluno&&["evo","alcal","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
+    if(S.view==="auxil"&&S.aux&&S.aux.verMetodos){S.aux.verMetodos=false;return "auxil"}
+    if(S.ctxAluno&&["evo","alcal","auxil","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
   }
   S.alunoForm=null;return "inicio";
 }
@@ -1999,11 +2099,11 @@ function renderInicio(){
     // A primeira tela é sempre do próprio professor: o Treinar nunca grava na planilha de outro aluno.
     const m=masterId();if(m&&S.alunoId!==m)selectAluno(m,true);
     carregarPainel();
-    const ativos=S.alunos.filter(a=>a.ativo&&!a.master).length,at=S.alunos.filter(pedeAtencao).length;
+    const ativos=S.alunos.filter(a=>a.ativo&&!a.master).length,at=S.alunos.filter(pedeAtencao).length,rel=S.alunos.filter(relatorioDevido).length;
     $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-prof">'+
       '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
       '<div class="home-col">'+tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>'+
-      '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+'</span>'+Icone("chevron-right",22)+'</button></div>';
+      '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+(rel?" · "+rel+(rel===1?" relatório pronto":" relatórios prontos"):"")+'</span>'+Icone("chevron-right",22)+'</button></div>';
     $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
       if(b.dataset.ir==="alunos"){S.alunoForm=null;S.alunosAba="lista";S.calDia=null;carregarPainel()}
       if(b.dataset.ir==="lancar"){S.picker=false;S.modEdit=null}
@@ -2028,6 +2128,7 @@ function render(){
   else if(S.view==="alunos")renderAlunos();
   else if(S.view==="aluno")renderAlunoPag();
   else if(S.view==="alcal")renderAlunoCal();
+  else if(S.view==="auxil")renderAuxil();
   else if(S.view==="lancar")renderLancar();
   else if(S.view==="evo")renderEvo();
   else if(S.view==="aval")renderAval();

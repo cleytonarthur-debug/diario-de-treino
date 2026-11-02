@@ -1,7 +1,7 @@
 {
-  "versao": "2.16.0",
+  "versao": "2.17.0",
   "data": "01/11/2026",
   "notas": [
-    "Nova área do professor: primeira tela reorganizada, cartões de alunos, calendário de todos, comparativos e página de cada aluno."
+    "Auxiliar do Coach: relatório de 30 dias por aluno, com sugestões de carga, volume, exercícios e estratégia, só para o professor."
   ]
 }
