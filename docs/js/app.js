@@ -541,7 +541,7 @@ function cardioCard(b,bi){
   return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var(--g-abd)"></span><h3>'+esc(b.name)+'</h3><button class="x" data-act="rm-ex" aria-label="Remover cardio">×</button></div>'+
     '<div class="set'+(done?" done":"")+'" data-s="0"><div class="set-info"><b>'+esc(s.meta)+'</b>'+(z?'<span>zona 2: '+z.lo+'–'+z.hi+' bpm</span>':"")+'</div>'+
     '<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Como foi? (tempo feito, FC média, aparelho)" aria-label="Observação do cardio">'+
-    '<button class="chk" data-act="check" aria-label="Marcar cardio como feito">✓</button></div></div>'+
+    '<button class="chk'+(done?" on":"")+'" data-act="check" aria-label="Marcar cardio como feito">✓</button></div></div>'+
     '<div class="ex-f"><button class="btn ghost" data-act="add-set" hidden></button></div></div>';
 }
 function metaCoach(b){const t=S.draft&&(recadoDoDraft(S.draft).metas||{})[Coach.base(b.name)];return t?'<div class="meta-coach">Meta do coach: '+esc(t)+'</div>':""}
@@ -591,7 +591,7 @@ function setRow(s,bi,si){
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
       '<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>'+
-      '<button class="chk" data-act="check" aria-label="Marcar série '+s.n+' como feita na meta">✓</button>'+
+      '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
     '</div>'+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
 }
@@ -620,6 +620,8 @@ function bindLancar(){
             if(inp.value.trim()&&!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si);const t=row.querySelector('[data-f="time"]');if(t)t.value=s.time}
             if(inp.value.trim()&&s.skip){s.skip=false;row.classList.remove("skip")}
             row.classList.toggle("done",!!inp.value.trim());
+            s.okAuto=false;
+            if(!inp.value.trim()&&s.ok){s.ok=false;const c=row.querySelector('[data-act="check"]');c.classList.remove("on");c.setAttribute("aria-pressed","false")}
           }
           if(f==="time")s.time=inp.value||null;
           if(f==="reps"||f==="peso")row.querySelector(".cmp").innerHTML=cmpBadge(s);
@@ -627,16 +629,22 @@ function bindLancar(){
         });
       });
       row.querySelector('[data-act="check"]').onclick=()=>{
-        if(!String(s.reps).trim()){
-          const m=String(s.meta).match(/\d+/);s.reps=m?m[0]:(s.last&&s.last.feitas&&/^\d+$/.test(s.last.feitas)?s.last.feitas:"");
-          if(!s.reps){row.querySelector('[data-f="reps"]').focus();return}
-          s.time=hhmm(new Date());S.draft.lastTick=Date.now();s.skip=false;startRest(bi,si);
-        }else{s.reps="";s.time=null}
+        // Com a série preenchida, o ✓ confirma e não apaga. Tocar de novo só desfaz a confirmação.
+        if(s.ok){s.ok=false;if(s.okAuto){s.reps="";s.time=null}s.okAuto=false}
+        else{
+          if(!String(s.reps).trim()){
+            const m=String(s.meta).match(/\d+/);s.reps=m?m[0]:(s.last&&s.last.feitas&&/^\d+$/.test(s.last.feitas)?s.last.feitas:"");
+            if(!s.reps){row.querySelector('[data-f="reps"]').focus();return}
+            s.okAuto=true;
+          }
+          s.ok=true;s.skip=false;
+          if(!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si)}
+        }
         saveDraft();rerenderCard(bi);updateBar();
       };
       row.querySelector('[data-act="note"]').onclick=()=>{s.note=!s.note;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o)o.focus()};
       const sk=row.querySelector('[data-act="skip"]');
-      if(sk)sk.onclick=()=>{s.skip=!s.skip;if(s.skip){s.reps="";s.time=s.time||hhmm(new Date())}s.note=true;saveDraft();rerenderCard(bi);updateBar();
+      if(sk)sk.onclick=()=>{s.skip=!s.skip;if(s.skip){s.reps="";s.ok=false;s.okAuto=false;s.time=s.time||hhmm(new Date())}s.note=true;saveDraft();rerenderCard(bi);updateBar();
         const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o&&s.skip&&!s.obs){o.placeholder="Por que não fez? (ex.: máquina ocupada, dor)";o.focus()}};
     });
     const exo=card.querySelector('[data-f="exobs"]');if(exo)exo.addEventListener("input",()=>{b.obs=exo.value;saveDraft()});

@@ -98,7 +98,7 @@ h3{font-size:15px;margin:0;font-weight:700}
 .fld input,.fld select{width:100%;min-width:0;height:44px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);padding:0 10px;font-family:var(--f-num);font-size:19px;font-variant-numeric:tabular-nums}
 .fld select{padding:0 4px}
 .chk{appearance:none;width:44px;height:44px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-size:20px;font-weight:700;color:var(--ink-3)}
-.set.done .chk{background:var(--action);border-color:var(--action);color:var(--action-ink)}
+.chk.on{background:var(--action);border-color:var(--action);color:var(--action-ink)}
 .note-btn{appearance:none;width:36px;height:44px;border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:18px;border-radius:8px}
 .note-btn.on{color:var(--ink)}
 .tm{height:32px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface);padding:0 6px;font-family:var(--f-num);font-size:16px;width:92px}
