@@ -142,6 +142,7 @@ function doPost(e) {
     let b;
     try { b = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
     catch (x) { throw appErr_('bad_request', 'Pedido inválido.'); }
+    if (ACOES_TESTE[b.action]) return json_(Object.assign({ ok: true, versao: VERSAO }, ACOES_TESTE[b.action](b)));
     const ctx = auth_(b);
     const fn = ACOES[b.action];
     if (!fn) throw appErr_('bad_request', 'Ação desconhecida: ' + b.action);
@@ -313,6 +314,59 @@ const ACOES = {
     al.codigo = novoCodigo_(20);
     escreverAluno_(al);
     return { aluno: alunoParaProfessor_(al) };
+  }
+};
+
+/* =============== link de teste =============== */
+/* A versão de teste (teste.html) roda com alunos fictícios no aparelho. Aqui só se confere o link,
+   pela aba "Links de teste" do Painel, e se usa a IA. Estas ações não leem nenhum dado de aluno. */
+const ABA_TESTE = 'Links de teste';
+const HEAD_TESTE = ['Código', 'Para quem', 'Validade', 'Aparelho', 'Primeiro uso', 'Último uso', 'Ativo'];
+const TESTE_IA_POR_DIA = 40;
+function linkTeste_(b) {
+  const codigo = String(b.demo || ''), aparelho = String(b.aparelho || '').slice(0, 64);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ABA_TESTE);
+  const n = sh ? sh.getLastRow() - 1 : 0;
+  const invalido = function () { Utilities.sleep(800); return appErr_('demo_invalido', 'Link de teste inválido.'); };
+  if (!codigo || !aparelho || n < 1) throw invalido();
+  const linhas = sh.getRange(2, 1, n, HEAD_TESTE.length).getDisplayValues();
+  const i = linhas.map(function (r) { return r[0]; }).indexOf(codigo);
+  if (i < 0) throw invalido();
+  const r = linhas[i];
+  if (/^n/i.test(String(r[6]).trim())) throw appErr_('demo_pausado', 'Link de teste pausado.');
+  const v = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(r[2]).trim());
+  if (v && new Date(+v[3], +v[2] - 1, +v[1], 23, 59, 59) < new Date()) throw appErr_('demo_vencido', 'Link de teste vencido.');
+  if (r[3] && r[3] !== aparelho) throw appErr_('demo_outro_aparelho', 'Link de teste usado em outro aparelho.');
+  return { sh: sh, linha: i + 2, para: r[1], aparelho: aparelho, codigo: codigo, jaUsou: !!r[3] };
+}
+const ACOES_TESTE = {
+  // O primeiro aparelho que abre o link fica sendo o único.
+  demoEntrar: function (b) {
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+    try {
+      const l = linkTeste_(b);
+      const agora = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+      if (!l.jaUsou) l.sh.getRange(l.linha, 4, 1, 2).setValues([[l.aparelho, agora]]);
+      l.sh.getRange(l.linha, 6).setValue(agora);
+      return { para: l.para };
+    } finally {
+      lock.releaseLock();
+    }
+  },
+  demoIa: function (b) {
+    const l = linkTeste_(b);
+    const msgs = Array.isArray(b.mensagens) ? b.mensagens.slice(0, 4).map(function (m) {
+      return { role: m && m.role === 'system' ? 'system' : 'user', content: String(m && m.content || '').slice(0, 20000) };
+    }) : [];
+    if (!msgs.length) throw appErr_('bad_request', 'Pedido inválido.');
+    const cache = CacheService.getScriptCache();
+    const k = 'teste:' + l.codigo + ':' + Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyyMMdd');
+    const n = Number(cache.get(k) || 0);
+    if (n >= TESTE_IA_POR_DIA) throw appErr_('limite_do_dia', 'Limite de IA do link de teste.');
+    cache.put(k, String(n + 1), 86400);
+    const resp = chamarIA_(msgs, null, Math.min(Number(b.maxTokens) || 800, 1200));
+    return { resposta: typeof resp === 'string' ? resp : JSON.stringify(resp) };
   }
 };
 

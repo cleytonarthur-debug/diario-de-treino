@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<script src="js/demo.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0e0f12">
+<script>try{var t=localStorage.getItem("dt2-tema");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diário de Treino">
+<meta name="referrer" content="no-referrer">
+<title>Diário de Treino (teste)</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="g-ic" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--ic1)"/><stop offset="1" style="stop-color:var(--ic2)"/></linearGradient></defs></svg>
+<header class="top">
+  <div class="top-row">
+    <button class="ico-btn" id="b-voltar" aria-label="Voltar" hidden></button>
+    <div class="brand">
+      <h1 id="top-titulo">Diário de Treino</h1>
+      <span class="top-sub" id="top-sub" hidden></span>
+    </div>
+    <div class="top-right"><div class="sync" id="sync"><span class="dot busy"></span><span>Abrindo…</span></div>
+      <button class="ico-btn" id="b-refresh" aria-label="Atualizar treinos e aplicativo" title="Atualizar treinos e aplicativo"></button>
+      <button class="ico-btn" id="b-config" aria-label="Configurações" title="Configurações"></button></div>
+  </div>
+  <div class="saudacao" id="saudacao" hidden></div>
+</header>
+
+<main>
+  <div id="banner"></div>
+
+  <section id="v-inicio" class="view" hidden><div id="inicio-tela"></div></section>
+  <section id="v-alunos" class="view" hidden></section>
+  <section id="v-aluno" class="view" hidden></section>
+  <section id="v-alcal" class="view" hidden></section>
+  <section id="v-auxil" class="view" hidden></section>
+  <section id="v-lancar" class="view" hidden><div id="lancar"></div></section>
+
+  <section id="v-evo" class="view" hidden>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Período" id="f-period">
+        <button data-p="4" aria-pressed="false">4 sem</button>
+        <button data-p="12" aria-pressed="true">12 sem</button>
+        <button data-p="26" aria-pressed="false">6 meses</button>
+        <button data-p="0" aria-pressed="false">Tudo</button>
+      </div>
+      <div class="chips" id="f-groups" aria-label="Grupos musculares"></div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Resumo do período</h2></div><div class="kpis" id="kpis" style="margin-bottom:0"></div></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h2>Evolução de força</h2><p>carga estimada para 1 repetição (1RM), melhor série de cada treino</p></div>
+      <div class="pick-ex"><select id="f-ex" aria-label="Exercício"></select></div>
+      <div class="chart-box"><canvas id="ch-forca" aria-label="Evolução de força no exercício escolhido"></canvas></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><h2>Peso e composição</h2><p>das avaliações físicas</p></div>
+        <div class="chart-box"><canvas id="ch-corpo" aria-label="Peso, massa magra e gordura"></canvas></div>
+        <div class="legend" id="lg-corpo"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Medidas</h2><p>perímetros das avaliações (cm)</p></div>
+        <div class="pick-ex"><select id="f-medida" aria-label="Medida"></select></div>
+        <div class="chart-box sm"><canvas id="ch-medida" aria-label="Evolução da medida escolhida"></canvas></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><h2>Volume semanal por grupo</h2><p>toneladas levantadas (carga × reps), por semana</p></div>
+        <div class="chart-box"><canvas id="ch-vol" aria-label="Volume semanal por grupo muscular"></canvas></div>
+        <div class="legend" id="lg-vol"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Séries por semana</h2><p>séries feitas, empilhadas por grupo</p></div>
+        <div class="chart-box sm"><canvas id="ch-sets" aria-label="Séries por semana por grupo"></canvas></div>
+        <div class="legend" id="lg-sets"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Por grupo muscular</h2></div><div class="groups" id="groups" style="margin-bottom:0"></div></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h2>Recordes por exercício</h2><p>melhor carga estimada para 1 repetição (1RM, fórmula de Epley) no período</p></div>
+      <div class="tbl-wrap"><table id="prs"></table></div>
+      <p class="note">Cargas mudam de uma academia e de uma máquina para outra. Compare o mesmo exercício no mesmo equipamento. "CL" (cada lado) conta em dobro.</p>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Últimos treinos</h2><p>sessões mais recentes</p></div>
+      <div class="tbl-wrap"><table id="last"></table></div>
+    </div>
+  </section>
+
+  <section id="v-coach" class="view" hidden><div id="coach"></div></section>
+  <section id="v-aval" class="view" hidden><div id="aval"></div></section>
+  <section id="v-perfil" class="view" hidden><div id="perfil"></div></section>
+  <section id="v-config" class="view" hidden><div id="config"></div></section>
+</main>
+
+<nav class="nav-baixo" id="nav-baixo" hidden></nav>
+<div class="savebar" id="savebar" hidden>
+  <div class="savebar-in">
+    <div><div class="sb-time" id="sb-time"></div><div class="count" id="sb-count">0 séries</div><div class="rest" id="sb-rest"></div></div>
+    <div class="grow"></div>
+    <button class="btn ghost" id="sb-cancel" hidden>Voltar</button>
+    <button class="btn primary" id="sb-save" disabled>Concluir treino</button>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<div class="sheet" id="cadastro" hidden></div>
+
+<div class="sheet" id="start" hidden>
+  <div class="sheet-card">
+    <h2>Diário de Treino</h2>
+    <p>Para entrar, abra o <b>link que seu professor enviou</b> pelo WhatsApp.</p>
+    <p class="muted small">Se você já tem o link copiado, cole aqui:</p>
+    <label class="fld2">Link de acesso<input id="start-link" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…#api=…"></label>
+    <p class="setup-msg" id="start-msg" role="status"></p>
+    <div class="setup-row"><button class="btn primary" id="start-go">Entrar</button></div>
+  </div>
+</div>
+
+<script src="vendor/chart.umd.js"></script>
+<script src="js/icones.js"></script>
+<script src="js/api.js"></script>
+<script src="js/body.js"></script>
+<script src="js/metodos.js"></script>
+<script src="js/atualizacao.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/auxiliar.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+}
+</script>
+</body>
+</html>

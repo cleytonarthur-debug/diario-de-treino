@@ -1,7 +1,7 @@
 {
-  "versao": "2.18.0",
+  "versao": "2.19.0",
   "data": "02/11/2026",
   "notas": [
-    "Auxiliar do Coach: ao salvar a decisão, abre uma página com o treino citado já preenchido, e nada muda antes de você confirmar."
+    "Link de teste com alunos fictícios"
   ]
 }

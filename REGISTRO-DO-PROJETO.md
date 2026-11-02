@@ -98,6 +98,13 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Evolução:** comentário curto em cada caixa, por regras, sem gastar o limite da IA.
 - **Permissão:** a IA usa `script.external_request`, já autorizada. Se uma permissão nova surgir, a sequência segura é: `clasp push`, o professor autoriza pelo menu, e só então `clasp deploy`.
 
+## Link de teste para outro personal (desde 02/11/2026)
+- **O que é:** `docs/teste.html`: o app de verdade, com 20 alunos fictícios criados no próprio aparelho (`docs/js/demo-worker.js`). O programa central roda no celular (`docs/js/demo-motor.js`, cópia do Code.gs). Não há acesso a planilhas nem a alunos reais. As alterações ficam só naquele aparelho.
+- **Arquivos gerados:** `teste.html` e `demo-motor.js` são refeitos por `tools/versao.mjs` a cada versão, então acompanham o app.
+- **Controle:** aba **Links de teste** do Painel. O endereço é `https://cleytonarthur-debug.github.io/diario-de-treino/teste.html#c=CÓDIGO`. O primeiro aparelho que abre fica sendo o único (coluna Aparelho). Para liberar outro aparelho, apague essa célula. Para cortar, escreva "não" em Ativo ou mude a Validade. Para criar outro link, acrescente uma linha com um código novo, sem símbolos.
+- **IA:** real, pela ação `demoIa`, conferindo código e aparelho. Limite: 40 usos por link por dia, sem custo.
+- **Limite da trava:** impede o uso em outro aparelho, mas não impede foto da tela. Quem abrir o link primeiro fica com ele.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.
