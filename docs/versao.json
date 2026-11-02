@@ -1,7 +1,7 @@
 {
-  "versao": "2.19.1",
+  "versao": "2.19.2",
   "data": "02/11/2026",
   "notas": [
-    "O botão de check da série agora confirma o que você preencheu, sem apagar."
+    "Botão de check mais suave no rosa da versão clara."
   ]
 }

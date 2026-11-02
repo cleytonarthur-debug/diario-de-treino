@@ -98,7 +98,7 @@ h3{font-size:15px;margin:0;font-weight:700}
 .fld input,.fld select{width:100%;min-width:0;height:44px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);padding:0 10px;font-family:var(--f-num);font-size:19px;font-variant-numeric:tabular-nums}
 .fld select{padding:0 4px}
 .chk{appearance:none;width:44px;height:44px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-size:20px;font-weight:700;color:var(--ink-3)}
-.chk.on{background:var(--action);border-color:var(--action);color:var(--action-ink)}
+.chk.on{background:var(--chk,var(--action));border-color:var(--chk,var(--action));color:var(--chk-ink,var(--action-ink))}
 .note-btn{appearance:none;width:36px;height:44px;border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:18px;border-radius:8px}
 .note-btn.on{color:var(--ink)}
 .tm{height:32px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface);padding:0 6px;font-family:var(--f-num);font-size:16px;width:92px}
@@ -381,13 +381,13 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 
 /* ---- degradê por sexo: rosa ou azul, no nome, no Treinar e nos ícones ---- */
 :root{--hero:linear-gradient(135deg,#f4f9ff,#8fc0ff);--hero-ink:#0b2f6b;--nome1:#f2f8ff;--nome2:#7db4ff;--ic1:#b3d4ff;--ic2:#2f74e8;--action:#2f74e8;--action-ink:#fff}
-:root[data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--nome1:#fff0f6;--nome2:#ff8fbe;--ic1:#ffb3d1;--ic2:#e8488f;--action:#e8488f;--action-ink:#fff}
+:root[data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--nome1:#fff0f6;--nome2:#ff8fbe;--ic1:#ffb3d1;--ic2:#e8488f;--action:#e8488f;--action-ink:#fff;--chk:#f48ab6;--chk-ink:#5a0f34}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){--hero:linear-gradient(135deg,#f4f9ff,#8fc0ff);--hero-ink:#0b2f6b;--ic1:#f2f8ff;--ic2:#7db4ff;--action:#2f74e8;--action-ink:#fff}
-  :root:not([data-theme="light"])[data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--ic1:#fff0f6;--ic2:#ff8fbe;--action:#e8488f;--action-ink:#fff}
+  :root:not([data-theme="light"])[data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--ic1:#fff0f6;--ic2:#ff8fbe;--action:#e8488f;--action-ink:#fff;--chk:#e8488f;--chk-ink:#fff}
 }
 :root[data-theme="dark"]{--hero:linear-gradient(135deg,#f4f9ff,#8fc0ff);--hero-ink:#0b2f6b;--ic1:#f2f8ff;--ic2:#7db4ff;--action:#2f74e8;--action-ink:#fff}
-:root[data-theme="dark"][data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--ic1:#fff0f6;--ic2:#ff8fbe;--action:#e8488f;--action-ink:#fff}
+:root[data-theme="dark"][data-genero="f"]{--hero:linear-gradient(135deg,#fff4f8,#ff9cc7);--hero-ink:#5a0f34;--ic1:#fff0f6;--ic2:#ff8fbe;--action:#e8488f;--action-ink:#fff;--chk:#e8488f;--chk-ink:#fff}
 .home-tile .home-ic .ico{fill:url(#g-ic)}
 .nome-g{background:linear-gradient(135deg,var(--nome1),var(--nome2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .saudacao b{font-size:34px;line-height:1.08}
