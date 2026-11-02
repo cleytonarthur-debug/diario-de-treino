@@ -2206,7 +2206,7 @@ function renderInicio(){
     $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
       if(b.dataset.ir==="alunos"){S.alunoForm=null;S.alunosAba="lista";S.calDia=null;carregarPainel()}
       if(b.dataset.ir==="lancar"){S.picker=false;S.modEdit=null}
-      if(b.dataset.ir==="fin"){S.finAluno=null;S.finDe="";S.finEdit=false;S.finPag=false;S.ctxAluno=false;carregarFin(true)}
+      if(b.dataset.ir==="fin"){S.finAluno=b.dataset.a||null;S.finDe="";S.finEdit=false;S.finPag=false;S.ctxAluno=false;carregarFin(true)}
       abrir(b.dataset.ir);
     });
     return;
@@ -2394,7 +2394,12 @@ function finTotais(l){
 function finTile(){
   if(!S.fin||!S.fin.ativo)return "";
   const t=finTotais(finLista());
-  return '<button class="home-alunos" data-ir="fin">'+Icone("coin",28)+'<span><b>Financeiro</b>'+t.ok+' em dia'+(t.vence?' · <em class="fin-v">'+t.vence+' vence'+(t.vence===1?"":"m")+' em até 7 dias</em>':"")+(t.atraso?' · <em class="fin-a">'+t.atraso+(t.atraso===1?" atrasado":" atrasados")+'</em>':"")+'</span>'+Icone("chevron-right",22)+'</button>';
+  return '<button class="home-alunos" data-ir="fin">'+Icone("coin",28)+'<span><b>Financeiro</b>'+t.ok+' em dia'+(t.vence?' · <em class="fin-v">'+t.vence+' vence'+(t.vence===1?"":"m")+' em até 7 dias</em>':"")+(t.atraso?' · <em class="fin-a">'+t.atraso+(t.atraso===1?" atrasado":" atrasados")+'</em>':"")+'</span>'+Icone("chevron-right",22)+'</button>'+finAvisos();
+}
+// Quem vence em até 7 dias ou está atrasado aparece pelo nome na tela inicial.
+function finAvisos(){
+  const l=finLista().filter(x=>x.s.k==="atraso"||x.s.k==="vence");if(!l.length)return "";
+  return '<div class="fin-av">'+l.slice(0,5).map(x=>'<button data-ir="fin" data-a="'+esc(x.a.id)+'"><span>'+esc(x.a.nome)+'</span>'+pillFin(x.s)+'</button>').join("")+(l.length>5?'<button data-ir="fin"><span class="muted small">e mais '+(l.length-5)+'</span></button>':"")+'</div>';
 }
 function renderFin(){
   const el=$("#v-fin");

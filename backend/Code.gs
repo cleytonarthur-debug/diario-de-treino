@@ -56,7 +56,6 @@ function onOpen() {
     .addSeparator()
     .addItem('Configurar IA do coach', 'configurarIA')
     .addItem('Financeiro: ligar ou desligar', 'alternarFinanceiro')
-    .addItem('Ligar aviso de vencimento por e-mail', 'ligarAvisoEmail')
     .addToUi();
 }
 
@@ -414,34 +413,10 @@ const FIN_ACOES = {
     });
   }
 };
-/* Aviso por e-mail, uma vez por dia: 7 dias antes, no dia, e 3 e 10 dias depois do vencimento. */
-const AVISO_DIAS = { 7: 'vence em 7 dias', 0: 'vence hoje', '-3': 'está 3 dias atrasado', '-10': 'está 10 dias atrasado' };
+/* O aviso de vencimento é só no app. O gatilho diário antigo se apaga na próxima vez que rodar, sem enviar nada. */
 function avisarVencimentos() {
-  if (!financeiroAtivo_()) return;
-  const email = PropertiesService.getScriptProperties().getProperty('AVISO_EMAIL');
-  if (!email) return;
-  const agora = new Date(), hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-  const linhas = [];
-  lerPlanos_().forEach(function (p) {
-    if (p.pausado) return;
-    if (!PLANO_MESES[p.plano]) {
-      const resta = (Number(p.aulasTotal) || 0) - (Number(p.aulasDadas) || 0);
-      if (resta === 2 || resta === 0) linhas.push(p.nome + ': restam ' + resta + ' aulas do pacote.');
-      return;
-    }
-    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(p.venc);
-    if (!m) return;
-    const dias = Math.round((new Date(+m[3], +m[2] - 1, +m[1]) - hoje) / 864e5);
-    if (AVISO_DIAS[dias]) linhas.push(p.nome + ' ' + AVISO_DIAS[dias] + ' (' + p.plano + ', R$ ' + p.valor + ', ' + p.venc + ').');
-  });
-  if (linhas.length) MailApp.sendEmail(email, 'Diário de Treino: vencimentos de hoje', linhas.join('\n') + '\n\nVeja os detalhes em Financeiro, no app.');
-}
-function ligarAvisoEmail() {
   ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'avisarVencimentos') ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('avisarVencimentos').timeBased().everyDays(1).atHour(8).create();
-  const email = Session.getEffectiveUser().getEmail();
-  PropertiesService.getScriptProperties().setProperty('AVISO_EMAIL', email);
-  SpreadsheetApp.getUi().alert('Aviso ligado. Todo dia, por volta das 8h, os vencimentos do dia vão para ' + email + '.');
+  PropertiesService.getScriptProperties().deleteProperty('AVISO_EMAIL');
 }
 function alternarFinanceiro() {
   const pr = PropertiesService.getScriptProperties(), ligado = financeiroAtivo_();
