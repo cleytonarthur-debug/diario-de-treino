@@ -396,3 +396,8 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 /* ---- frase do dia e fogos ao concluir ---- */
 .saudacao span{font-size:14px;color:var(--bar-ink);margin-top:4px}
 .fogos{position:fixed;inset:0;z-index:60;pointer-events:none}
+
+/* ---- campos opcionais da avaliação física ficam recolhidos ---- */
+.av-opc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.av-opc summary{font-weight:600;cursor:pointer}
+.av-opc .av-sec{margin:10px 0 0}

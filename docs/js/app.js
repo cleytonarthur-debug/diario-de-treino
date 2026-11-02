@@ -1108,7 +1108,7 @@ function renderAval(){
   const list=S.avals;
   if(!list.length){
     el.innerHTML='<div class="av-top"><h2>Avaliação física</h2>'+(prof?'<button class="btn primary" id="av-new">+ Nova avaliação</button>':"")+'</div>'+
-      '<div class="empty">'+(prof?"Nenhuma avaliação ainda. Toque em <b>Nova avaliação</b> para lançar peso, medidas e dobras.":"Seu professor ainda não lançou nenhuma avaliação física. Quando lançar, ela aparece aqui com a sua evolução.")+'</div>';
+      '<div class="empty">'+(prof?"Nenhuma avaliação ainda. Toque em <b>Nova avaliação</b> para lançar peso e medidas.":"Seu professor ainda não lançou nenhuma avaliação física. Quando lançar, ela aparece aqui com a sua evolução.")+'</div>';
     const n=$("#av-new");if(n)n.onclick=()=>startAvEdit(null);return;
   }
   if(S.avSel==null||!list[S.avSel])S.avSel=list.length-1;
@@ -1121,7 +1121,7 @@ function renderAval(){
   const field=f=>{const v=cur.v[f.k];if(!String(v||"").trim())return "";
     return '<div class="mfield" data-k="'+esc(f.k)+'"><label>'+esc(f.k.replace(/ \((cm|mm|kg|bpm)\)$/,""))+'</label><span class="val">'+fmtVal(f.k,v)+(f.u?'<small>'+f.u+'</small>':"")+'</span>'+delta(f.k,menos.has(f.k))+'</div>'};
   const sec=(t,fs)=>{const h=fs.map(field).join("");return h?'<div class="av-sec"><h3>'+t+'</h3><div class="mgrid">'+h+'</div></div>':""};
-  const kpi=(l,k,u)=>{const v=get(cur,c,k);return isFinite(v)?'<div class="kpi"><span class="l">'+l+'</span><span class="v">'+(k==="RCQ"?nf2:nf1).format(v)+(u?'<small>'+u+'</small>':"")+'</span>'+delta(k,menos.has(k))+'</div>':""};
+  const kpi=(l,k,u)=>{const v=get(cur,c,k);if(k==="% Gordura"&&c._estimado)l="% Gordura (aprox.)";return isFinite(v)?'<div class="kpi"><span class="l">'+l+'</span><span class="v">'+(k==="RCQ"?nf2:nf1).format(v)+(u?'<small>'+u+'</small>':"")+'</span>'+delta(k,menos.has(k))+'</div>':""};
   el.innerHTML='<div class="av-top"><div><h2>Avaliação física</h2><span class="muted small">'+list.length+(list.length===1?" avaliação":" avaliações")+(prev?" · comparando com "+prev.dataS:"")+'</span></div>'+
     '<div class="row-btns"><select id="av-sel" aria-label="Escolher avaliação">'+list.map((a,i)=>'<option value="'+i+'"'+(i===S.avSel?" selected":"")+'>'+esc(a.dataS)+'</option>').join("")+'</select>'+
     (prof?'<button class="btn" id="av-edit">Editar</button><button class="btn primary" id="av-new">+ Nova</button>':"")+'</div></div>'+
@@ -1130,11 +1130,20 @@ function renderAval(){
     '<div class="body-legend"><span><i style="background:var(--good)"></i>medido</span><span><i style="background:var(--action)"></i>medida (fita)</span><span><i style="background:#eda100"></i>dobra</span></div></div>'+
     '<div>'+sec("Geral",Body.GERAL)+sec("Bioimpedância",Body.BIO)+sec("Perímetros (fita)",Body.PER)+sec("Dobras cutâneas",Body.DOB)+
     (cur.v[Body.OBS]?'<div class="av-sec"><h3>Observações</h3><p>'+esc(cur.v[Body.OBS])+'</p></div>':"")+
-    (c._protocolo?'<p class="note">% de gordura calculado por '+esc(c._protocolo)+'.</p>':"")+'</div></div>';
+    notaGordura(c)+'</div></div>';
   $("#av-sel").onchange=e=>{S.avSel=+e.target.value;S.avPt=null;renderAval()};
   const n=$("#av-new");if(n)n.onclick=()=>startAvEdit(null);
   const ed=$("#av-edit");if(ed)ed.onclick=()=>startAvEdit(cur);
   bindBody(false);
+}
+/* Explica de onde veio o % de gordura. Sem dobras nem bioimpedância, mostra as duas estimativas. */
+function notaGordura(c){
+  if(!c._protocolo)return "";
+  if(!c._estimado)return '<p class="note">% de gordura calculado por '+esc(c._protocolo)+'.</p>';
+  const ambos=isFinite(c._gMedidas)&&isFinite(c._gPesoIdade);
+  return '<p class="note">% de gordura aproximado, calculado por '+esc(c._estimado)+'.'+
+    (ambos?' Pelo peso, altura e idade daria '+nf1.format(c._gPesoIdade)+'%. Esse segundo valor costuma sair alto em quem tem muito músculo.':"")+
+    ' Compare sempre avaliações com as mesmas medidas e a fita no mesmo lugar.</p>';
 }
 function bindBody(edit){
   $("#body").querySelectorAll(".pt").forEach(g=>{
@@ -1143,7 +1152,7 @@ function bindBody(edit){
       $("#body").innerHTML=Body.svg(edit?S.avEdit.v:S.avals[S.avSel].v,S.avPt);bindBody(edit);
       document.querySelectorAll(".mfield.sel").forEach(m=>m.classList.remove("sel"));
       let first=null;p.keys.forEach(k=>{const m=document.querySelector('.mfield[data-k="'+CSS.escape(k)+'"]');if(m){m.classList.add("sel");first=first||m}});
-      if(first){first.scrollIntoView({block:"center",behavior:"smooth"});const i=first.querySelector("input");if(i)setTimeout(()=>i.focus({preventScroll:true}),250)}
+      if(first){const det=first.closest("details");if(det)det.open=true;first.scrollIntoView({block:"center",behavior:"smooth"});const i=first.querySelector("input");if(i)setTimeout(()=>i.focus({preventScroll:true}),250)}
       else if(!edit)toast(p.t+": não medido nesta avaliação");
     };
     g.addEventListener("click",go);g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}});
@@ -1158,6 +1167,9 @@ function renderAvalEdit(el){
   const E=S.avEdit;const v=E.v;
   const inp=f=>'<div class="mfield" data-k="'+esc(f.k)+'"><label for="av-'+esc(f.k)+'">'+esc(f.k)+'</label><input id="av-'+esc(f.k)+'" data-k="'+esc(f.k)+'" '+(f.text?'':'inputmode="decimal" ')+'autocomplete="off" value="'+esc(v[f.k]||"")+'" placeholder="'+esc(f.ph||"")+'"></div>';
   const sec=(t,fs,note)=>'<div class="av-sec"><h3>'+t+'</h3>'+(note?'<p class="muted small" style="margin:0 0 8px">'+note+'</p>':"")+'<div class="mgrid">'+fs.map(inp).join("")+'</div></div>';
+  // Quem não tem o aparelho não precisa ver o campo. Se já houver valor, ele continua aberto.
+  const temValor=fs=>fs.some(f=>String(v[f.k]||"").trim());
+  const opc=(t,fs,note)=>'<details class="av-opc"'+(temValor(fs)?" open":"")+'><summary>'+t+'</summary>'+sec("",fs,note).replace("<h3></h3>","")+'</details>';
   const faltaPerfil=Body.calc({},S.aluno||{})._faltaPerfil;
   el.innerHTML='<div class="av-top"><div><h2>'+(E.linha?"Editar avaliação":"Nova avaliação")+'</h2><span class="muted small">Toque num ponto do corpo para ir direto à medida. Deixe em branco o que não mediu.</span></div>'+
     '<div class="row-btns"><button class="btn ghost" id="av-cancel">Cancelar</button><button class="btn primary" id="av-save">Salvar avaliação</button></div></div>'+
@@ -1165,15 +1177,16 @@ function renderAvalEdit(el){
     '<div class="av-grid"><div class="card body-card"><div class="body-wrap" id="body">'+Body.svg(v,S.avPt)+'</div>'+
     '<div class="body-legend"><span><i style="background:var(--good)"></i>preenchido</span><span><i style="background:var(--action)"></i>medida (fita)</span><span><i style="background:#eda100"></i>dobra</span></div></div>'+
     '<div><div class="av-sec"><h3>Data</h3><div class="mgrid"><div class="mfield"><label for="av-data">Data da avaliação</label><input id="av-data" type="date" value="'+esc(brToIso(v["Data"]))+'"></div></div></div>'+
-    sec("Geral",Body.GERAL)+'<div class="calc" id="av-calc" style="margin-bottom:14px"></div>'+
-    sec("Bioimpedância (opcional)",Body.BIO,"Se usar balança ou aparelho de bioimpedância, digite o que ele mostrar.")+
-    sec("Perímetros (fita, cm)",Body.PER)+
-    sec("Dobras cutâneas (opcional, adipômetro, mm)",Body.DOB,"Com as 7 dobras o app calcula o % de gordura (Jackson & Pollock). Com 3 dobras também funciona."+(faltaPerfil?" <b>Para o cálculo, preencha data de nascimento e sexo no Perfil do aluno.</b>":""))+
+    sec("Geral",Body.GERAL.filter(f=>f.k!=="Pressão arterial"||temValor([f])))+'<div class="calc" id="av-calc" style="margin-bottom:6px"></div><div id="av-calc-nota"></div>'+
+    sec("Perímetros (fita, cm)",Body.PER,"Para aproximar a gordura, meça pescoço, cintura e abdômen. Na mulher, meça também o quadril."+(faltaPerfil?" <b>Para o cálculo, preencha data de nascimento e sexo no Perfil do aluno.</b>":""))+
+    opc("Bioimpedância (opcional)",Body.BIO,"Se usar balança ou aparelho de bioimpedância, digite o que ele mostrar.")+
+    opc("Dobras cutâneas (opcional, adipômetro)",Body.DOB,"Com as 7 dobras o app calcula o % de gordura (Jackson & Pollock). Com 3 dobras também funciona.")+
     '<div class="av-sec"><h3>Observações</h3><textarea class="obs" id="av-obs" style="height:80px;padding:8px 10px;width:100%" placeholder="Postura, lesões, objetivos para o próximo bimestre…">'+esc(v[Body.OBS]||"")+'</textarea></div>'+
     '</div></div>';
   const upCalc=()=>{const d=parseDate(v["Data"])||new Date();const c=Body.calc(v,S.aluno||{},d);
     const k=(l,key,u)=>isFinite(c[key])?'<div class="kpi"><span class="l">'+l+'</span><span class="v">'+(key==="RCQ"?nf2:nf1).format(c[key])+(u?'<small>'+u+'</small>':"")+'</span></div>':"";
-    $("#av-calc").innerHTML=k("IMC","IMC","")+k("% Gordura","% Gordura","%")+k("Massa magra","Massa magra (kg)","kg")+k("Massa gorda","Massa gorda (kg)","kg")+k("Cintura/quadril","RCQ","");};
+    $("#av-calc-nota").innerHTML=notaGordura(c);
+    $("#av-calc").innerHTML=k("IMC","IMC","")+k(c._estimado?"% Gordura (aprox.)":"% Gordura","% Gordura","%")+k("Massa magra","Massa magra (kg)","kg")+k("Massa gorda","Massa gorda (kg)","kg")+k("Cintura/quadril","RCQ","");};
   el.querySelectorAll("input[data-k]").forEach(i=>i.addEventListener("input",()=>{v[i.dataset.k]=i.value;upCalc();
     const p=Body.POINTS.find(p=>p.keys.includes(i.dataset.k));if(p){$("#body").innerHTML=Body.svg(v,S.avPt);bindBody(true)}}));
   $("#av-data").addEventListener("input",e=>{v["Data"]=isoToBr(e.target.value);upCalc()});

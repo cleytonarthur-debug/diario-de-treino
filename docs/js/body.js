@@ -83,6 +83,25 @@ function idadeEm(nasc,data){
 }
 const sexoDe=s=>{s=String(s||"").trim().toLowerCase();return /^(m|h)/.test(s)?"M":/^f/.test(s)?"F":""};
 
+/* Gordura sem adipômetro. Só para adultos.
+   Medidas: Marinha dos EUA (Hodgdon & Beckett), que usa pescoço; sem pescoço, RFM (Woolcott & Bergman), que usa cintura e altura.
+   Peso, altura e idade: Deurenberg (1991). Superestima quem tem muita massa muscular, então só vira o valor principal se faltar a cintura. */
+function estimarGordura(v,alt,idade,sx,imc){
+  const out={medidas:NaN,metodo:"",pesoIdade:NaN};
+  if(!sx||(isFinite(idade)&&idade<18))return out;
+  const ok=x=>isFinite(x)&&x>=3&&x<=65?Math.round(x*10)/10:NaN;
+  const pe=num(v["Pescoço (cm)"]),ci=num(v["Cintura (cm)"]),ab=num(v["Abdômen (cm)"]),qu=num(v["Quadril (cm)"]);
+  if(alt>0){
+    if(sx==="M"){const b=ab||ci;if(pe&&b>pe){out.medidas=ok(495/(1.0324-0.19077*Math.log10(b-pe)+0.15456*Math.log10(alt))-450);out.metodo="Marinha dos EUA"}}
+    else if(pe&&ci&&qu&&ci+qu>pe){out.medidas=ok(495/(1.29579-0.35004*Math.log10(ci+qu-pe)+0.221*Math.log10(alt))-450);out.metodo="Marinha dos EUA"}
+    const c=ci||ab;
+    if(!isFinite(out.medidas)&&c){out.medidas=ok(64-20*alt/c+(sx==="F"?12:0));out.metodo="RFM"}
+    if(!isFinite(out.medidas))out.metodo="";
+  }
+  if(isFinite(idade)&&imc)out.pesoIdade=ok(1.2*imc+0.23*idade-(sx==="M"?10.8:0)-5.4);
+  return out;
+}
+
 function calc(v,perfil,data){
   const out={};const r=(x,n)=>isFinite(x)?Math.round(x*Math.pow(10,n))/Math.pow(10,n):NaN;
   const peso=num(v["Peso (kg)"]);let alt=num(v["Altura (cm)"])||num(perfil&&perfil.altura);
@@ -101,9 +120,15 @@ function calc(v,perfil,data){
         dens=sx==="M"?1.10938-0.0008267*S+0.0000016*S*S-0.0002574*idade:1.0994921-0.0009929*S+0.0000023*S*S-0.0001392*idade;prot="Jackson & Pollock, 3 dobras"}}
   }
   if(isFinite(dens))out["% Gordura (dobras)"]=r(495/dens-450,1);
-  const g=isFinite(out["% Gordura (dobras)"])?out["% Gordura (dobras)"]:num(v["% Gordura (bioimpedância)"]);
+  let g=isFinite(out["% Gordura (dobras)"])?out["% Gordura (dobras)"]:num(v["% Gordura (bioimpedância)"]);
+  const est=estimarGordura(v,alt,idade,sx,out["IMC"]);
+  out._gMedidas=est.medidas;out._gPesoIdade=est.pesoIdade;
+  if(!isFinite(g)){
+    if(isFinite(est.medidas)){g=est.medidas;out._estimado="medidas ("+est.metodo+")"}
+    else if(isFinite(est.pesoIdade)){g=est.pesoIdade;out._estimado="peso, altura e idade (Deurenberg)"}
+  }
   if(isFinite(g)){out["% Gordura"]=r(g,1);if(peso){out["Massa gorda (kg)"]=r(peso*g/100,1);out["Massa magra (kg)"]=r(peso-peso*g/100,1)}}
-  out._protocolo=prot||(isFinite(g)?"bioimpedância":"");
+  out._protocolo=prot||out._estimado||(isFinite(g)?"bioimpedância":"");
   out._faltaPerfil=!(isFinite(idade)&&sx);
   return out;
 }

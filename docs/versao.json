@@ -1,7 +1,7 @@
 {
-  "versao": "2.14.1",
+  "versao": "2.15.0",
   "data": "01/11/2026",
   "notas": [
-    "Ajuste para o Android detectar o ícone novo"
+    "Na avaliação física, o % de gordura agora pode ser aproximado sem adipômetro, pelas medidas com fita ou pelo peso, altura e idade."
   ]
 }
