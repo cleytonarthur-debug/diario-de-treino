@@ -25,7 +25,7 @@ const raiz = join(docs, "..");
 const code = readFileSync(join(raiz, "backend", "Code.gs"), "utf8").replace(/const PROF_PLANILHA = '[^']*'/, "const PROF_PLANILHA = 'SSMASTER'");
 writeFileSync(join(docs, "js", "demo-motor.js"), "/* Gerado por tools/versao.mjs a partir de backend/Code.gs. Não editar. */\n" +
   "self.criarMotor=function(g){const {console,SpreadsheetApp,DriveApp,PropertiesService,LockService,CacheService,Utilities,UrlFetchApp,ContentService}=g;\n" + code +
-  "\nreturn {doPost,salvarAluno_,escreverAluno_,abrirPlanilhaAluno_,gravarAvaliacao_,catalogo_,lerMetodos_,aprovarMetodo_};};\n");
+  "\nreturn {doPost,salvarAluno_,escreverAluno_,abrirPlanilhaAluno_,gravarAvaliacao_,catalogo_,lerMetodos_,aprovarMetodo_,finSalvar_,finPagar_,abaTexto_};};\n");
 writeFileSync(join(docs, "teste.html"), readFileSync(join(docs, "index.html"), "utf8")
   .replace(/<link rel="manifest"[^>]*>\r?\n/, "")
   .replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<script src="js/demo.js"></script>')

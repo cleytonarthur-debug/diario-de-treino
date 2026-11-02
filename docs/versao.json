@@ -1,7 +1,7 @@
 {
-  "versao": "2.19.3",
+  "versao": "2.20.0",
   "data": "02/11/2026",
   "notas": [
-    "Tela inicial do aluno encaixada na tela, sem correr por trás da barra."
+    "Meta do coach na série, evolução com setas e nível, gráficos da avaliação, objetivo de peso, Financeiro, métodos prontos e conversa que ensina o coach."
   ]
 }

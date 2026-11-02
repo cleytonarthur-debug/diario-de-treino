@@ -23,7 +23,7 @@ const TEMAS=[
   {id:"bem",nome:"Treino bom",rx:/otimo|excelente|rendeu|muito bom|muito boa|me senti bem|forte hoje|fluiu|animad|bombou|show\b|perfeito/}
 ];
 const CORPO=[["joelho",/joelho/],["ombro",/ombro/],["lombar",/lombar/],["cotovelo",/cotovelo/],["punho",/punho/],["pescoço",/pescoco/],["quadril",/quadril/],["costas",/\bcostas\b/],["peito",/\bpeito\b/],["tornozelo",/tornozelo/],["bíceps",/biceps/]];
-const limpa=s=>String(s||"").replace(/\[(Ânimo|Animo|Duração|Duracao|Método|Metodo)[^\]]*\]/gi," ").replace(/\[(Treino|Exercício|Exercicio)\]/gi," ");
+const limpa=s=>String(s||"").replace(/\[(Ânimo|Animo|Duração|Duracao|Método|Metodo|Meta coach)[^\]]*\]/gi," ").replace(/\[(Treino|Exercício|Exercicio)\]/gi," ");
 function temasDe(texto){
   const t=strip(limpa(texto));if(!t)return [];
   return TEMAS.filter(x=>{const m=t.match(x.rx);if(!m)return false;
@@ -88,7 +88,7 @@ function porExercicio(rs){
   return [...m.values()];
 }
 const eCardio=r=>/^cardio$/i.test(r.grupo||"");
-function topoMeta(m){const n=String(m||"").match(/\d+/g);if(!n||/completar|round|cada|min|falha/i.test(m))return null;return Math.max(...n.map(Number))}
+function topoMeta(m){m=String(m||"").replace(/\s*(bi-set|drop set|rest pause).*$/i,"");const n=m.match(/\d+/g);if(!n||/completar|round|cada|min|falha/i.test(m))return null;return Math.max(...n.map(Number))}
 
 const pesoNum=p=>{const m=String(p||"").trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:kg)?\s*(cl|cada lado)?$/i);return m?{n:parseFloat(m[1].replace(",",".")),cl:!!m[2]}:null};
 const fmtP=(n,cl)=>nf(n)+" kg"+(cl?" cada lado":"");
@@ -188,6 +188,51 @@ function metasLongo(todas,ses,ctxTempo,inicial){
 }
 
 /* ---------- avaliação de um treino ---------- */
+/* Meta do coach na série: fica verde, fica dourada quando cumpre e depois é firmada por 3 treinos. */
+const FIRMAR=3;
+function alvoDe(txt){
+  const t=String(txt||"");const p=t.match(/(\d+(?:[.,]\d+)?)\s*kg/i),rp=t.match(/×\s*(\d+)/)||t.match(/(\d+)\s*repeti/i);
+  const peso=p?parseFloat(p[1].replace(",",".")):null,reps=rp?+rp[1]:null;
+  return peso==null&&reps==null?null:{peso,pesoT:peso!=null&&/cada lado/i.test(t)?peso*2:peso,reps,texto:t};
+}
+function bateuAlvo(alvo,reps,peso,meta){
+  if(!alvo||!reps)return false;
+  const feito=Array.isArray(peso)?Math.max(...peso):peso; // no histórico, cada lado já vem somado
+  if(alvo.pesoT!=null&&!(feito>=alvo.pesoT))return false;
+  const m=String(meta||"").match(/\d+/);
+  return reps>=(alvo.reps!=null?alvo.reps:m?+m[0]:1);
+}
+// Refaz o caminho do exercício pelo histórico: quando bateu, quantos treinos firmou e quando consolidou.
+function estadoMeta(rows,k,ate){
+  const dias=new Map();
+  rows.forEach(r=>{if(r.done&&base(r.ex)===k&&(!ate||r.date<=ate)){if(!dias.has(r.dateS))dias.set(r.dateS,[]);dias.get(r.dateS).push(r)}});
+  const st={alvo:null,n:0,ev:null,evAlvo:null};
+  [...dias.values()].forEach(rs=>{
+    st.ev=null;
+    const bate=a=>rs.some(r=>bateuAlvo(a,r.reps&&r.reps[0],r.pesoN,r.meta));
+    if(st.alvo){
+      st.n=bate(st.alvo)?st.n+1:0;st.ev=st.n?"firmou":"falhou";st.evAlvo=st.alvo;
+      if(st.n>=FIRMAR){st.ev="consolidou";st.alvo=null;st.n=0}
+      return;
+    }
+    const tag=rs.map(r=>String(r.obs||"").match(/\[Meta coach: *([^\]]+)\]/i)).find(Boolean);
+    const a=tag&&alvoDe(tag[1]);
+    if(a&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a}
+  });
+  return st;
+}
+let metaMemo=null;
+// A meta que vai para a série do treino de hoje, ou null. Manter a carga não vira meta na série.
+function metaDaSerie(rows,nomeTreino,nomeEx){
+  const k=base(nomeEx);if(/aquec/.test(k))return null;
+  const est=estadoMeta(rows,k);
+  if(est.alvo)return Object.assign({},est.alvo,{modo:"firmar",n:est.n});
+  const ck=rows.length+"|"+nomeTreino;if(!metaMemo||metaMemo.k!==ck)metaMemo={k:ck,r:recado(rows,nomeTreino)};
+  const r=metaMemo.r;
+  const a=(r.metasTipo||{})[k]==="sobe"?alvoDe((r.metas||{})[k]):null;
+  return a?Object.assign(a,{modo:"meta",n:0}):null;
+}
+
 function treino(rows,key){
   const todas=sessoes(rows);const ses=todas.find(s=>s.key===key);if(!ses)return null;
   const gym=academiaDe(ses.rows);
@@ -313,7 +358,21 @@ function treino(rows,key){
   // próximo treino
   // aquecimento não vira meta
   Object.keys(out.metasEx).forEach(k=>{if(/aquec/.test(k))delete out.metasEx[k]});
-  out.metasLista=subir.slice(0,2).concat(manter,mais,segue).filter(m=>!/aquec/i.test(m.nome)).slice(0,4);
+  out.metasTipo={};subir.concat(mais).forEach(m=>{out.metasTipo[base(m.nome)]="sobe"});
+  const firmando=[];
+  porExercicio(ses.rows.filter(r=>!eCardio(r))).forEach(ex=>{
+    const est=estadoMeta(rows,ex.k,ses.date);
+    if(est.alvo){out.metasEx[ex.k]=est.alvo.texto;delete out.metasTipo[ex.k];
+      firmando.push({k:ex.k,nome:ex.nome,txt:"firmar "+est.alvo.texto+" (treino "+(est.n+1)+" de "+FIRMAR+")",curto:est.alvo.texto})}
+    const t=est.evAlvo&&est.evAlvo.texto;
+    // No 4º treino a carga é o padrão: a próxima meta só vem depois dele.
+    if(est.ev==="consolidou"){out.metasEx[ex.k]=t;delete out.metasTipo[ex.k];firmando.push({k:ex.k,nome:ex.nome,txt:"manter "+t+" (o seu novo padrão)",curto:t})}
+    if(est.ev==="bateu")out.bem.unshift("🥇 <b>Parabéns!</b> Você bateu a meta do coach em <b>"+esc(ex.nome)+"</b>: "+esc(t)+". Agora vamos firmar essa carga nos próximos "+FIRMAR+" treinos.");
+    else if(est.ev==="firmou")out.bem.unshift("<b>"+esc(ex.nome)+"</b>: firmando "+esc(t)+", treino "+est.n+" de "+FIRMAR+".");
+    else if(est.ev==="consolidou")out.bem.unshift("🏅 <b>"+esc(ex.nome)+"</b>: "+esc(t)+" consolidados. Essa carga agora é o seu padrão.");
+  });
+  const fixos=new Set(firmando.map(m=>m.k));
+  out.metasLista=firmando.concat(subir.slice(0,2),manter,mais,segue).filter(m=>!/aquec/i.test(m.nome)&&(m.k||!fixos.has(base(m.nome)))).slice(0,4);
   out.metasLista.forEach(m=>out.proximo.push("<b>"+esc(m.nome)+":</b> "+esc(m.txt)));
   Object.keys(C.partes).slice(0,3).forEach(p=>out.proximo.push("⚠ Atenção ao <b>"+esc(p)+"</b>: reduza a carga se doer e avise o professor se continuar."));
   if(tem("dor")&&!Object.keys(C.partes).length)out.proximo.push("⚠ Você comentou dor ou incômodo. Vá com calma e avise o professor se continuar.");
@@ -404,7 +463,7 @@ function recado(rows,nome,memoria){
   const mem=memoria&&memoria.get(last.key);
   const seq=A.sequencia?" Nos últimos treinos tem sido mais difícil: busque hoje algo que renove a sua motivação.":"";
   return {html:(mem&&mem.recado?esc(mem.recado):"No último "+esc(nome)+" ("+esc(last.dateS.slice(0,5))+"), "+esc(A.frase)+".")+seq+" <b>Hoje espere:</b> "+
-    (hoje.length?hoje.map(m=>esc(m.nome)+" com "+esc(m.curto)).join(" e "):"o mesmo nível do último treino")+"."+(A.academiaDica?" "+esc(A.academiaDica):""),metas:A.metasEx||{}};
+    (hoje.length?hoje.map(m=>esc(m.nome)+" com "+esc(m.curto)).join(" e "):"o mesmo nível do último treino")+"."+(A.academiaDica?" "+esc(A.academiaDica):""),metas:A.metasEx||{},metasTipo:A.metasTipo||{}};
 }
 function recadoPicker(rows,sug){
   const ses=sessoes(rows).filter(s=>s.rows.some(r=>r.done));if(!ses.length)return "";
@@ -441,5 +500,5 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+return {metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
 })();

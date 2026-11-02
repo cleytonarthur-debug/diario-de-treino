@@ -195,6 +195,20 @@ function semear(){
   motor.lerMetodos_().forEach(m=>motor.aprovarMetodo_({linha:m.linha,aprovado:true}));
 }
 
+/* Planos fictícios para mostrar o Financeiro, com vencimentos em torno de hoje. */
+function semearFinanceiro(){
+  const PL=[["Mensal",250],["Trimestral",690],["Semestral",1290],["Anual",2400]],FO=["Pix","Cartão","Dinheiro","Transferência"];
+  const hoje=new Date(),em=d=>fd(new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()+d));
+  const lista=motor.doPost({postData:{contents:JSON.stringify({action:"alunos",p:"DEMO"})}});
+  JSON.parse(lista.s).alunos.filter(a=>!a.master&&a.status==="ok").forEach((a,i)=>{
+    const pl=PL[i%4],av=i%9===8;
+    const d={alunoId:a.id,nome:a.nome,plano:av?"Aula avulsa":pl[0],valor:av?80:pl[1],forma:FO[i%4],venc:""};
+    if(av){d.aulasTotal=10}else d.venc=em(i%7===2?-(4+i):i%5===1?1+i%6:9+i*2);
+    motor.finSalvar_(d);
+    if(!av&&i%3===0)motor.finPagar_({alunoId:a.id,valor:pl[1],forma:FO[i%4],data:em(-(i%4)-1),aulas:0});
+  });
+}
+
 /* ---------- conversa com a página ---------- */
 self.onmessage=async e=>{
   const m=e.data;
@@ -203,6 +217,7 @@ self.onmessage=async e=>{
     let estado=null;try{estado=await ler()}catch(x){}
     if(estado&&estado.versao===VERSAO_ALUNOS)restaurar(estado);
     else{semear();try{await guardar()}catch(x){}}
+    if(!painel.getSheetByName("Financeiro")){semearFinanceiro();try{await guardar()}catch(x){}}
     self.postMessage({pronto:true});
     return;
   }

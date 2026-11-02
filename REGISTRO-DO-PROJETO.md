@@ -105,6 +105,16 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **IA:** real, pela ação `demoIa`, conferindo código e aparelho. Limite: 40 usos por link por dia, sem custo.
 - **Limite da trava:** impede o uso em outro aparelho, mas não impede foto da tela. Quem abrir o link primeiro fica com ele.
 
+## Novidades da versão 2.20 (02/11/2026)
+- **Botão ✓:** com a série preenchida, confirma e não apaga. Tocar de novo só desfaz a confirmação.
+- **Meta do coach na série:** só metas que sobem carga ou repetições (`metasTipo` = "sobe") aparecem na última série, em verde e com o peso preenchido. Cumpriu, fica dourada. Ao gravar, a série leva a marca `[Meta coach: ...]` nas Observações. `estadoMeta` (coach.js) refaz o caminho pelo histórico: bateu, firma por 3 treinos seguidos (se falhar, recomeça), consolida. No 4º treino é o padrão, sem meta nova; a próxima vem depois dele.
+- **Evolução:** aluno vê setas e nível (`evoSetasHtml`). Professor troca entre setas e gráfico na chavinha (guardada no aparelho, `dt2-evo-modo`). Pontos: 10 por treino, 15 por recorde; cada 100 pontos, um nível.
+- **Avaliação física:** rosca e barras logo abaixo dos números (`graficosAval`). Objetivo de peso (`estimarPeso`), guardado na coluna "Peso desejado" da aba Alunos. Regra: ao perder peso, ganho de massa magra de 18% da perda, até 3 kg, com piso de gordura de 10% (homem) e 18% (mulher). Ao ganhar peso, 60% vira massa magra. É estimativa de regra simples, não veio de estudo específico.
+- **Financeiro (só professor):** abas **Financeiro** e **Pagamentos** do Painel. Liga e desliga no menu do Painel (propriedade `FINANCEIRO`). O app só registra: não recebe dinheiro. Chave Pix na propriedade `PIX_CHAVE`.
+- **Aviso por e-mail:** menu "Ligar aviso de vencimento por e-mail" cria um gatilho diário (`avisarVencimentos`). Precisa das permissões `script.send_mail`, `script.scriptapp` e `userinfo.email` no manifesto. **Atenção:** o manifesto com permissões novas só pode ir num `clasp deploy` depois de o dono autorizar no Painel; senão o app da Web para para todos.
+- **Métodos prontos:** em Montar treinos. Bi-set pelo coach (`metMontar`, escolhe só da biblioteca) ou pela regra do app, se a IA falhar. Sequência por objetivo (`SEQUENCIAS`). O método fica escrito em Reps meta ("10 bi-set com X", "10 drop set"). Só vale ao tocar em Salvar treinos.
+- **Conversa com o Coach Auxiliar:** em Montar treinos e em Métodos. A regra entra na aba **Meu jeito de trabalhar** só ao tocar em Guardar. `jeitoTexto_` é somado às instruções do relatório, da decisão, da conversa sobre o aluno e do bi-set.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

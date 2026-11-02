@@ -379,7 +379,20 @@ function aplicarAcademia(d){
     });
   });
 }
-function prepararDraft(d){d.blocks=juntarUnilaterais(d.blocks);d.academia=d.academia||ultimaAcademia();aplicarAcademia(d);return d}
+/* A meta que sobe a carga vai para a última série do exercício, já com o peso preenchido. */
+function aplicarMetaCoach(d){
+  if(!d||!d.treino)return;
+  d.blocks.forEach(b=>{
+    b.sets.forEach(s=>{s.metaC=false});
+    b.metaC=b.cardio?null:Coach.metaDaSerie(S.rows,d.treino,b.name);
+    if(!b.metaC||!b.sets.length)return;
+    [...new Set(b.sets.map(s=>s.lado||""))].forEach(l=>{
+      const s=b.sets.filter(x=>(x.lado||"")===l).pop();s.metaC=true;
+      if(b.metaC.peso!=null&&!String(s.reps).trim())s.peso=String(b.metaC.peso).replace(".",",")+"kg"+(/cada lado/i.test(b.metaC.texto)?" cl":"");
+    });
+  });
+}
+function prepararDraft(d){d.blocks=juntarUnilaterais(d.blocks);d.academia=d.academia||ultimaAcademia();aplicarAcademia(d);aplicarMetaCoach(d);return d}
 /* Treino de um plano pronto (metodos/planos.json). Não muda os treinos padrão do aluno. */
 function buildPlanoDraft(planoId,idx){
   const p=Metodos.planos().find(x=>x.id===planoId);const t=p.treinos[idx];
@@ -544,7 +557,7 @@ function cardioCard(b,bi){
     '<button class="chk'+(done?" on":"")+'" data-act="check" aria-label="Marcar cardio como feito">✓</button></div></div>'+
     '<div class="ex-f"><button class="btn ghost" data-act="add-set" hidden></button></div></div>';
 }
-function metaCoach(b){const t=S.draft&&(recadoDoDraft(S.draft).metas||{})[Coach.base(b.name)];return t?'<div class="meta-coach">Meta do coach: '+esc(t)+'</div>':""}
+function metaCoach(b){if(b.metaC)return "";const t=S.draft&&(recadoDoDraft(S.draft).metas||{})[Coach.base(b.name)];return t?'<div class="meta-coach">Meta do coach: '+esc(t)+'</div>':""}
 function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
@@ -584,11 +597,18 @@ function cmpBadge(s){
   const diff=v-s.last.vol;if(Math.abs(diff)<0.5)return '<span class="badge">igual</span>';
   return diff>0?'<span class="badge up">▲ superou</span>':'<span class="badge down">▼ abaixo</span>';
 }
+function metaBatida(s,m){const r=parseReps(s.reps,s.meta);return !s.skip&&!!r&&Coach.bateuAlvo(m,r[0],parsePeso(s.peso),s.meta)}
+function metaRotulo(m,bateu){return bateu?"★ Meta cumprida":m.modo==="firmar"?"Firmar meta · treino "+(m.n+1)+" de "+Coach.FIRMAR:"Meta do coach"}
+function pintarMeta(row,s,m){
+  const ok=metaBatida(s,m);row.classList.toggle("meta-o",ok);row.classList.toggle("meta-v",!ok);
+  const e=row.querySelector(".meta-s b");if(e)e.textContent=metaRotulo(m,ok);
+}
 function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+'" data-s="'+si+'"><div class="set-info"><b>Série '+s.n+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+
+  const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>Série '+s.n+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+
     '<div class="set-in">'+
-      '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
+      '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
       '<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>'+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
@@ -624,7 +644,7 @@ function bindLancar(){
             if(!inp.value.trim()&&s.ok){s.ok=false;const c=row.querySelector('[data-act="check"]');c.classList.remove("on");c.setAttribute("aria-pressed","false")}
           }
           if(f==="time")s.time=inp.value||null;
-          if(f==="reps"||f==="peso")row.querySelector(".cmp").innerHTML=cmpBadge(s);
+          if(f==="reps"||f==="peso"){row.querySelector(".cmp").innerHTML=cmpBadge(s);if(s.metaC&&b.metaC)pintarMeta(row,s,b.metaC)}
           saveDraft();updateBar();
         });
       });
@@ -633,7 +653,7 @@ function bindLancar(){
         if(s.ok){s.ok=false;if(s.okAuto){s.reps="";s.time=null}s.okAuto=false}
         else{
           if(!String(s.reps).trim()){
-            const m=String(s.meta).match(/\d+/);s.reps=m?m[0]:(s.last&&s.last.feitas&&/^\d+$/.test(s.last.feitas)?s.last.feitas:"");
+            const m=String(s.meta).match(/\d+/);s.reps=s.metaC&&b.metaC&&b.metaC.reps?String(b.metaC.reps):m?m[0]:(s.last&&s.last.feitas&&/^\d+$/.test(s.last.feitas)?s.last.feitas:"");
             if(!s.reps){row.querySelector('[data-f="reps"]').focus();return}
             s.okAuto=true;
           }
@@ -666,7 +686,7 @@ function bindLancar(){
     const rm=card.querySelector('[data-act="rm-set"]');if(rm)rm.onclick=()=>{b.sets.pop();if(b.uni)b.sets.pop();saveDraft();rerenderCard(bi);updateBar()};
   });
   const ini=$("#inicio");if(ini)ini.addEventListener("input",()=>{S.draft.inicio=ini.value;saveDraft()});
-  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);saveDraft();renderLancar()});
+  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar()});
   if(S.draft.animo&&!S.draft.animoIni){S.draft.animoIni=S.draft.animo;S.draft.animo="";saveDraft()}
   const iniMsg=()=>{const m=$("#ini-msg");const t=Coach.chegada(S.rows,S.draft.animoIni);m.textContent=t;m.hidden=!t};iniMsg();
   ligarAnimo("animo-ini","animoIni",iniMsg);
@@ -686,6 +706,7 @@ function armed(b,armText,txt,fn){
   setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent=txt;b.classList.add("ghost")}},4000);
 }
 function swapExercise(b,name){
+  b.metaC=null;b.sets.forEach(s=>{s.metaC=false});
   if(b.uni){
     const L=ladoDe(name);const nome=L?L.base:name;b.orig=b.orig||b.name;b.name=nome;b.grupo=S.exMap.get(strip(nome))||guessGroup(nome);
     b.sets.forEach(s=>{s.exNome=nome+" "+s.lado;const p=lastExact(s.exNome),r=p[s.n-1]||null;
@@ -734,7 +755,7 @@ function addExercise(){
   if(prev&&prev.length){prev.forEach(r=>{let x=novos.find(y=>y.name===r.ex);if(!x){x={id:newId(),name:r.ex,grupo,sets:[],obs:""};novos.push(x)}x.sets.push(makeSet(x.sets.length+1,r))})}
   else{const x={id:newId(),name,grupo,sets:[],obs:""};for(let i=0;i<3;i++)x.sets.push(makeSet(i+1,null));novos.push(x)}
   juntarUnilaterais(novos).forEach(x=>S.draft.blocks.push(x));
-  aplicarAcademia(S.draft);saveDraft();renderLancar();
+  aplicarAcademia(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar();
   const last=document.querySelector(".ex:last-of-type");if(last)last.scrollIntoView({block:"center"});
 }
 function updateBar(){
@@ -843,7 +864,8 @@ async function save(){
       const iniA=d.animoIni||d.animo;
       const tagA=firstOfTreino?[iniA?"[Ânimo início: "+iniA+"]":"",d.animoFim?"[Ânimo fim: "+d.animoFim+"]":""].filter(Boolean).join(" · "):"";
       const tagD=firstOfTreino?"[Duração: "+minutosTreino(d)+" min]":"";
-      const obs=[tagM,tagA,tagD,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
+      const tagC=s.metaC&&b.metaC&&b.metaC.modo==="meta"?"[Meta coach: "+b.metaC.texto+"]":"";
+      const obs=[tagM,tagA,tagD,tagC,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
       rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":intensityFromRir(s.rir),s.skip||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||""]);
     });
@@ -957,6 +979,10 @@ function renderCorpo(){
   lineChart("ch-medida",pts.map(a=>fmtShort(a.date)+"/"+String(a.date.getFullYear()).slice(2)),[{label:S.medida.replace(/ \(cm\)$/,""),data:pts.map(a=>Body.num(a.v[S.medida])),borderColor:css("--g-inf"),backgroundColor:css("--g-inf")}],"cm",{y:{beginAtZero:false}});
 }
 function renderEvo(){
+  const modoEvo=evoModo();
+  $("#evo-topo").innerHTML=chaveEvo();$("#evo-graf").hidden=modoEvo==="setas";$("#evo-setas").hidden=modoEvo!=="setas";
+  ligarChaveEvo($("#evo-topo"),renderEvo);
+  if(modoEvo==="setas"){$("#evo-setas").innerHTML=evoSetasHtml();return}
   $("#f-period").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.p===S.period)));
   $("#f-groups").innerHTML=GROUPS.map(g=>'<button class="chip" data-g="'+esc(g.k)+'" aria-pressed="'+S.groups.has(g.k)+'"><i style="background:var('+g.v+')"></i>'+esc(g.k)+'</button>').join("");
   $("#f-groups").querySelectorAll(".chip").forEach(c=>c.onclick=()=>{const g=c.dataset.g;if(S.groups.has(g)){if(S.groups.size>1)S.groups.delete(g)}else S.groups.add(g);renderEvo()});
@@ -1134,11 +1160,13 @@ function renderAval(){
     '<div class="row-btns"><select id="av-sel" aria-label="Escolher avaliação">'+list.map((a,i)=>'<option value="'+i+'"'+(i===S.avSel?" selected":"")+'>'+esc(a.dataS)+'</option>').join("")+'</select>'+
     (prof?'<button class="btn" id="av-edit">Editar</button><button class="btn primary" id="av-new">+ Nova</button>':"")+'</div></div>'+
     '<div class="calc" style="margin-bottom:14px">'+kpi("Peso","Peso (kg)","kg")+kpi("IMC","IMC","")+kpi("% Gordura","% Gordura","%")+kpi("Massa magra","Massa magra (kg)","kg")+kpi("Massa gorda","Massa gorda (kg)","kg")+kpi("Cintura/quadril","RCQ","")+'</div>'+
+    graficosAval(get(cur,c,"% Gordura"),get(cur,c,"Massa magra (kg)"),get(cur,c,"Massa gorda (kg)"))+estimativaHtml(get(cur,c,"Peso (kg)"),get(cur,c,"% Gordura"))+
     '<div class="av-grid"><div class="card body-card"><div class="body-wrap" id="body">'+Body.svg(cur.v,S.avPt)+'</div>'+
     '<div class="body-legend"><span><i style="background:var(--good)"></i>medido</span><span><i style="background:var(--action)"></i>medida (fita)</span><span><i style="background:#eda100"></i>dobra</span></div></div>'+
     '<div>'+sec("Geral",Body.GERAL)+sec("Bioimpedância",Body.BIO)+sec("Perímetros (fita)",Body.PER)+sec("Dobras cutâneas",Body.DOB)+
     (cur.v[Body.OBS]?'<div class="av-sec"><h3>Observações</h3><p>'+esc(cur.v[Body.OBS])+'</p></div>':"")+
     notaGordura(c)+'</div></div>';
+  ligarEstimativa();
   $("#av-sel").onchange=e=>{S.avSel=+e.target.value;S.avPt=null;renderAval()};
   const n=$("#av-new");if(n)n.onclick=()=>startAvEdit(null);
   const ed=$("#av-edit");if(ed)ed.onclick=()=>startAvEdit(cur);
@@ -1340,8 +1368,9 @@ const statusPill=a=>a.status==="montar treino"?'<span class="pill warn">cadastro
 function profNotice(){
   const pend=S.alunos.filter(a=>a.ativo&&a.status==="montar treino");
   if(!pend.length||$("#banner").innerHTML)return;
-  banner('<p><b>'+pend.map(a=>esc(String(a.nome).split(" ")[0])).join(", ")+'</b> '+(pend.length>1?"completaram":"completou")+' o cadastro. Falta montar o treino.</p><button class="btn" id="b-montar">Montar agora</button>');
+  banner('<p><b>'+pend.map(a=>esc(String(a.nome).split(" ")[0])).join(", ")+'</b> '+(pend.length>1?"completaram":"completou")+' o cadastro. Falta montar o treino e cadastrar o plano.</p><button class="btn" id="b-montar">Montar agora</button>'+(S.fin&&S.fin.ativo?'<button class="btn ghost" id="b-plano">Cadastrar plano</button>':""));
   $("#b-montar").onclick=()=>{banner("");openModelEditor(pend[0].id)};
+  const bp=$("#b-plano");if(bp)bp.onclick=()=>{banner("");S.finAluno=pend[0].id;S.finDe="";S.finEdit=false;S.finPag=false;S.ctxAluno=false;abrir("fin")};
 }
 
 /* ========== MONTAR TREINOS (professor) ========== */
@@ -1370,7 +1399,7 @@ function renderModelEditor(el){
     [a.objetivo,a.dias?a.dias+"x por semana":"",a.obs?"Restrições: "+a.obs:""].filter(Boolean).map(esc).join(" · ")+'</div></div>'+
     '<div class="row-btns"><button class="btn ghost" id="mt-cancel">Cancelar</button><button class="btn primary" id="mt-save">Salvar treinos</button></div></div>'+
     '<p class="setup-msg" id="mt-msg" role="status"></p>'+
-    metodoCard(a)+
+    metodoCard(a)+metodosProntosHtml(a)+'<div id="jt-box"></div>'+
     '<div class="par-h">Treinos padrão (aba Modelos)</div>'+
     '<p class="muted small" style="margin:0 0 10px">Estes são os <b>treinos padrão</b>. Ao escolher um treino, o app monta sempre a partir daqui (não do último dia). Do último dia ele só mostra o que foi feito e o peso usado.</p>'+
     M.map((t,ti)=>'<div class="mt" data-t="'+ti+'"><div class="mt-h"><input data-f="nome" value="'+esc(t.nome)+'" placeholder="Nome do treino (ex.: Treino A — Pernas)" aria-label="Nome do treino">'+
@@ -1387,6 +1416,7 @@ function renderModelEditor(el){
     '<select id="mt-plano" class="mt-plano" aria-label="Acrescentar plano pronto"><option value="">Acrescentar plano pronto…</option>'+(window.Metodos?Metodos.planos():[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nome+" ("+p.dias+")")+'</option>').join("")+'</select></div>'+
     '<p class="note">Reps meta diferentes por série: separe com ponto e vírgula (15; 12; 10). Peso inicial vale até o aluno fazer o exercício a primeira vez; depois o app sugere o último peso usado.</p>'+
     '<datalist id="mt-list">'+names.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
+  ligarMetodosProntos(el,a,M);pintarJeito();
   el.querySelectorAll(".mt").forEach(card=>{
     const ti=+card.dataset.t;const t=M[ti];
     card.querySelector('[data-f="nome"]').addEventListener("input",e=>{t.nome=e.target.value});
@@ -1875,15 +1905,17 @@ function renderAlunoPag(){
   const id=idade(a);const w=waConversa(a);const met=S.alunoMet||"forca";
   const tile=(ir,ic,nome)=>'<button class="home-tile" data-ir="'+ir+'">'+nome+'<span class="home-ic">'+Icone(ic,46)+'</span></button>';
   const s=serieDe(a,met,90);const tem=s.v.filter(x=>x!=null&&(met!=="vol"||x>0)).length>1;
-  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+'</div>'+
-    '<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
-    (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>'+
-    '<button class="home-alunos aux-tile" data-ir="auxil">'+Icone("clipboard",28)+'<span><b>Auxiliar do Coach</b>'+(relatorioDevido(a)?"Relatório de 30 dias pronto":"Análise de 30 dias e conversa")+'</span>'+Icone("chevron-right",22)+'</button>'+'<div class="al-box">'+tile("alcal","calendar","Calendário")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
+  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+chaveEvo()+'</div>'+
+    (evoModo()==="setas"?evoSetasHtml():'<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
+    (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>')+
+    '<button class="home-alunos aux-tile" data-ir="auxil">'+Icone("clipboard",28)+'<span><b>Auxiliar do Coach</b>'+(relatorioDevido(a)?"Relatório de 30 dias pronto":"Análise de 30 dias e conversa")+'</span>'+Icone("chevron-right",22)+'</button>'+'<div class="al-box">'+tile("alcal","calendar","Calendário")+(S.fin&&S.fin.ativo&&!a.master?tile("fin","coin","Financeiro"):"")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
+  ligarChaveEvo(el,renderAlunoPag);
   el.querySelectorAll("#al-met .chip").forEach(b=>b.onclick=()=>{S.alunoMet=b.dataset.m;renderAlunoPag()});
   el.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>irAluno(b.dataset.ir));
-  if(tem){const u={forca:"",vol:" t",peso:" kg",cintura:" cm"}[met];desenharLinhas("ch-aluno",[{label:primeiroNome(a),data:s.v,cor:css("--action")}],s.sem.map(fmtShort),v=>nf1.format(v)+u)}
+  if(tem&&evoModo()!=="setas"){const u={forca:"",vol:" t",peso:" kg",cintura:" cm"}[met];desenharLinhas("ch-aluno",[{label:primeiroNome(a),data:s.v,cor:css("--action")}],s.sem.map(fmtShort),v=>nf1.format(v)+u)}
 }
 function irAluno(ir){
+  if(ir==="fin"){S.finAluno=S.alunoId;S.finDe="aluno";S.finEdit=false;S.finPag=false;carregarFin(true);abrir("fin");return}
   if(ir==="treinos"){openModelEditor(S.alunoId);return}
   if(ir==="comparar"){const m=masterId();S.comp=Object.assign(S.comp||{met:"forca",dias:90,modo:"grafico"},{ids:[S.alunoId].concat(m&&m!==S.alunoId?[m]:[])});S.alunosAba="comparar";S.calDia=null;S.ctxAluno=false;abrir("alunos");return}
   abrir(ir);
@@ -1967,7 +1999,8 @@ function renderMetodosAux(el,st){
   const ms=st.metodos||[];
   el.innerHTML='<div class="av-top"><div><h2>Métodos de treino</h2><span class="muted small">A IA só pode sugerir o que você aprovar. Eles ficam na aba "Métodos de treino" do Painel, onde você também pode acrescentar os seus.</span></div></div>'+
     ms.map(m=>'<div class="card aux-m"><div class="st-l"><b>'+esc(m.metodo)+'</b><button class="chip'+(m.aprovado?" on":"")+'" data-l="'+m.linha+'" data-a="'+(m.aprovado?"0":"1")+'">'+(m.aprovado?"Aprovado":"Aprovar")+'</button></div><p>'+esc(m.como)+'</p><p class="muted small"><b>Cuidados:</b> '+esc(m.cuidados)+'</p><p class="muted small"><b>Fonte:</b> '+esc(m.fonte)+'</p></div>').join("")+
-    '<button class="btn" id="m-ok" style="width:100%">Voltar ao relatório</button>';
+    '<div id="jt-box"></div><button class="btn" id="m-ok" style="width:100%">Voltar ao relatório</button>';
+  pintarJeito();
   el.querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{b.disabled=true;
     try{const d=await Api.call("metodoAprovar",{linha:+b.dataset.l,aprovado:b.dataset.a==="1"});st.metodos=d.metodos;renderMetodosAux(el,st)}catch(e){toast(errText(e));b.disabled=false}});
   $("#m-ok").onclick=()=>{st.verMetodos=false;renderAuxil();window.scrollTo({top:0})};
@@ -2075,8 +2108,8 @@ function renderAuxil(){
 }
 
 /* ========== navegação ========== */
-const VIEWS=["inicio","alunos","aluno","alcal","auxil","lancar","coach","evo","aval","perfil","config"];
-const TITULOS={auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
+const VIEWS=["fin","inicio","alunos","aluno","alcal","auxil","lancar","coach","evo","aval","perfil","config"];
+const TITULOS={fin:"Financeiro",auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
 function setView(v){
   if(!VIEWS.includes(v))v="inicio";
   if(["alunos","aluno","alcal","auxil"].includes(v)&&S.role!=="prof")v="inicio";
@@ -2100,6 +2133,12 @@ function destinoVoltar(){
       return "inicio";
     }
     if(S.view==="aluno")return "alunos";
+    if(S.view==="fin"){
+      if(S.finEdit){S.finEdit=false;return "fin"}
+      if(S.finPag){S.finPag=false;return "fin"}
+      if(S.finAluno){const de=S.finDe;S.finAluno=null;S.finDe="";return de==="aluno"?"aluno":"fin"}
+      return "inicio";
+    }
     if(S.view==="auxil"&&S.aux&&S.aux.proposta){S.aux.proposta=null;S.aux.retorno="Nada foi alterado no treino.";return "auxil"}
     if(S.view==="auxil"&&S.aux&&S.aux.verMetodos){S.aux.verMetodos=false;return "auxil"}
     if(S.ctxAluno&&["evo","alcal","auxil","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
@@ -2158,15 +2197,16 @@ function renderInicio(){
   if(S.role==="prof"){
     // A primeira tela é sempre do próprio professor: o Treinar nunca grava na planilha de outro aluno.
     const m=masterId();if(m&&S.alunoId!==m)selectAluno(m,true);
-    carregarPainel();
+    carregarPainel();carregarFin();
     const ativos=S.alunos.filter(a=>a.ativo&&!a.master).length,at=S.alunos.filter(pedeAtencao).length,rel=S.alunos.filter(relatorioDevido).length;
     $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-prof">'+
       '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
       '<div class="home-col">'+tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>'+
-      '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+(rel?" · "+rel+(rel===1?" relatório pronto":" relatórios prontos"):"")+'</span>'+Icone("chevron-right",22)+'</button></div>';
+      '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+(rel?" · "+rel+(rel===1?" relatório pronto":" relatórios prontos"):"")+'</span>'+Icone("chevron-right",22)+'</button>'+finTile()+'</div>';
     $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
       if(b.dataset.ir==="alunos"){S.alunoForm=null;S.alunosAba="lista";S.calDia=null;carregarPainel()}
       if(b.dataset.ir==="lancar"){S.picker=false;S.modEdit=null}
+      if(b.dataset.ir==="fin"){S.finAluno=null;S.finDe="";S.finEdit=false;S.finPag=false;S.ctxAluno=false;carregarFin(true)}
       abrir(b.dataset.ir);
     });
     return;
@@ -2188,6 +2228,7 @@ function render(){
   if(S.view==="inicio")renderInicio();
   else if(S.view==="alunos")renderAlunos();
   else if(S.view==="aluno")renderAlunoPag();
+  else if(S.view==="fin")renderFin();
   else if(S.view==="alcal")renderAlunoCal();
   else if(S.view==="auxil")renderAuxil();
   else if(S.view==="lancar")renderLancar();
@@ -2199,6 +2240,354 @@ function render(){
 }
 try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(S.view==="evo")renderEvo()})}catch(e){}
 let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.view==="evo")renderEvo()},200)});
+
+/* ========== EVOLUÇÃO EM SETAS ========== */
+// O aluno vê setas e nível. O professor escolhe entre setas e gráfico.
+const evoModo=()=>S.role==="prof"?(store("dt2-evo-modo")||"grafico"):"setas";
+function chaveEvo(){
+  if(S.role!=="prof")return "";const m=evoModo();
+  return '<span class="chave" role="group" aria-label="Como ver a evolução">'+[["setas","Setas"],["grafico","Gráfico"]].map(x=>'<button data-evo="'+x[0]+'" class="'+(x[0]===m?"on":"")+'" aria-pressed="'+(x[0]===m)+'">'+x[1]+'</button>').join("")+'</span>';
+}
+function ligarChaveEvo(el,fn){el.querySelectorAll("[data-evo]").forEach(b=>b.onclick=()=>{store("dt2-evo-modo",b.dataset.evo);fn()})}
+function pontosNivel(rows){
+  const dias=new Set(),melhor={};let rec=0;
+  rows.slice().sort((a,b)=>a.date-b.date).forEach(r=>{if(!r.done)return;dias.add(r.dateS+"|"+r.treino);const k=exKey(r.ex);if(!r.e1)return;if(melhor[k]&&r.e1>melhor[k]+.5)rec++;if(!melhor[k]||r.e1>melhor[k])melhor[k]=r.e1});
+  const p=dias.size*10+rec*15;return {p,nivel:Math.floor(p/100)+1,resto:p%100};
+}
+function evoExercicios(rows,dias){
+  const corte=new Date(Date.now()-dias*864e5),por=new Map();
+  rows.forEach(r=>{
+    if(!r.done||r.date<corte||/^cardio$/i.test(r.grupo||"")||/aquec/i.test(r.ex))return;
+    const k=exKey(r.ex);if(!por.has(k))por.set(k,{nome:r.ex,d:new Map()});
+    const o=por.get(k).d,atual=o.get(r.dateS),sc=r.e1||r.reps[0];
+    if(!atual||sc>atual.sc)o.set(r.dateS,{sc,date:r.date,peso:r.pesoN?r.pesoN[0]:null,reps:r.reps[0]});
+  });
+  const out=[];
+  por.forEach(x=>{
+    if(x.d.size<2)return;
+    const l=[...x.d.values()].sort((a,b)=>a.date-b.date),a=l[0],b=l[l.length-1];
+    let txt,ini,fim;
+    if(a.peso&&b.peso&&a.peso!==b.peso){ini=a.peso;fim=b.peso;txt=nf1.format(ini)+" → "+nf1.format(fim)+" kg"}
+    else{ini=a.reps;fim=b.reps;txt=(b.peso?nf1.format(b.peso)+" kg: ":"")+ini+" → "+fim+" reps"}
+    out.push({nome:x.nome,txt,pct:ini?Math.round((fim-ini)/ini*100):0,dir:Math.sign(fim-ini)});
+  });
+  return out.sort((a,b)=>b.pct-a.pct);
+}
+function linhaSeta(nome,txt,dir,bom,pct,fala){
+  const cl=bom==null?"flat":bom?"up":"dn";
+  return '<div class="ev"><span class="ev-a '+cl+'" aria-hidden="true">'+(dir>0?"↑":dir<0?"↓":"=")+'</span><div class="ev-n"><b>'+esc(nome)+'</b><span class="muted small">'+esc(txt)+'</span></div>'+
+    '<div class="ev-p '+cl+'"><b>'+(pct>0?"+":pct<0?"−":"")+Math.abs(pct)+'%</b><span class="muted small">'+esc(fala)+'</span></div></div>';
+}
+function evoCorpo(){
+  const ser=avalSeries();if(ser.length<2)return "";
+  const a=S.aluno||{},obj=strip(a.objetivo||"");
+  const pesoBom=/emagrec/.test(obj)?-1:/hipertrof|massa|forca/.test(obj)?1:0;
+  const it=[["Peso",x=>x.peso,"kg",pesoBom],["% de gordura",x=>x.gord,"%",-1],["Massa magra",x=>x.magra,"kg",1],["Cintura",x=>Body.num(x.a.v["Cintura (cm)"]),"cm",-1]];
+  const h=it.map(([n,f,u,sent])=>{
+    const vs=ser.map(f).filter(v=>v!=null&&isFinite(v));if(vs.length<2)return "";
+    const i=vs[0],z=vs[vs.length-1],dir=Math.abs(z-i)<.05?0:Math.sign(z-i);
+    return linhaSeta(n,nf1.format(i)+" → "+nf1.format(z)+" "+u,dir,dir===0?null:sent===0?null:dir===sent,i?Math.round((z-i)/i*100):0,dir>0?"aumentou":dir<0?"reduziu":"manteve");
+  }).join("");
+  return h?'<div class="card evo-c"><h3 class="dia-t">Corpo</h3>'+h+'</div>':"";
+}
+function evoSetasHtml(){
+  if(!S.loaded)return '<div class="empty">Lendo os dados…</div>';
+  const n=pontosNivel(S.rows),ex=evoExercicios(S.rows,90);
+  const linha=e=>linhaSeta(e.nome,e.txt,e.dir,e.dir===0?null:e.dir>0,e.pct,e.dir>0?"você progrediu":e.dir<0?"teve perda":"manteve");
+  return '<div class="card evo-c"><div class="ev-lv"><b>Nível '+n.nivel+'</b><span class="muted small">'+n.resto+' de 100 pontos para o próximo</span></div><div class="ev-bar"><i style="width:'+n.resto+'%"></i></div><p class="muted small" style="margin:6px 0 0">Cada treino vale 10 pontos e cada recorde, 15.</p></div>'+
+    '<div class="card evo-c"><h3 class="dia-t">Últimos 3 meses</h3>'+(ex.length?ex.slice(0,8).map(linha).join("")+(ex.length>8?'<details class="others"><summary>Ver todos ('+ex.length+')</summary>'+ex.slice(8).map(linha).join("")+'</details>':""):'<p class="muted small" style="margin:0">Faça o mesmo exercício em pelo menos 2 treinos para ver a sua evolução.</p>')+'</div>'+evoCorpo();
+}
+
+/* ========== GRÁFICOS DA AVALIAÇÃO E OBJETIVO DE PESO ========== */
+function graficosAval(gord,magra,gorda){
+  if(!isFinite(gord)||!isFinite(magra)||!isFinite(gorda))return "";
+  const C=2*Math.PI*42,fat=Math.max(0,Math.min(100,gord))/100*C,alto=Math.max(magra,gorda)||1;
+  const barra=(v,cor,nome)=>'<div class="ag-b"><b>'+nf1.format(v)+' kg</b><i style="height:'+Math.max(6,Math.round(v/alto*110))+'px;background:var('+cor+')"></i><span>'+nome+'</span></div>';
+  return '<div class="ag-grid"><div class="card ag-c"><h3 class="dia-t">% de gordura</h3><div class="ag-leg"><span><i style="background:var(--action)"></i>Massa magra<b>'+nf1.format(100-gord)+'%</b></span><span><i style="background:var(--warn)"></i>Gordura<b>'+nf1.format(gord)+'%</b></span></div>'+
+    '<svg viewBox="0 0 120 120" width="150" height="150" role="img" aria-label="Gordura '+nf1.format(gord)+'%, massa magra '+nf1.format(100-gord)+'%"><circle cx="60" cy="60" r="42" fill="none" stroke="var(--action)" stroke-width="22"/><circle cx="60" cy="60" r="42" fill="none" stroke="var(--warn)" stroke-width="22" stroke-dasharray="'+fat.toFixed(1)+' '+(C-fat).toFixed(1)+'" transform="rotate(-90 60 60)"/></svg></div>'+
+    '<div class="card ag-c"><h3 class="dia-t">Massa magra x massa gorda</h3><div class="ag-bars">'+barra(magra,"--action","Massa magra")+barra(gorda,"--warn","Massa gorda")+'</div></div></div>';
+}
+// Estimativa: ao emagrecer, quem treina tende a ganhar um pouco de massa magra; o limite é um % de gordura saudável.
+function estimarPeso(peso,gord,alvo,sexo){
+  const gordaA=peso*gord/100,magraA=peso-gordaA,piso=/^f/i.test(String(sexo||""))?18:10;
+  let magraF,limite=false;
+  if(alvo<peso){
+    magraF=magraA+Math.min(3,Math.round((peso-alvo)*.18*2)/2);
+    if((alvo-magraF)/alvo*100<piso){magraF=alvo*(1-piso/100);limite=true}
+  }else magraF=magraA+(alvo-peso)*.6;
+  const gordaF=alvo-magraF;
+  return {gordura:gordaF-gordaA,magra:magraF-magraA,pct:gordaF/alvo*100,limite};
+}
+const sinalKg=v=>(v>0?"+":v<0?"−":"")+nf1.format(Math.abs(v))+" kg";
+function estimativaHtml(peso,gord){
+  const a=S.aluno||{},prof=S.role==="prof",alvo=Body.num(a.pesoMeta);
+  if(!isFinite(peso)||!isFinite(gord)||(!prof&&!isFinite(alvo)))return "";
+  return '<div class="card est-c" id="est" data-peso="'+peso+'" data-gord="'+gord+'"><h3 class="dia-t">Objetivo de peso</h3>'+
+    '<div class="st-l est-l"><span>Hoje</span><b>'+nf1.format(peso)+' kg · '+nf1.format(gord)+'% de gordura</b></div>'+
+    '<div class="st-l est-l"><span>Quer chegar em</span>'+(prof?'<span class="est-in"><input id="est-alvo" inputmode="decimal" value="'+esc(a.pesoMeta||"")+'" placeholder="ex.: 69" aria-label="Peso desejado em kg"> kg</span>':'<b>'+nf1.format(alvo)+' kg</b>')+'</div>'+
+    '<div id="est-res"></div></div>';
+}
+function pintarEstimativa(){
+  const c=$("#est"),r=$("#est-res");if(!c||!r)return;
+  const i=$("#est-alvo"),alvo=Body.num(i?i.value:(S.aluno||{}).pesoMeta),peso=+c.dataset.peso,gord=+c.dataset.gord;
+  if(!isFinite(alvo)||alvo<30||alvo>300){r.innerHTML='<p class="muted small" style="margin:8px 0 0">Digite o peso desejado para ver a estimativa.</p>';return}
+  const e=estimarPeso(peso,gord,alvo,(S.aluno||{}).sexo);
+  const k=(v,t)=>'<div class="kpi"><span class="v">'+v+'</span><span class="l">'+t+'</span></div>';
+  r.innerHTML='<div class="calc est-k">'+k(sinalKg(e.gordura),"de gordura")+k(sinalKg(e.magra),"de massa magra")+k(nf1.format(e.pct)+"%","de gordura no fim")+'</div>'+
+    (e.limite?'<p class="aux-al" style="margin:8px 0 0">Esse peso é muito baixo para este corpo: chegar nele faria perder massa magra.</p>':"")+
+    '<p class="muted small" style="margin:8px 0 0">Conta aproximada, feita com esta avaliação. É uma estimativa, não uma promessa.</p>';
+}
+function ligarEstimativa(){
+  pintarEstimativa();
+  const i=$("#est-alvo");if(!i)return;
+  i.addEventListener("input",pintarEstimativa);
+  i.addEventListener("change",async()=>{
+    try{const r=await Api.call("salvarAluno",{dados:{id:S.alunoId,pesoMeta:i.value.trim()}});S.aluno=Object.assign({},S.aluno,r.aluno);
+      const x=S.alunos.find(y=>y.id===S.alunoId);if(x)x.pesoMeta=r.aluno.pesoMeta;toast("Objetivo de peso salvo")}catch(e){toast(errText(e))}
+  });
+}
+
+/* ========== FINANCEIRO (professor, versão paga) ========== */
+const PLANOS_FIN=[["Mensal",1],["Trimestral",3],["Semestral",6],["Anual",12],["Aula avulsa",0]];
+const FORMAS_FIN=["Pix","Dinheiro","Cartão","Transferência","Boleto","Outra"];
+const brl=n=>"R$ "+new Intl.NumberFormat("pt-BR",{minimumFractionDigits:Number.isInteger(n)?0:2,maximumFractionDigits:2}).format(n);
+const avulsa=p=>p.plano==="Aula avulsa";
+const mesesPlano=p=>(PLANOS_FIN.find(x=>x[0]===p.plano)||[0,0])[1];
+const diasAte=br=>{const d=parseDate(br);return d?Math.round((d-diaZero())/864e5):null};
+function carregarFin(forca){
+  if(S.role!=="prof")return;
+  if(!S.fin){const c=Api.cacheGet("fin");if(c)S.fin=c}
+  if(S.finLendo||(!forca&&S.finAt&&Date.now()-S.finAt<120000))return;
+  S.finLendo=true;
+  Api.call("finLer").then(d=>{S.fin=d;S.finAt=Date.now();Api.cacheSet("fin",d);if(["inicio","fin"].includes(S.view)&&!S.finEdit&&!S.finPag)render()}).catch(e=>{if(S.view==="fin"&&!S.fin)toast(errText(e))}).finally(()=>{S.finLendo=false});
+}
+function finGuardar(d){S.fin=d;S.finAt=Date.now();Api.cacheSet("fin",d)}
+function finStatus(p){
+  if(!p)return {k:"sem",t:"Sem plano",ordem:4};
+  if(p.pausado)return {k:"pausa",t:"Pausado",ordem:5};
+  if(avulsa(p)){const s=(+p.aulasTotal||0)-(+p.aulasDadas||0);return s<=0?{k:"atraso",t:"Sem aulas",ordem:0,dias:0}:s<=2?{k:"vence",t:"Restam "+s+(s===1?" aula":" aulas"),ordem:1}:{k:"ok",t:"Restam "+s+" aulas",ordem:2}}
+  const d=diasAte(p.venc);
+  if(d==null)return {k:"sem",t:"Sem vencimento",ordem:4};
+  if(d<0)return {k:"atraso",t:-d+(d===-1?" dia de atraso":" dias de atraso"),ordem:0,dias:-d};
+  if(d<=7)return {k:"vence",t:d===0?"Vence hoje":d===1?"Vence amanhã":"Vence em "+d+" dias",ordem:1,dias:d};
+  return {k:"ok",t:"Em dia",ordem:2};
+}
+const pillFin=s=>'<span class="pill '+({ok:"good",vence:"warn",atraso:"bad"}[s.k]||"")+'">'+esc(s.t)+'</span>';
+function finLista(){
+  const m=new Map(((S.fin&&S.fin.planos)||[]).map(p=>[p.alunoId,p]));
+  return S.alunos.filter(a=>!a.master&&(a.ativo||m.has(a.id))).map(a=>{const p=m.get(a.id)||null;return {a,p,s:finStatus(p)}})
+    .sort((x,y)=>x.s.ordem-y.s.ordem||(x.s.k==="atraso"?(y.s.dias||0)-(x.s.dias||0):(x.s.dias||0)-(y.s.dias||0))||x.a.nome.localeCompare(y.a.nome,"pt-BR"));
+}
+function finTotais(l){
+  const h=diaZero(),mes=(d,i)=>d.getFullYear()===h.getFullYear()&&d.getMonth()===h.getMonth()+i||new Date(h.getFullYear(),h.getMonth()+i,1).getTime()===new Date(d.getFullYear(),d.getMonth(),1).getTime();
+  const t={ok:0,vence:0,atraso:0,receber:0,recebido:0,emAtraso:0,prox:[0,0,0]};
+  l.forEach(x=>{
+    if(x.s.k==="ok")t.ok++;else if(x.s.k==="vence")t.vence++;else if(x.s.k==="atraso")t.atraso++;
+    if(!x.p||x.p.pausado||avulsa(x.p))return;
+    const v=parseDate(x.p.venc),val=+x.p.valor||0,ms=mesesPlano(x.p);if(!v)return;
+    if(x.s.k==="atraso")t.emAtraso+=val;else if(mes(v,0))t.receber+=val;
+    for(let k=v,i=0;i<24&&ms;i++,k=new Date(k.getFullYear(),k.getMonth()+ms,k.getDate()))[1,2,3].forEach((o,j)=>{if(mes(k,o))t.prox[j]+=val});
+  });
+  ((S.fin&&S.fin.pagamentos)||[]).forEach(g=>{const d=parseDate(g.data);if(d&&mes(d,0))t.recebido+=+g.valor||0});
+  return t;
+}
+function finTile(){
+  if(!S.fin||!S.fin.ativo)return "";
+  const t=finTotais(finLista());
+  return '<button class="home-alunos" data-ir="fin">'+Icone("coin",28)+'<span><b>Financeiro</b>'+t.ok+' em dia'+(t.vence?' · <em class="fin-v">'+t.vence+' vence'+(t.vence===1?"":"m")+' em até 7 dias</em>':"")+(t.atraso?' · <em class="fin-a">'+t.atraso+(t.atraso===1?" atrasado":" atrasados")+'</em>':"")+'</span>'+Icone("chevron-right",22)+'</button>';
+}
+function renderFin(){
+  const el=$("#v-fin");
+  if(!S.fin){el.innerHTML='<div class="empty">Lendo o financeiro…</div>';carregarFin(true);return}
+  if(!S.fin.ativo){el.innerHTML='<div class="empty">O Financeiro faz parte da versão paga.</div>';return}
+  if(S.finAluno)return renderFinAluno(el);
+  const l=finLista(),t=finTotais(l),f=S.finFiltro||"todos",h=diaZero();
+  const box=(n,txt,c)=>'<div class="kpi"><span class="v '+c+'">'+n+'</span><span class="l">'+txt+'</span></div>';
+  const mesN=i=>new Date(h.getFullYear(),h.getMonth()+i,1).toLocaleDateString("pt-BR",{month:"long"});
+  const vis=l.filter(x=>f==="todos"||x.s.k===f);
+  el.innerHTML='<div class="calc fin-k">'+box(t.ok,"em dia","fin-ok")+box(t.vence,"vencem em 7 dias","fin-v")+box(t.atraso,"atrasados","fin-a")+'</div>'+
+    '<div class="card fin-c"><div class="st-l est-l"><span>A receber em '+mesN(0)+'</span><b>'+brl(t.receber)+'</b></div><div class="st-l est-l"><span>Recebido</span><b>'+brl(t.recebido)+'</b></div><div class="st-l est-l"><span>Em atraso</span><b class="fin-a">'+brl(t.emAtraso)+'</b></div>'+
+    '<details class="others"><summary>Previsão dos próximos meses</summary>'+t.prox.map((v,i)=>'<div class="st-l est-l"><span>'+mesN(i+1)+'</span><b>'+brl(v)+'</b></div>').join("")+'</details></div>'+
+    '<div class="chips-l" id="fin-f">'+[["todos","Todos"],["atraso","Atrasados"],["vence","Vencem logo"],["ok","Em dia"],["sem","Sem plano"]].map(x=>'<button class="chip'+(x[0]===f?" on":"")+'" data-f="'+x[0]+'">'+x[1]+'</button>').join("")+'</div>'+
+    '<div class="card fin-c">'+(vis.length?vis.map(x=>'<button class="fin-l" data-a="'+esc(x.a.id)+'"><span><b>'+esc(x.a.nome)+'</b><span class="muted small">'+(x.p?esc(x.p.plano)+(avulsa(x.p)?"":" · vence "+esc(x.p.venc))+" · "+brl(+x.p.valor||0):"Toque para cadastrar")+'</span></span>'+pillFin(x.s)+'</button>').join(""):'<p class="muted small" style="margin:0">Ninguém nesta lista.</p>')+'</div>'+
+    '<div class="card fin-c"><label class="fld2">Minha chave Pix (vai no lembrete do WhatsApp)<input id="fin-pix" value="'+esc(S.fin.pix||"")+'" placeholder="CPF, celular, e-mail ou chave aleatória"></label></div>';
+  el.querySelectorAll("#fin-f .chip").forEach(b=>b.onclick=()=>{S.finFiltro=b.dataset.f;renderFin()});
+  el.querySelectorAll(".fin-l").forEach(b=>b.onclick=()=>{S.finAluno=b.dataset.a;S.finEdit=false;S.finPag=false;window.scrollTo({top:0});render()});
+  $("#fin-pix").addEventListener("change",async e=>{try{finGuardar(await Api.call("finPix",{pix:e.target.value.trim()}));toast("Chave Pix salva")}catch(x){toast(errText(x))}});
+}
+function waFin(a,p,s){
+  const w=waConversa(a);if(!w)return "";
+  const nome=primeiroNome(a),pix=S.fin.pix?" Minha chave Pix: "+S.fin.pix+".":"";
+  const q=avulsa(p)?"Oi, "+nome+"! Tudo bem? "+(s.k==="atraso"?"Suas aulas do pacote acabaram":s.t+" do seu pacote")+". Quer renovar?"+pix:
+    s.k==="atraso"?"Oi, "+nome+"! Tudo bem? Seu plano "+p.plano.toLowerCase()+" de "+brl(+p.valor||0)+" venceu em "+p.venc+"."+pix+" Se já pagou, é só me avisar.":
+    "Oi, "+nome+"! Tudo bem? Passando para lembrar que seu plano "+p.plano.toLowerCase()+" de "+brl(+p.valor||0)+" vence em "+p.venc+"."+pix;
+  return w+"?text="+encodeURIComponent(q);
+}
+function reciboFin(a,g){
+  const m=S.alunos.find(x=>x.master),q="Recibo: recebi de "+a.nome+" o valor de "+brl(+g.valor||0)+" em "+g.data+", referente ao plano "+String(g.plano||"").toLowerCase()+", por "+String(g.forma||"").toLowerCase()+"."+(m?" "+m.nome+".":"");
+  const w=waConversa(a);return w?w+"?text="+encodeURIComponent(q):"";
+}
+function formFin(el,a,p){
+  const o=p||{plano:"Mensal",valor:"",venc:"",forma:"Pix",aulasTotal:"",obs:""};
+  el.innerHTML='<div class="av-top"><div><h2>'+esc(a.nome)+'</h2><span class="muted small">'+(p?"Editar plano":"Cadastrar plano")+'</span></div></div><form class="card fin-c" id="fin-form" novalidate>'+
+    '<label class="fld2">Plano<select id="ff-plano">'+PLANOS_FIN.map(x=>'<option'+(x[0]===o.plano?" selected":"")+'>'+x[0]+'</option>').join("")+'</select></label>'+
+    '<label class="fld2">Valor (R$)<input id="ff-valor" inputmode="decimal" value="'+esc(String(o.valor||"").replace(".",","))+'" placeholder="ex.: 750"></label>'+
+    '<label class="fld2" id="ff-v">Vencimento<input id="ff-venc" type="date" value="'+esc(brToIso(o.venc))+'"></label>'+
+    '<label class="fld2" id="ff-a">Aulas no pacote<input id="ff-aulas" inputmode="numeric" value="'+esc(o.aulasTotal||"")+'" placeholder="ex.: 10"></label>'+
+    '<label class="fld2">Forma de pagamento<select id="ff-forma">'+FORMAS_FIN.map(x=>'<option'+(x===o.forma?" selected":"")+'>'+x+'</option>').join("")+'</select></label>'+
+    '<label class="fld2">Observação<input id="ff-obs" value="'+esc(o.obs||"")+'"></label><p class="setup-msg" id="ff-msg" role="status"></p>'+
+    '<div class="row-btns"><button class="btn ghost" type="button" id="ff-c">Cancelar</button><button class="btn primary" type="submit" id="ff-ok">Salvar plano</button></div></form>';
+  const troca=()=>{const av=$("#ff-plano").value==="Aula avulsa";$("#ff-v").hidden=av;$("#ff-a").hidden=!av};troca();
+  $("#ff-plano").onchange=troca;
+  $("#ff-c").onclick=()=>{S.finEdit=false;if(!p)S.finAluno=null;render()};
+  $("#fin-form").onsubmit=async e=>{
+    e.preventDefault();const m=$("#ff-msg"),b=$("#ff-ok"),pl=$("#ff-plano").value,val=Body.num($("#ff-valor").value),av=pl==="Aula avulsa";
+    const erro=!(val>0)?"Informe o valor.":!av&&!$("#ff-venc").value?"Informe o vencimento.":av&&!(+$("#ff-aulas").value>0)?"Informe quantas aulas tem o pacote.":"";
+    if(erro){m.textContent=erro;m.className="setup-msg bad";return}
+    b.disabled=true;
+    try{finGuardar(await Api.call("finSalvar",{dados:{alunoId:a.id,nome:a.nome,plano:pl,valor:val,venc:av?"":isoToBr($("#ff-venc").value),forma:$("#ff-forma").value,aulasTotal:av?+$("#ff-aulas").value:"",obs:$("#ff-obs").value.trim()}}));
+      S.finEdit=false;toast("Plano salvo");render()}
+    catch(x){m.textContent=errText(x);m.className="setup-msg bad";b.disabled=false}
+  };
+}
+function formPagar(el,a,p){
+  el.innerHTML='<div class="av-top"><div><h2>'+esc(a.nome)+'</h2><span class="muted small">Registrar pagamento · '+esc(p.plano)+'</span></div></div><form class="card fin-c" id="fp-form" novalidate>'+
+    '<label class="fld2">Valor (R$)<input id="fp-valor" inputmode="decimal" value="'+esc(String(p.valor||"").replace(".",","))+'"></label>'+
+    '<label class="fld2">Data<input id="fp-data" type="date" value="'+brToIso(fmtDate(new Date()))+'"></label>'+
+    '<label class="fld2">Forma de pagamento<select id="fp-forma">'+FORMAS_FIN.map(x=>'<option'+(x===p.forma?" selected":"")+'>'+x+'</option>').join("")+'</select></label>'+
+    (avulsa(p)?'<label class="fld2">Aulas compradas agora<input id="fp-aulas" inputmode="numeric" value="" placeholder="ex.: 10"></label>':"")+
+    '<p class="setup-msg" id="fp-msg" role="status"></p><div class="row-btns"><button class="btn ghost" type="button" id="fp-c">Cancelar</button><button class="btn primary" type="submit" id="fp-ok">Registrar</button></div></form>';
+  $("#fp-c").onclick=()=>{S.finPag=false;render()};
+  $("#fp-form").onsubmit=async e=>{
+    e.preventDefault();const m=$("#fp-msg"),b=$("#fp-ok"),val=Body.num($("#fp-valor").value);
+    if(!(val>0)||!$("#fp-data").value){m.textContent="Informe o valor e a data.";m.className="setup-msg bad";return}
+    b.disabled=true;
+    try{finGuardar(await Api.call("finPagar",{alunoId:a.id,valor:val,data:isoToBr($("#fp-data").value),forma:$("#fp-forma").value,aulas:avulsa(p)?+($("#fp-aulas").value||0):0}));
+      S.finPag=false;const np=S.fin.planos.find(x=>x.alunoId===a.id);toast(avulsa(p)||!np?"Pagamento registrado":"Pagamento registrado. Próximo vencimento: "+np.venc);render()}
+    catch(x){m.textContent=errText(x);m.className="setup-msg bad";b.disabled=false}
+  };
+}
+function renderFinAluno(el){
+  const a=S.alunos.find(x=>x.id===S.finAluno);if(!a){S.finAluno=null;return renderFin()}
+  const p=S.fin.planos.find(x=>x.alunoId===a.id)||null;
+  if(!p||S.finEdit)return formFin(el,a,p);
+  if(S.finPag)return formPagar(el,a,p);
+  const s=finStatus(p),wa=waFin(a,p,s),hist=S.fin.pagamentos.filter(g=>g.alunoId===a.id).slice().reverse();
+  const linha=(k,v)=>'<div class="st-l est-l"><span>'+k+'</span><b>'+esc(v)+'</b></div>';
+  const saldo=(+p.aulasTotal||0)-(+p.aulasDadas||0),ultimo=hist[0],rec=ultimo?reciboFin(a,ultimo):"";
+  el.innerHTML='<div class="av-top"><div><h2>'+esc(a.nome)+'</h2></div>'+pillFin(s)+'</div>'+
+    '<div class="card fin-c">'+linha("Plano",p.plano)+linha("Valor",brl(+p.valor||0))+(avulsa(p)?linha("Aulas",p.aulasDadas+" dadas de "+p.aulasTotal+" · restam "+Math.max(0,saldo)):linha("Vencimento",p.venc))+linha("Forma",p.forma)+(p.obs?linha("Observação",p.obs):"")+'</div>'+
+    '<div class="fin-btns"><button class="btn primary" id="fa-pag">Registrar pagamento</button>'+
+    (avulsa(p)?'<button class="btn" id="fa-aula">Marcar aula dada</button>'+(+p.aulasDadas>0?'<button class="btn ghost" id="fa-aula2">Desfazer última aula</button>':""):"")+
+    (wa?'<a class="btn" href="'+esc(wa)+'" target="_blank" rel="noopener">Lembrete no WhatsApp'+(S.fin.pix?", com Pix":"")+'</a>':'<p class="muted small" style="margin:0">Cadastre o WhatsApp do aluno para enviar lembretes.</p>')+
+    (rec?'<a class="btn" href="'+esc(rec)+'" target="_blank" rel="noopener">Enviar recibo do último pagamento</a>':"")+
+    '<button class="btn" id="fa-paus">'+(p.pausado?"Reativar plano":"Pausar plano")+'</button><button class="btn ghost" id="fa-edit">Editar plano</button>'+
+    (s.k==="atraso"||!a.ativo?'<button class="btn ghost" id="fa-acesso">'+(a.ativo?"Pausar o acesso do aluno":"Liberar o acesso do aluno")+'</button>':"")+'</div>'+
+    '<div class="card fin-c"><h3 class="dia-t">Pagamentos</h3>'+(hist.length?hist.slice(0,12).map((g,i)=>{const r=reciboFin(a,g);return '<div class="st-l est-l"><span>'+esc(g.data)+' · '+esc(g.forma)+'</span><span class="fin-h"><b>'+brl(+g.valor||0)+'</b>'+(r?'<a class="small" href="'+esc(r)+'" target="_blank" rel="noopener">Recibo</a>':"")+(i===0?'<button class="linkbtn small" id="fa-desf">Desfazer</button>':"")+'</span></div>'}).join(""):'<p class="muted small" style="margin:0">Nenhum pagamento registrado.</p>')+'</div>';
+  const acao=async(nome,dados,msg)=>{try{finGuardar(await Api.call(nome,dados));toast(msg);render()}catch(x){toast(errText(x))}};
+  $("#fa-pag").onclick=()=>{S.finPag=true;render();window.scrollTo({top:0})};
+  $("#fa-edit").onclick=()=>{S.finEdit=true;render();window.scrollTo({top:0})};
+  $("#fa-paus").onclick=()=>acao("finPausar",{alunoId:a.id,pausado:!p.pausado},p.pausado?"Plano reativado":"Plano pausado");
+  const au=$("#fa-aula");if(au)au.onclick=()=>acao("finAula",{alunoId:a.id,delta:1},"Aula marcada");
+  const au2=$("#fa-aula2");if(au2)au2.onclick=()=>acao("finAula",{alunoId:a.id,delta:-1},"Aula desmarcada");
+  const de=$("#fa-desf");if(de)de.onclick=e=>armed(e.target,"Toque de novo para desfazer","Desfazer",()=>acao("finDesfazer",{linha:ultimo.linha},"Pagamento desfeito"));
+  const ac=$("#fa-acesso");if(ac)ac.onclick=e=>armed(e.target,"Toque de novo para confirmar",ac.textContent,async()=>{
+    try{const r=await Api.call("salvarAluno",{dados:{id:a.id,ativo:!a.ativo}});Object.assign(a,r.aluno);toast(a.ativo?"Acesso liberado":"Acesso pausado");render()}catch(x){toast(errText(x))}});
+}
+
+/* ========== MÉTODOS PRONTOS NA MONTAGEM DE TREINOS ========== */
+const PARES_BI=[{n:"Bíceps e tríceps",a:/rosca|b[ií]ceps|scott|martelo/i,b:/tr[ií]ceps|franc[eê]s|mergulho|testa/i},{n:"Peito e costas",ga:"Peito",gb:"Costas"},
+  {n:"Quadríceps e posterior",a:/extensora|agach|leg press|hack|afundo|b[uú]lgaro|passada/i,b:/flexora|stiff|terra/i},{n:"Ombros e abdômen",ga:"Ombros",gb:"Abdômen"}];
+const candidatosBi=(p,lado)=>{const g=lado==="a"?p.ga:p.gb,rx=p[lado];return g?Metodos.bibDoGrupo(g):Metodos.bibNomes().filter(n=>rx.test(n))};
+// As fases seguem o objetivo do aluno. O exercício marcado leva o nome do método nas repetições da meta.
+const SEQ_FIN=[{n:"ABC",d:"adaptação e progressão de carga",plano:"abc",marca:""},{n:"ABC com drop set",d:"drop set em alguns exercícios",plano:"abc",marca:"drop set"},{n:"AB com rest-pause",d:"mais intensidade",plano:"superior-inferior",marca:"rest pause"}];
+const SEQUENCIAS={hipertrofia:SEQ_FIN,
+  emagrecimento:[{n:"Corpo inteiro",d:"adaptação",plano:"full-iniciante",marca:""},{n:"Superior e inferior",d:"mais volume por semana",plano:"superior-inferior",marca:""},{n:"ABC com drop set",d:"mais intensidade",plano:"abc",marca:"drop set"}],
+  forca:[{n:"Superior e inferior",d:"base de força",plano:"superior-inferior",marca:""},{n:"ABC",d:"mais volume por grupo",plano:"abc",marca:""},{n:"ABC com rest-pause",d:"mais intensidade",plano:"abc",marca:"rest pause"}],
+  geral:[{n:"Corpo inteiro",d:"adaptação",plano:"full-iniciante",marca:""},{n:"Superior e inferior",d:"progressão",plano:"superior-inferior",marca:""},{n:"Empurrar, puxar e pernas",d:"mais variedade",plano:"empurrar-puxar-pernas",marca:""}]};
+function seqDoAluno(a){const o=strip(a.objetivo||"");return /hipertrof|massa/.test(o)?SEQUENCIAS.hipertrofia:/emagrec/.test(o)?SEQUENCIAS.emagrecimento:/forca/.test(o)?SEQUENCIAS.forca:SEQUENCIAS.geral}
+const semMarca=m=>String(m||"").replace(/\s*(drop set|rest pause)\s*$/i,"");
+function faseAtual(seq,M){
+  const txt=M.flatMap(t=>t.itens.map(i=>String(i.metas))).join(" ").toLowerCase();
+  if(!M.some(t=>t.itens.some(i=>String(i.ex).trim())))return -1;
+  for(let i=seq.length-1;i>=0;i--)if(seq[i].marca&&txt.includes(seq[i].marca))return i;
+  return 0;
+}
+function marcarFase(treinos,marca){
+  treinos.forEach(t=>{
+    t.itens.forEach(i=>{i.metas=semMarca(i.metas)});
+    if(!marca)return;
+    const c=t.itens.filter(i=>!/abd|prancha|aquec|cardio/i.test(i.ex)).pop();if(c)c.metas=c.metas+" "+marca;
+  });
+  return treinos;
+}
+function metodosProntosHtml(a){
+  const seq=seqDoAluno(a),at=faseAtual(seq,S.modEdit);
+  return '<div class="card aux-b mp-c"><h3 class="dia-t">Métodos prontos</h3>'+
+    '<p class="muted small">O app monta e você confere. Nada vale para o aluno antes de tocar em <b>Salvar treinos</b>.</p>'+
+    '<div class="par-h">Bi-set montado sozinho</div><div class="mp-l"><select id="mp-par" aria-label="Músculos do bi-set">'+PARES_BI.map((p,i)=>'<option value="'+i+'">'+esc(p.n)+'</option>').join("")+'</select>'+
+    '<select id="mp-n" aria-label="Quantos pares"><option value="2">2 pares</option><option value="3" selected>3 pares</option><option value="4">4 pares</option></select><button class="btn" id="mp-bi">Montar bi-set</button></div>'+
+    '<div class="par-h">Sequência para '+esc(String(a.objetivo||"este aluno").toLowerCase())+'</div>'+
+    seq.map((f,i)=>'<div class="mp-f'+(i===at?" on":"")+'"><i>'+(i+1)+'</i><span><b>'+esc(f.n)+'</b><span class="muted small">'+esc(f.d)+(i===at?" · fase atual":"")+'</span></span><button class="btn '+(i===at+1?"":"ghost ")+'small" data-fase="'+i+'">Preparar</button></div>').join("")+'</div>';
+}
+function ligarMetodosProntos(el,a,M){
+  const bi=$("#mp-bi");if(!bi)return;
+  const seq=seqDoAluno(a);
+  bi.onclick=async()=>{
+    const par=PARES_BI[+$("#mp-par").value],n=+$("#mp-n").value,A=candidatosBi(par,"a"),B=candidatosBi(par,"b");
+    bi.disabled=true;bi.textContent="Montando…";
+    let pares=null;
+    try{const r=await Api.call("metMontar",{titulo:par.n,a:A.slice(0,30),b:B.slice(0,30),pares:n,objetivo:a.objetivo||""});pares=r.pares&&r.pares.length?r.pares:null}catch(x){console.warn(x)}
+    const peloCoach=!!pares;
+    if(!pares)pares=A.slice(0,n).map((x,i)=>[x,B[i]]).filter(p=>p[1]);
+    const itens=[];pares.forEach(p=>{itens.push({ex:p[0],series:3,metas:"10 bi-set com "+p[1],peso:""});itens.push({ex:p[1],series:3,metas:"10 bi-set com "+p[0],peso:""})});
+    M.push({nome:"Bi-set · "+par.n,itens});render();
+    toast((peloCoach?"O coach montou":"Montei pela regra do app")+": confira no fim da lista e toque em Salvar treinos.");
+  };
+  el.querySelectorAll("[data-fase]").forEach(b=>b.onclick=e=>{
+    const i=+b.dataset.fase,f=seq[i],ant=seq[i-1];
+    armed(e.target,"Isso troca os treinos da tela. Toque de novo","Preparar",()=>{
+      const mesmo=ant&&ant.plano===f.plano&&faseAtual(seq,M)>=0;
+      const pl=(window.Metodos?Metodos.planos():[]).find(p=>p.id===f.plano);
+      const novos=mesmo?M.map(t=>({nome:t.nome,itens:t.itens.map(x=>Object.assign({},x))})):pl?pl.treinos.map(t=>({nome:t.nome,itens:t.exercicios.map(x=>({ex:x[0],series:x[1],metas:String(x[2]),peso:""}))})):null;
+      if(!novos){toast("Não encontrei esse plano. Abra o app com internet e tente de novo.");return}
+      M.splice(0,M.length,...marcarFase(novos,f.marca));render();
+      toast("Fase "+(i+1)+" preparada. Confira e toque em Salvar treinos.");
+    });
+  });
+}
+
+/* ========== CONVERSA QUE ENSINA O COACH AUXILIAR ========== */
+function pintarJeito(){
+  const box=$("#jt-box");if(!box)return;
+  const J=S.jeito||(S.jeito={regras:null,chat:[],proposta:"",pensando:false});
+  if(!J.regras&&!J.lendo){J.lendo=true;Api.call("jeitoLer").then(d=>{J.regras=d.regras;J.lendo=false;pintarJeito()}).catch(()=>{J.lendo=false;J.regras=[];pintarJeito()})}
+  const rs=J.regras||[];
+  box.innerHTML='<div class="card aux-b"><h3 class="dia-t">Coach Auxiliar</h3><p class="muted small">Ensine o seu jeito de trabalhar. Ele usa isso nas próximas sugestões.</p>'+
+    '<div id="jt-chat">'+J.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+'</p>').join("")+(J.pensando?'<p class="muted small">Pensando…</p>':"")+'</div>'+
+    (J.proposta?'<div class="jt-prop"><span class="muted small">Vou guardar:</span><input id="jt-regra" value="'+esc(J.proposta)+'" aria-label="Regra que será guardada"><div class="row-btns"><button class="btn primary" id="jt-sim">Guardar</button><button class="btn ghost" id="jt-nao">Não guardar</button></div></div>':"")+
+    '<textarea class="obs" id="jt-txt" style="height:64px;padding:8px 10px;width:100%" placeholder="Escreva para o coach…" aria-label="Mensagem para o coach"></textarea><button class="btn" id="jt-env" style="width:100%;margin-top:6px"'+(J.pensando?" disabled":"")+'>Enviar</button>'+
+    '<details class="others"'+(J.aberto?" open":"")+'><summary>Meu jeito de trabalhar ('+rs.length+')</summary>'+(rs.length?rs.map(r=>'<div class="jt-r" data-l="'+r.linha+'"><input value="'+esc(r.regra)+'" aria-label="Regra"><button class="x" data-rm aria-label="Apagar regra">×</button></div>').join(""):'<p class="muted small">Ainda não há regras guardadas.</p>')+'</details></div>';
+  const guardarRegras=d=>{J.regras=d.regras};
+  $("#jt-env").onclick=async()=>{
+    const q=$("#jt-txt").value.trim();if(!q)return;
+    const hist=J.chat.slice(-6);J.chat.push({papel:"eu",texto:q});J.pensando=true;J.proposta="";pintarJeito();
+    try{const r=await Api.call("jeitoChat",{pergunta:q,historico:hist});
+      if(r.resposta){J.chat.push({papel:"ia",texto:r.resposta});J.proposta=r.regra||""}
+      else{J.chat.push({papel:"ia",texto:r.motivo==="limite_do_dia"?"O limite de conversas de hoje acabou. Se quiser, guarde o que escreveu como regra.":"Não consegui responder agora. Se quiser, guarde o que escreveu como regra."});J.proposta=q.slice(0,160)}
+    }catch(x){J.chat.push({papel:"ia",texto:errText(x)})}
+    J.pensando=false;pintarJeito();
+  };
+  const sim=$("#jt-sim");if(sim)sim.onclick=async()=>{const t=$("#jt-regra").value.trim();if(!t)return;sim.disabled=true;
+    try{guardarRegras(await Api.call("jeitoSalvar",{regra:t}));J.proposta="";J.aberto=true;J.chat.push({papel:"ia",texto:"Guardei. Vou seguir isso nas próximas sugestões."});pintarJeito()}catch(x){toast(errText(x));sim.disabled=false}};
+  const nao=$("#jt-nao");if(nao)nao.onclick=()=>{J.proposta="";pintarJeito()};
+  box.querySelector("details").addEventListener("toggle",e=>{J.aberto=e.target.open});
+  box.querySelectorAll(".jt-r").forEach(l=>{
+    const linha=+l.dataset.l;
+    l.querySelector("input").addEventListener("change",async e=>{const t=e.target.value.trim();if(!t)return;try{guardarRegras(await Api.call("jeitoSalvar",{linha,regra:t}));toast("Regra atualizada")}catch(x){toast(errText(x))}});
+    l.querySelector("[data-rm]").onclick=e=>armed(e.target,"?","×",async()=>{try{guardarRegras(await Api.call("jeitoApagar",{linha}));toast("Regra apagada");pintarJeito()}catch(x){toast(errText(x))}});
+  });
+}
 
 /* ========== início ========== */
 function showStart(){
