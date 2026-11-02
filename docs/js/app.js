@@ -2181,6 +2181,7 @@ function renderInicio(){
   });
 }
 function render(){
+  document.body.classList.toggle("na-home",S.view==="inicio"&&S.role!=="prof");
   renderTopo();
   renderNavBaixo();
   $("#savebar").hidden=S.view!=="lancar"||!S.draft||S.picker||S.fim||!S.alunoId;

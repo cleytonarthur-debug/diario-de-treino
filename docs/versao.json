@@ -1,7 +1,7 @@
 {
-  "versao": "2.19.2",
+  "versao": "2.19.3",
   "data": "02/11/2026",
   "notas": [
-    "Botão de check mais suave no rosa da versão clara."
+    "Tela inicial do aluno encaixada na tela, sem correr por trás da barra."
   ]
 }

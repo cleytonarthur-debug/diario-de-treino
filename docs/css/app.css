@@ -39,7 +39,7 @@ button,input,select{font:inherit;color:inherit}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 
 /* top bar */
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bar);color:var(--bar-ink);
+.top{position:sticky;top:0;z-index:20;background:var(--bar);color:var(--bar-ink);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px}
 .top-row{display:flex;align-items:center;gap:12px;justify-content:space-between;max-width:1180px;margin:0 auto}
 .brand{display:grid;gap:0;min-width:0;flex:1}
@@ -335,6 +335,12 @@ body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;min-heig
 .home-alunos b{display:block;font-size:16px}
 .home-alunos span{flex:1;min-width:0;font-size:13px;color:var(--ink-2)}
 .home-grid{display:grid;grid-template-columns:1.2fr 1fr;grid-auto-rows:116px;gap:9px}
+/* Tela inicial do aluno: ocupa a tela toda e não rola por trás da barra. */
+body.na-home{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+body.na-home main{flex:1;width:100%;display:flex;flex-direction:column;padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+body.na-home #v-inicio,body.na-home #inicio-tela,body.na-home .home-wrap{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
+body.na-home .view{min-height:0}
+body.na-home .home-grid{flex:1;grid-template-rows:repeat(3,minmax(100px,1fr));grid-auto-rows:minmax(100px,1fr);max-height:680px}
 .home-hero{appearance:none;position:relative;overflow:hidden;grid-row:span 2;border:0;background:var(--hero);color:var(--hero-ink);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;text-align:left;cursor:pointer;min-width:0}
 .home-hero .home-halter{position:absolute;right:2px;top:2px;transform:rotate(45deg)}
 .home-hero>span:last-child{position:relative}
