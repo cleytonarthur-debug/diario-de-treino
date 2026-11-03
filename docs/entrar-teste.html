@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Teste de entrada</title>
+<style>
+  :root{color-scheme:light dark;--bg:#f4f6f9;--card:#fff;--ink:#14181f;--muted:#5b6472;--line:#d9dee6;--azul:#1f5fd0;--ok:#167a47;--erro:#b3261e}
+  @media (prefers-color-scheme:dark){:root{--bg:#0b0d11;--card:#171b22;--ink:#eef1f5;--muted:#a3acba;--line:#2a303a;--azul:#7fb0ff;--ok:#5fd39a;--erro:#ff8a80}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:480px;margin:0 auto;padding:24px 16px}
+  h1{font-size:24px;margin:0 0 6px}
+  p{margin:0 0 16px;color:var(--muted)}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  input{width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;margin-bottom:14px}
+  button{width:100%;min-height:50px;border:0;border-radius:10px;background:var(--azul);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  @media (prefers-color-scheme:dark){button{color:#0b0d11}}
+  button:disabled{opacity:.55;cursor:default}
+  ol{list-style:none;margin:18px 0 0;padding:0}
+  li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;overflow-wrap:anywhere}
+  li.ok{border-color:var(--ok)}
+  li.erro{border-color:var(--erro);color:var(--erro)}
+  a{color:var(--azul)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Teste de entrada</h1>
+  <p>Entre com o Google. O app cria a pasta e a planilha na sua própria conta e só consegue mexer no que ele mesmo criou.</p>
+  <label for="nome">Seu nome</label>
+  <input id="nome" autocomplete="name" value="Coach Teste">
+  <button id="entrar" disabled>Carregando…</button>
+  <ol id="passos"></ol>
+</main>
+<script src="https://accounts.google.com/gsi/client" async onload="pronto()"></script>
+<script>
+const CLIENTE = '284258336292-1vk325ot9fefpu3jnf12ic1986i5ci7j.apps.googleusercontent.com';
+const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
+const PASTA = 'application/vnd.google-apps.folder', PLANILHA = 'application/vnd.google-apps.spreadsheet';
+const botao = document.getElementById('entrar'), passos = document.getElementById('passos');
+let token = '';
+
+function passo(texto, tipo) {
+  const li = document.createElement('li');
+  li.className = tipo || 'ok';
+  li.textContent = texto;
+  passos.appendChild(li);
+  return li;
+}
+async function google(url, opcoes) {
+  const o = opcoes || {};
+  const r = await fetch(url, Object.assign({}, o, { headers: Object.assign({ Authorization: 'Bearer ' + token }, o.headers || {}) }));
+  const j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error((j.error && j.error.message) || ('Erro ' + r.status));
+  return j;
+}
+function criar(nome, tipo, pai) {
+  return google('https://www.googleapis.com/drive/v3/files?fields=id,webViewLink', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: nome, mimeType: tipo, parents: pai ? [pai] : undefined })
+  });
+}
+function fotoDeTeste() {
+  const c = document.createElement('canvas');
+  c.width = 480; c.height = 640;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1f5fd0'; g.fillRect(0, 0, 480, 640);
+  g.fillStyle = '#fff'; g.font = '32px sans-serif'; g.fillText('Foto de teste', 140, 320);
+  return new Promise(function (ok) { c.toBlob(ok, 'image/jpeg', 0.8); });
+}
+async function enviarFoto(pai) {
+  const foto = await fotoDeTeste();
+  const corpo = new FormData();
+  corpo.append('metadata', new Blob([JSON.stringify({ name: 'Foto de teste.jpg', parents: [pai] })], { type: 'application/json' }));
+  corpo.append('file', foto);
+  return google('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body: corpo });
+}
+async function montar() {
+  const nome = document.getElementById('nome').value.trim() || 'Coach';
+  passos.textContent = '';
+  try {
+    const raiz = await criar('Diário de Treino — ' + nome, PASTA);
+    passo('Pasta principal criada');
+    await criar('Documentos', PASTA, raiz.id);
+    const alunos = await criar('Alunos', PASTA, raiz.id);
+    const aluno = await criar('Aluno Teste', PASTA, alunos.id);
+    const fotos = await criar('Fotos', PASTA, aluno.id);
+    passo('Pastas Documentos, Alunos, Aluno Teste e Fotos criadas');
+    const painel = await criar('Painel do coach', PLANILHA, raiz.id);
+    await google('https://sheets.googleapis.com/v4/spreadsheets/' + painel.id + '/values/A1:B2?valueInputOption=RAW', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [['Coach', 'Criado em'], [nome, new Date().toLocaleString('pt-BR')]] })
+    });
+    passo('Planilha criada e preenchida');
+    await enviarFoto(fotos.id);
+    passo('Foto de teste salva na pasta Fotos');
+    const fim = passo('Tudo certo. ');
+    const a = document.createElement('a');
+    a.href = raiz.webViewLink; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Abrir a pasta no Drive';
+    fim.appendChild(a);
+  } catch (e) {
+    passo('Não consegui: ' + e.message, 'erro');
+  }
+  botao.disabled = false;
+}
+function pronto() {
+  const cliente = google_accounts_init();
+  botao.textContent = 'Entrar com o Google';
+  botao.disabled = false;
+  botao.onclick = function () { botao.disabled = true; cliente.requestAccessToken(); };
+}
+function google_accounts_init() {
+  return window.google.accounts.oauth2.initTokenClient({
+    client_id: CLIENTE, scope: ESCOPO,
+    callback: function (r) {
+      if (r.error || !r.access_token) { passo('Login não concluído: ' + (r.error || 'sem resposta'), 'erro'); botao.disabled = false; return; }
+      token = r.access_token;
+      montar();
+    },
+    error_callback: function (e) { passo('Login não concluído: ' + (e.message || e.type), 'erro'); botao.disabled = false; }
+  });
+}
+</script>
+</body>
+</html>
