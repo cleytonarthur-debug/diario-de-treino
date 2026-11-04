@@ -1248,6 +1248,7 @@ async function saveAval(){
     await callA("avaliacao",{valores,linha:E.linha});
     S.avEdit=null;S.avPt=null;S.avSel=null;S.painelAt=0;toast("Avaliação salva na planilha do aluno");
     await fetchDados();render();
+    const av=$("#aval");if(av&&S.aluno){av.insertAdjacentHTML("afterbegin",nivelHtml(S.aluno));ligarNivel(av,()=>{const b=$("#nv-box");if(b)b.innerHTML='<p class="muted small">Nível de '+esc(String(S.aluno.nome||"").split(" ")[0])+': <b>'+esc(S.aluno.nivel)+'</b>.</p><button class="btn primary" id="nv-montar">Montar treinos</button>';const m=$("#nv-montar");if(m)m.onclick=()=>openModelEditor(S.alunoId)})}
   }catch(e){
     msg.textContent=errText(e)+(e.sent?" Confira a aba Avaliações antes de salvar de novo.":"");msg.className="setup-msg bad";btn.disabled=false;
   }
@@ -1269,11 +1270,17 @@ function shareBox(a){
     '<div class="row-btns"><a class="btn wa" href="'+esc(waLink(a))+'" target="_blank" rel="noopener">Enviar pelo WhatsApp</a><button class="btn" data-copy="'+esc(a.link)+'">Copiar link</button></div></div>';
 }
 function bindCopy(root){root.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);toast("Link copiado")}catch(e){prompt("Copie o link:",b.dataset.copy)}})}
+// Só o Chrome do Android abre a lista de contatos. Nos outros celulares o botão não aparece.
+const temContatos=()=>"contacts" in navigator&&"ContactsManager" in window;
+function telContato(tels){
+  const l=(tels||[]).map(t=>{let d=String(t).replace(/\D/g,"").replace(/^0+/,"");if(d.length>=12&&d.startsWith("55"))d=d.slice(2);return d}).filter(Boolean);
+  return l.find(d=>d.length===11)||l[0]||"";
+}
 function renderAlunoForm(el){
   const f=S.alunoForm;const novo=!f.id;
   const i=(k,l,type,extra)=>'<label class="fld2">'+l+'<input data-k="'+k+'" type="'+(type||"text")+'" value="'+esc(type==="date"?brToIso(f[k]):f[k]||"")+'" '+(extra||"")+'></label>';
   el.innerHTML='<div class="session-head"><div><h2>'+(novo?"Novo aluno":"Editar "+esc(f.nome))+'</h2>'+(novo?'<div class="muted small">O app cria uma planilha só deste aluno no seu Drive e gera o link de acesso dele.</div>':"")+'</div></div>'+
-    '<div class="card"><div class="form-grid">'+i("nome","Nome completo *","text",'autocomplete="off"')+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+'</div>'+
+    '<div class="card"><div class="form-grid">'+i("nome","Nome completo *","text",'autocomplete="off"')+(temContatos()?'<button type="button" class="btn small af-contato" id="af-contato">Pegar dos contatos do celular</button>':"")+i("telefone","WhatsApp (com DDD)","tel",'placeholder="11 99999-9999"')+'</div>'+
     (novo?'<p class="muted small" style="margin:10px 0 0">O resto do cadastro (idade, altura, objetivo, restrições) <b>o aluno preenche</b> quando abrir o link pela primeira vez. Você recebe o aviso aqui no app.</p>':"")+
     (novo?'<details style="margin-top:12px"><summary class="small">Preencher mais dados agora (opcional)</summary>':"")+
     '<div class="form-grid" style="margin-top:12px">'+i("nasc","Data de nascimento","date")+
@@ -1288,6 +1295,12 @@ function renderAlunoForm(el){
     '<div class="setup-row"><button class="btn ghost" id="af-cancel">Cancelar</button><button class="btn primary" id="af-save">'+(novo?"Criar aluno e planilha":"Salvar")+'</button></div></div>';
   el.querySelectorAll("[data-k]").forEach(x=>x.addEventListener(x.tagName==="SELECT"||x.type==="checkbox"?"change":"input",()=>{
     f[x.dataset.k]=x.type==="checkbox"?x.checked:x.type==="date"?isoToBr(x.value):x.value}));
+  const ct=$("#af-contato");if(ct)ct.onclick=async()=>{
+    try{const c=(await navigator.contacts.select(["name","tel"],{multiple:false}))[0];if(!c)return;
+      const nm=(c.name||[])[0],tel=telContato(c.tel);
+      if(nm&&!String(f.nome||"").trim()){f.nome=nm;el.querySelector('[data-k="nome"]').value=nm}
+      if(tel){f.telefone=tel;el.querySelector('[data-k="telefone"]').value=tel}else toast("Esse contato não tem telefone.");
+    }catch(x){toast("Não consegui abrir os contatos. Digite o número.")}};
   $("#af-cancel").onclick=()=>{const back=!novo;S.alunoForm=null;back?setView("perfil"):renderAlunos()};
   $("#af-save").onclick=async()=>{
     const msg=$("#af-msg"),btn=$("#af-save");
@@ -1376,6 +1389,7 @@ function profNotice(){
 /* ========== MONTAR TREINOS (professor) ========== */
 function openModelEditor(alunoId){
   if(alunoId&&alunoId!==S.alunoId)selectAluno(alunoId,true);
+  S.cmNota="";S.cmPedido="";
   S.modEdit="carregando";setView("lancar");
   const go=()=>{S.modEdit=[...S.models.entries()].map(([nome,itens])=>({nome,itens:itens.map(it=>({ex:it.ex,series:it.series,metas:it.metas.filter(Boolean).join("; "),peso:it.pesos.filter(Boolean).join("; ")}))}));
     if(!S.modEdit.length&&!(S.aluno&&S.aluno.metodo))S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
@@ -1399,7 +1413,7 @@ function renderModelEditor(el){
     [a.objetivo,a.dias?a.dias+"x por semana":"",a.obs?"Restrições: "+a.obs:""].filter(Boolean).map(esc).join(" · ")+'</div></div>'+
     '<div class="row-btns"><button class="btn ghost" id="mt-cancel">Cancelar</button><button class="btn primary" id="mt-save">Salvar treinos</button></div></div>'+
     '<p class="setup-msg" id="mt-msg" role="status"></p>'+
-    metodoCard(a)+metodosProntosHtml(a)+'<div id="jt-box"></div>'+
+    comecarHtml(a)+metodoCard(a)+metodosProntosHtml(a)+'<div id="jt-box"></div>'+
     '<div class="par-h">Treinos padrão (aba Modelos)</div>'+
     '<p class="muted small" style="margin:0 0 10px">Estes são os <b>treinos padrão</b>. Ao escolher um treino, o app monta sempre a partir daqui (não do último dia). Do último dia ele só mostra o que foi feito e o peso usado.</p>'+
     M.map((t,ti)=>'<div class="mt" data-t="'+ti+'"><div class="mt-h"><input data-f="nome" value="'+esc(t.nome)+'" placeholder="Nome do treino (ex.: Treino A — Pernas)" aria-label="Nome do treino">'+
@@ -1416,7 +1430,7 @@ function renderModelEditor(el){
     '<select id="mt-plano" class="mt-plano" aria-label="Acrescentar plano pronto"><option value="">Acrescentar plano pronto…</option>'+(window.Metodos?Metodos.planos():[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nome+" ("+p.dias+")")+'</option>').join("")+'</select></div>'+
     '<p class="note">Reps meta diferentes por série: separe com ponto e vírgula (15; 12; 10). Peso inicial vale até o aluno fazer o exercício a primeira vez; depois o app sugere o último peso usado.</p>'+
     '<datalist id="mt-list">'+names.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
-  ligarMetodosProntos(el,a,M);pintarJeito();
+  ligarComecar(el,a,M);ligarMetodosProntos(el,a,M);pintarJeito();
   el.querySelectorAll(".mt").forEach(card=>{
     const ti=+card.dataset.t;const t=M[ti];
     card.querySelector('[data-f="nome"]').addEventListener("input",e=>{t.nome=e.target.value});
@@ -2498,6 +2512,75 @@ function renderFinAluno(el){
   const de=$("#fa-desf");if(de)de.onclick=e=>armed(e.target,"Toque de novo para desfazer","Desfazer",()=>acao("finDesfazer",{linha:ultimo.linha},"Pagamento desfeito"));
   const ac=$("#fa-acesso");if(ac)ac.onclick=e=>armed(e.target,"Toque de novo para confirmar",ac.textContent,async()=>{
     try{const r=await Api.call("salvarAluno",{dados:{id:a.id,ativo:!a.ativo}});Object.assign(a,r.aluno);toast(a.ativo?"Acesso liberado":"Acesso pausado");render()}catch(x){toast(errText(x))}});
+}
+
+/* ========== NÍVEL DO ALUNO E COMEÇO DOS TREINOS ========== */
+const NIVEIS=["Iniciante","Intermediário","Avançado"];
+// Só um palpite pelos treinos registrados. Quem decide é o professor.
+function sugestaoNivel(){
+  const ini=new Date(Date.now()-365*864e5);const n=sessions().filter(x=>x.date>=ini&&x.rows.some(r=>r.done)).length;
+  return {nivel:n<30?NIVEIS[0]:n<120?NIVEIS[1]:NIVEIS[2],n};
+}
+function nivelBotoes(a){return '<div class="cm-nv">'+NIVEIS.map(n=>'<button class="btn small'+(a.nivel===n?" primary":"")+'" data-nivel="'+n+'">'+n+'</button>').join("")+'</div>'}
+function nivelHtml(a){
+  const s=sugestaoNivel();
+  return '<div class="card aux-b mp-c" id="nv-box"><h3 class="dia-t">Qual é o nível de '+esc(String(a.nome||"").split(" ")[0])+'?</h3>'+
+    '<p class="muted small">'+(s.n?"Pelos "+s.n+(s.n===1?" treino registrado":" treinos registrados")+" no último ano, o app sugere <b>"+s.nivel+"</b>.":"Ainda não há treinos registrados aqui, então a decisão é sua pela avaliação.")+' Quem decide é você.</p>'+nivelBotoes(a)+'</div>';
+}
+function ligarNivel(root,depois){
+  root.querySelectorAll("[data-nivel]").forEach(b=>b.onclick=async()=>{
+    const a=S.aluno;if(!a)return;b.disabled=true;
+    try{const r=await Api.call("salvarAluno",{dados:{id:a.id,nivel:b.dataset.nivel}});Object.assign(a,r.aluno);
+      const i=S.alunos.findIndex(x=>x.id===a.id);if(i>=0)S.alunos[i]=Object.assign({},S.alunos[i],r.aluno);depois()}
+    catch(x){toast(errText(x));b.disabled=false}});
+}
+function planosDoNivel(n){
+  const ok=n==="Avançado"?["Intermediário","Todos"]:[n,"Todos"];
+  return (window.Metodos?Metodos.planos():[]).filter(p=>ok.includes(p.nivel));
+}
+// Tira o treino vazio da tela e acrescenta os blocos. Só valem depois de Salvar treinos.
+function acrescentarTreinos(M,novos){
+  for(let i=M.length-1;i>=0;i--)if(!M[i].itens.some(x=>String(x.ex).trim()))M.splice(i,1);
+  M.push(...novos);render();
+}
+function comecarHtml(a){
+  const n=a.nivel;const outros=(S.alunos||[]).filter(x=>x.id!==S.alunoId).sort((x,y)=>(y.nivel===n)-(x.nivel===n)||String(x.nome).localeCompare(y.nome,"pt-BR"));
+  const pl=n?planosDoNivel(n):[];
+  return '<div class="card aux-b mp-c"><h3 class="dia-t">Começar os treinos</h3>'+
+    '<p class="muted small">Escolha um caminho. Tudo cai na lista abaixo para você ajustar, e só vale para o aluno ao tocar em <b>Salvar treinos</b>.</p>'+
+    '<div class="par-h">Nível do aluno</div>'+nivelBotoes(a)+
+    (n?'<div class="par-h">Treinos prontos para '+esc(n)+'</div>'+(n==="Avançado"?'<p class="muted small">Ainda não há plano só para avançado. Estes servem de base, ou peça ao coach.</p>':"")+
+      pl.map(p=>'<div class="mp-f"><span><b>'+esc(p.nome)+'</b><span class="muted small">'+esc(p.dias+" · "+p.local)+'</span></span><button class="btn ghost small" data-plano="'+esc(p.id)+'">Usar</button></div>').join("")
+      :'<p class="muted small" style="margin-top:6px">Escolha o nível para ver os treinos prontos.</p>')+
+    '<div class="par-h">Copiar de outro aluno</div><div class="mp-l"><select id="cm-de" aria-label="Copiar treinos de qual aluno"><option value="">Escolha o aluno…</option>'+outros.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.nome+(x.nivel?" ("+x.nivel+")":""))+'</option>').join("")+'</select><button class="btn" id="cm-copiar">Copiar</button></div>'+
+    '<div class="par-h">Pedir ao coach</div>'+(S.cmNota?'<p class="aux-c ia">'+esc(S.cmNota)+'</p>':"")+
+    '<textarea class="obs" id="cm-pedido" style="height:64px;padding:8px 10px;width:100%" placeholder="Opcional: o que você quer nesses treinos" aria-label="Pedido para o coach">'+esc(S.cmPedido||"")+'</textarea>'+
+    '<button class="btn" id="cm-ia" style="width:100%;margin-top:6px">O coach monta os blocos</button></div>';
+}
+function ligarComecar(el,a,M){
+  ligarNivel(el,render);
+  el.querySelectorAll("[data-plano]").forEach(b=>b.onclick=()=>{const p=Metodos.planos().find(x=>x.id===b.dataset.plano);if(!p)return;
+    acrescentarTreinos(M,p.treinos.map(t=>({nome:t.nome,itens:t.exercicios.map(([ex,series,metas])=>({ex,series,metas:String(metas),peso:""}))})));
+    toast("Plano "+p.nome+" acrescentado. Ajuste e toque em Salvar treinos.")});
+  $("#cm-copiar").onclick=async e=>{
+    const de=$("#cm-de").value,btn=e.target;if(!de){toast("Escolha o aluno.");return}
+    btn.disabled=true;btn.textContent="Copiando…";
+    try{const r=await Api.call("modelosDe",{de});const por=new Map();
+      (r.linhas||[]).forEach(l=>{if(!l[0]||!l[1])return;if(!por.has(l[0]))por.set(l[0],[]);por.get(l[0]).push({ex:l[1],series:l[2]||3,metas:String(l[3]||""),peso:""})});
+      if(!por.size){toast("Esse aluno ainda não tem treinos.");btn.disabled=false;btn.textContent="Copiar";return}
+      acrescentarTreinos(M,[...por.entries()].map(([nome,itens])=>({nome,itens})));
+      toast("Copiei "+por.size+(por.size===1?" treino":" treinos")+" sem as cargas, porque cada aluno tem a sua. Ajuste e toque em Salvar treinos.");
+    }catch(x){toast(errText(x));btn.disabled=false;btn.textContent="Copiar"}};
+  const ped=$("#cm-pedido");ped.addEventListener("input",()=>{S.cmPedido=ped.value});
+  $("#cm-ia").onclick=async e=>{
+    const btn=e.target;if(!a.nivel){toast("Escolha primeiro o nível do aluno.");return}
+    btn.disabled=true;btn.textContent="O coach está montando…";
+    const nomes={};["Peito","Costas","Ombros","Braços","Inferiores","Abdômen"].forEach(g=>{nomes[g]=[...new Set((window.Metodos?Metodos.bibDoGrupo(g):[]).concat((S.catalogo||[]).filter(r=>r[1]===g).map(r=>r[0])))].slice(0,30)});
+    try{const r=await Api.call("metTreinos",{nivel:a.nivel,objetivo:a.objetivo,dias:a.dias,obs:a.obs,pedido:S.cmPedido||"",nomes});
+      if(!r.treinos||!r.treinos.length){toast(r.motivo==="limite_do_dia"?"O limite de hoje acabou. Use um treino pronto.":"O coach não conseguiu montar agora. Use um treino pronto.");btn.disabled=false;btn.textContent="O coach monta os blocos";return}
+      S.cmNota=r.nota||"";acrescentarTreinos(M,r.treinos.map(t=>({nome:t.nome,itens:t.itens.map(x=>({ex:x[0],series:x[1],metas:x[2],peso:""}))})));
+      toast("O coach montou "+r.treinos.length+(r.treinos.length===1?" bloco":" blocos")+". Confira e toque em Salvar treinos.");
+    }catch(x){toast(errText(x));btn.disabled=false;btn.textContent="O coach monta os blocos"}};
 }
 
 /* ========== MÉTODOS PRONTOS NA MONTAGEM DE TREINOS ========== */

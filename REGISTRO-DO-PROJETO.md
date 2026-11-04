@@ -121,6 +121,12 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Parte do corpo:** `parteCabe` só deixa a dor virar meta no treino que usa aquela parte. Ombro não entra em treino de perna.
 - **IA:** seção "LEIA OS COMENTÁRIOS PRIMEIRO" em `IA_SISTEMA`. As regras do app definem as metas, e a IA explica. Os parecer já gravados na Memória do Coach não mudam sozinhos.
 
+## Nível do aluno e começo dos treinos (versão 2.22, 04/11/2026)
+- **Contato do celular:** botão abaixo do nome no cadastro do aluno. Usa a lista de contatos do navegador (`navigator.contacts`), que só existe no Chrome do Android. Nos outros aparelhos o botão não aparece e o número é digitado.
+- **Nível:** coluna "Nível" da aba Alunos, só para o professor. Ao salvar a avaliação física, o app pergunta o nível e dá um palpite pelos treinos do último ano (`sugestaoNivel`: menos de 30 Iniciante, menos de 120 Intermediário, senão Avançado). É regra simples nossa, e quem decide é o professor.
+- **Começar os treinos (Montar treinos):** treinos prontos do nível, copiar de outro aluno (`modelosDe`, sem as cargas) e "O coach monta os blocos" (`metTreinos`). A IA só usa exercícios da lista enviada, segue o "Meu jeito de trabalhar" e as restrições do aluno, e o programa recusa nome fora da lista. Nada vale antes de Salvar treinos.
+- **Sem plano só para avançado:** `planos.json` tem Iniciante, Intermediário e Todos. O avançado usa os intermediários como base ou o coach.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.
