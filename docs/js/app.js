@@ -1628,7 +1628,7 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(A.comp.vol)+'<small>t</small></span>'+difKpi(A.comp.volDif,true,"%")+'</div>'+
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
-      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("🎯 Metas",A.metasLongo||[],"foco")+lista("📌 No próximo "+esc(A.treino),A.proximo)
+      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+lista("🎯 Metas",A.metasLongo||[],"foco")+lista("📌 No próximo "+esc(A.treino),A.proximo)
       :'<p class="muted">Analisando o treino…</p>')+'</div>'+
     (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do período</h2></div>'+
     '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+

@@ -1,7 +1,9 @@
 {
-  "versao": "2.20.1",
-  "data": "02/11/2026",
+  "versao": "2.21.0",
+  "data": "04/11/2026",
   "notas": [
-    "Vencimentos pelo nome na tela inicial do professor."
+    "O coach lê todos os seus comentários e ajusta as próximas metas.",
+    "Dor em uma parte do corpo só vira meta no treino que usa essa parte.",
+    "Pedidos para rever o treino aparecem na avaliação."
   ]
 }

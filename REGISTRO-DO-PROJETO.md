@@ -115,6 +115,12 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Métodos prontos:** em Montar treinos. Bi-set pelo coach (`metMontar`, escolhe só da biblioteca) ou pela regra do app, se a IA falhar. Sequência por objetivo (`SEQUENCIAS`). O método fica escrito em Reps meta ("10 bi-set com X", "10 drop set"). Só vale ao tocar em Salvar treinos.
 - **Conversa com o Coach Auxiliar:** em Montar treinos e em Métodos. A regra entra na aba **Meu jeito de trabalhar** só ao tocar em Guardar. `jeitoTexto_` é somado às instruções do relatório, da decisão, da conversa sobre o aluno e do bi-set.
 
+## Coach lê os comentários (versão 2.21, 04/11/2026)
+- **Leitura:** `comentariosDe` (coach.js) liga cada comentário ao exercício. O do fim do treino vale para o exercício que ele citar. Todos aparecem em "O que você comentou" e vão primeiro nos fatos da IA.
+- **Metas pelo comentário:** carga que não existe ("não tem 22", `faltasDe`) sai da meta e não é mais firmada. O que pesou não sobe (`RX_PESADO`). O que ficou leve pode subir (`RX_LEVE`). Pedido de revisão (`RX_PEDIDO`) repete o que fez e aparece em "Pedidos para o professor rever". Com cansaço ou sono no dia, o app não pede repetição a mais.
+- **Parte do corpo:** `parteCabe` só deixa a dor virar meta no treino que usa aquela parte. Ombro não entra em treino de perna.
+- **IA:** seção "LEIA OS COMENTÁRIOS PRIMEIRO" em `IA_SISTEMA`. As regras do app definem as metas, e a IA explica. Os parecer já gravados na Memória do Coach não mudam sozinhos.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

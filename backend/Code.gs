@@ -829,6 +829,15 @@ const IA_SISTEMA = [
   '- Se algo caiu hoje e o veredito é "ok", diga que já foi feito na semana (cite o treino em feitoTambemEm, quando houver) e que está tudo bem.',
   '- Se o veredito é "faltou", diga claramente o que ainda precisa ser feito.',
   '',
+  'LEIA OS COMENTÁRIOS PRIMEIRO: FATOS.comentariosDoTreino traz tudo o que a pessoa escreveu, em cada exercício e no fim. Você é o coach dela, então responda ao que ela disse, como quem leu de verdade.',
+  '- Cite no parecer pelo menos um comentário concreto, dizendo o exercício. Use as suas palavras, sem copiar a frase inteira.',
+  '- Se ela disse que pesou, foi demais, massacrou ou perdeu a cadência naquele exercício, reconheça e não peça mais carga nem repetição nele. Esforço de um dia não é meta.',
+  '- Se ela disse que uma carga não existe na academia, nunca repita essa carga.',
+  '- FATOS.pedidosDeRevisao são pedidos para mudar o treino. Diga que viu e que isso vai ser revisto com o professor. Não diga que já mudou.',
+  '- Cansaço e empolgação podem vir juntos: separe o que foi bom do que foi demais.',
+  '- O que pedir no próximo treino precisa concordar com FATOS.metas. Não invente outra meta.',
+  '- Olhe FATOS.gruposDoTreino: só fale de dor, articulação ou músculo que esse treino usa, a não ser que ela tenha comentado hoje. Ombro não entra em treino de perna. No "resumo", guarde esse cuidado para o treino em que ele importa.',
+  '',
   'COMO REAGIR:',
   '- Treinos iniciais (FATOS.inicial preenchido): seja bem animado e acolhedor. Diga qual treino foi (primeiro, segundo ou terceiro), quantas séries a pessoa fez, a porcentagem entregue, que o início serve para se acostumar com a sua metodologia, e que vocês vão longe. Não peça mais carga nem mais volume.',
   '- Treino excelente, com volume acima do normal ou recorde: elogie de verdade e jogue a pessoa lá em cima.',
@@ -864,7 +873,7 @@ function mensagensIA_(memoria, fatos) {
   return [
     { role: 'system', content: IA_SISTEMA },
     { role: 'user', content: 'MEMÓRIA ANTERIOR:\n' + (memoria || '(ainda vazia)') + '\n\nFATOS:\n' + fatos +
-        '\n\nLEMBRE: escreva como nos exemplos, em primeira pessoa e com jeito de gente real, nunca como relatório. Só diga que um exercício já foi feito se feitoTambemEm estiver preenchido. Se estiver vazio e houver grupoTambemEm, diga que o grupo muscular já foi treinado nesse treino da semana, citando o nome dele. O parecer precisa ter de 40 a 80 palavras e terminar com uma frase sua sobre o próximo treino, que pode ser manter ou recuperar: só peça mais se FATOS.semana.avaliacaoVolume for "abaixo". O título é a sua opinião sobre o treino, sem repetir "abaixo do normal".' }
+        '\n\nLEMBRE: escreva como nos exemplos, em primeira pessoa e com jeito de gente real, nunca como relatório. Só diga que um exercício já foi feito se feitoTambemEm estiver preenchido. Se estiver vazio e houver grupoTambemEm, diga que o grupo muscular já foi treinado nesse treino da semana, citando o nome dele. O parecer precisa ter de 40 a 80 palavras e terminar com uma frase sua sobre o próximo treino, que pode ser manter ou recuperar: só peça mais se FATOS.semana.avaliacaoVolume for "abaixo". O título é a sua opinião sobre o treino, sem repetir "abaixo do normal" nem o nome do treino. Antes de escrever, leia FATOS.comentariosDoTreino e responda a eles.' }
   ];
 }
 
@@ -887,7 +896,7 @@ function parecerIA_(al, b) {
   cache.put(ck, String(usados + 1), 86400);
   const anteriores = ja ? linhas.filter(function (r) { return r !== ja; }) : linhas;
   const memoria = !b.soTeste && anteriores.length ? String(anteriores[anteriores.length - 1][5] || '') : '';
-  const fatos = JSON.stringify(b.fatos || {}).slice(0, 6000);
+  const fatos = JSON.stringify(b.fatos || {}).slice(0, 9000);
   let saida;
   try {
     const resp = chamarIA_(mensagensIA_(memoria, fatos));

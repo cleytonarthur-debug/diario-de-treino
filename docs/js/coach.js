@@ -44,6 +44,45 @@ function analisarComentarios(rows){
   });
   return {cont,frases,partes};
 }
+/* Cada comentário com o exercício a que ele se refere. O do fim do treino vale para o exercício que ele citar. */
+const NOME_GENERICO=/^(maquina|barra|polia|halter|sentado|deitado|ambas|ambos|direita|esquerda|aquecimento|exercicio)$/;
+function comentariosDe(rows){
+  const v=[],vistos=new Set();
+  const nomes=[...new Map(rows.filter(r=>r.ex).map(r=>[base(r.ex),semLadoNome(r.ex)])).entries()];
+  rows.forEach(r=>{
+    String(r.obs||"").split(/\s+·\s+/).forEach(p=>{
+      if(/^\s*no lugar de:/i.test(p))return;
+      const doTreino=/^\s*\[Treino\]/i.test(p);const txt=limpa(p).trim();if(!txt)return;
+      const k=doTreino?"":base(r.ex);const chave=k+"|"+strip(txt).slice(0,40);if(vistos.has(chave))return;vistos.add(chave);
+      const t=strip(txt);
+      const citados=doTreino?nomes.filter(([n])=>n.split(" ").some(w=>w.length>=5&&!NOME_GENERICO.test(w)&&new RegExp("\\b"+w+"\\b").test(t))).map(([n])=>n):[k];
+      v.push({doTreino,k,nome:doTreino?"":semLadoNome(r.ex),texto:txt,citados});
+    });
+  });
+  return v;
+}
+const RX_PESADO=/massacr|muito pesad|bem pesad|pesad[oa] demais|muito dificil|dificil de|nao aguent|acabou comigo|destruiu|exagerad|\b(mas|\d+ ?(kg)?) e muito\b(?! (bom|boa|melhor|legal|facil))/;
+const RX_LEVE=/muito leve|bem leve|leve demais|facil demais|muito facil|podia mais|dava para mais|da para subir/;
+const RX_PEDIDO=/\b(revise|revisar|verifique|verificar|confira|conferir|troque|trocar|tirar|tire|mude|mudar|corrija|corrigir|errad[oa]|tem de ser|tem que ser|deveria|nao pode ser|entenda)\b/;
+const numKg=s=>parseFloat(String(s).replace(",","."));
+// "Não tem 22 kg, ou é 20 ou 25": carga que não existe naquela academia e a opção logo abaixo dela.
+function faltasDe(rows){
+  const m=new Map();
+  rows.forEach(r=>{const t=strip(limpa(r.obs));
+    for(const x of t.matchAll(/nao tem (\d+(?:[.,]\d+)?)/g)){const kg=numKg(x[1]);
+      const abaixo=(t.match(/\d+(?:[.,]\d+)?/g)||[]).map(numKg).filter(n=>n<kg&&n>=kg*.5);
+      m.set(kg,abaixo.length?Math.max(...abaixo):(m.get(kg)||null))}
+  });
+  return m;
+}
+// Dor em uma parte do corpo só vira meta no treino que usa essa parte.
+const REGIAO={joelho:"inf",quadril:"inf",tornozelo:"inf",ombro:"sup",cotovelo:"sup",punho:"sup","pescoço":"sup",peito:"sup","bíceps":"sup",costas:"sup",lombar:"ambos"};
+function parteCabe(p,rows){
+  const g=new Set(rows.filter(r=>r.done).map(r=>r.grupo));
+  const inf=g.has("Inferiores"),sup=["Peito","Costas","Ombros","Braços"].some(x=>g.has(x));
+  if(!inf&&!sup&&[...g].some(x=>x!=="Abdômen"&&x!=="Cardio"))return true;
+  const z=REGIAO[p];return z==="inf"?inf:z==="sup"?sup:inf||g.has("Costas");
+}
 const EMO={bom:"😀",ok:"😐",ruim:"😞"},ORD={ruim:0,ok:1,bom:2};
 // Ânimo marcado na chegada e na saída. A marcação antiga, de um toque só, conta como saída.
 function animos(rows){
@@ -173,7 +212,7 @@ function metasLongo(todas,ses,ctxTempo,inicial){
   todas.filter(s=>s.date>=ini&&s.date<=ses.date).forEach(s=>{const C=analisarComentarios(s.rows);
     Object.keys(C.cont).forEach(t=>temas[t]=(temas[t]||0)+1);Object.keys(C.partes).forEach(p=>partes[p]=(partes[p]||0)+1)});
   const vz=n=>n+(n===1?" vez":" vezes");const art={lombar:"da lombar",costas:"das costas"};const v=[];
-  Object.entries(partes).sort((a,b)=>b[1]-a[1]).slice(0,2).forEach(([p,n])=>v.push("<b>Cuidar "+(art[p]||"do "+p)+" nas próximas semanas:</b> você comentou "+vz(n)+". Vamos com carga controlada e, se continuar, fale com o professor."));
+  Object.entries(partes).filter(([p])=>parteCabe(p,ses.rows)).sort((a,b)=>b[1]-a[1]).slice(0,2).forEach(([p,n])=>v.push("<b>Cuidar "+(art[p]||"do "+p)+" nas próximas semanas:</b> você comentou "+vz(n)+". Vamos com carga controlada e, se continuar, fale com o professor."));
   if((temas.sono||0)>=2)v.push("<b>Melhorar o sono:</b> você comentou "+vz(temas.sono)+" no último mês, e isso pesa no seu rendimento.");
   if((temas.cansaco||0)>=2)v.push("<b>Cuidar da recuperação:</b> o cansaço apareceu "+vz(temas.cansaco)+" no último mês. Vale olhar descanso e alimentação.");
   if((temas.animo||0)>=2)v.push("<b>Achar o que te motiva:</b> o pouco ânimo apareceu "+vz(temas.animo)+". Vale testar outro horário ou outra academia.");
@@ -210,6 +249,8 @@ function estadoMeta(rows,k,ate){
   [...dias.values()].forEach(rs=>{
     st.ev=null;
     const bate=a=>rs.some(r=>bateuAlvo(a,r.reps&&r.reps[0],r.pesoN,r.meta));
+    const faltas=faltasDe(rs);
+    if(st.alvo&&faltas.has(st.alvo.peso)){st.alvo=null;st.n=0;return}
     if(st.alvo){
       st.n=bate(st.alvo)?st.n+1:0;st.ev=st.n?"firmou":"falhou";st.evAlvo=st.alvo;
       if(st.n>=FIRMAR){st.ev="consolidou";st.alvo=null;st.n=0}
@@ -217,7 +258,7 @@ function estadoMeta(rows,k,ate){
     }
     const tag=rs.map(r=>String(r.obs||"").match(/\[Meta coach: *([^\]]+)\]/i)).find(Boolean);
     const a=tag&&alvoDe(tag[1]);
-    if(a&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a}
+    if(a&&!faltas.has(a.peso)&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a}
   });
   return st;
 }
@@ -247,18 +288,19 @@ function treino(rows,key){
   const nSes=todas.filter(s=>s.rows.some(r=>r.done)).indexOf(ses)+1;const inicial=nSes>=1&&nSes<=3;
   const inicioSem=new Date(ses.date.getFullYear(),ses.date.getMonth(),ses.date.getDate()-6);
   const sessoesSem=todas.filter(s=>s!==ses&&s.date>=inicioSem&&s.date<=ses.date);
+  const contaHoje=analisarComentarios(ses.rows).cont;const cansado=!!(contaHoje.cansaco||contaHoje.sono);
   porExercicio(ses.rows.filter(r=>!eCardio(r))).forEach(ex=>{
     const dn=ex.rows.filter(r=>r.done);if(!dn.length)return;
     const anteriores=antes.filter(r=>base(r.ex)===ex.k&&r.done);
     let quedaOk=false;
     const top=dn.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];const P=pesoNum(top.peso);const R=top.reps?top.reps[0]:null;
-    const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];const nv=fmtP(P.n+incCarga(P.n),P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+")",nv]};
+    const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];let c=P.n+incCarga(P.n);const fl=faltasDe(ex.rows.concat(gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[]));while(fl.has(c))c+=incCarga(c);const nv=fmtP(c,P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+")",nv]};
     const aManter=()=>!R?null:P?["manter "+fmtP(P.n,P.cl)+" × "+R,fmtP(P.n,P.cl)+" × "+R]:["manter "+R+" repetições",R+" repetições"];
     const aMais=()=>!R?null:P?[fmtP(P.n,P.cl)+" × "+(R+1)+" (1 repetição a mais)",fmtP(P.n,P.cl)+" × "+(R+1)]:[(R+1)+" repetições (1 a mais)",(R+1)+" repetições"];
     if(!anteriores.length){
       if(inicial){if(!/aquec/.test(ex.k))primeiros.push({nome:ex.nome,e1:top.e1||0,carga:P?fmtP(P.n,P.cl)+(R?" × "+R:""):R?R+" repetições":""})}
       else if(!antes.some(r=>base(r.ex)===ex.k))out.bem.push("<b>"+esc(ex.nome)+":</b> primeiro recorde"+(P?", "+fmtP(P.n,P.cl)+(R?" × "+R:""):"")+". Agora ele é a sua referência.");
-      const pr=inicial?aManter():aMais();if(pr){(inicial?segue:mais).push({nome:ex.nome,txt:pr[0],curto:pr[1]});out.metasEx[ex.k]=pr[1]}return}
+      const pr=inicial||cansado?aManter():aMais();if(pr){(inicial?segue:mais).push({nome:ex.nome,txt:pr[0],curto:pr[1]});out.metasEx[ex.k]=pr[1]}return}
     const mesmaGym=gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[];
     const ref=mesmaGym.length?mesmaGym:anteriores;
     const ultData=ref[ref.length-1].dateS;const prev=ref.filter(r=>r.dateS===ultData);
@@ -275,7 +317,7 @@ function treino(rows,key){
       const ok=!!outra||sg==="em dia";quedaOk=ok;
       const doGrupo=[...new Set(sessoesSem.filter(s=>s.rows.some(r=>r.done&&r.grupo===gr)).map(s=>s.treino))];
       out.quedas.push({exercicio:ex.nome,quedaPct:d,feitoTambemEm:outra?outra.treino:null,grupoTambemEm:doGrupo,grupo:gr,grupoNaSemana:sg,veredito:ok?"ok":"faltou"});
-      out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+"."+(outra?" Você já fez esse exercício em "+esc(outra.treino)+" nesta semana, então está tudo bem.":sg==="em dia"?(doGrupo.length?" Você já treinou "+esc(gr)+" em "+esc(doGrupo[0])+" nesta semana, então está tudo bem.":" "+esc(gr)+" está em dia na semana, então não falta nada."):" Vale completar "+esc(gr)+" ainda nesta semana."));
+      out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+"."+(outra?" Você já fez esse exercício em "+esc(outra.treino)+" nesta semana, então está tudo bem.":sg==="em dia"?(doGrupo.length?" Você já treinou "+esc(gr)+" em "+esc(doGrupo[0])+" nesta semana, então está tudo bem.":" "+esc(gr)+" está em dia na semana, então não falta nada."):(cansado?" Recupere primeiro e só complete "+esc(gr)+" nesta semana se estiver descansado.":" Vale completar "+esc(gr)+" ainda nesta semana.")));
     }
     // meta batida em todas as séries, sem ter ido ao limite em todas
     let vaiSubir=false;
@@ -290,7 +332,7 @@ function treino(rows,key){
       const m=P&&prevR?["manter "+fmtP(P.n,P.cl)+" e voltar às "+prevR+" repetições",fmtP(P.n,P.cl)+" × "+prevR]:["voltar ao que fez em "+ultData.slice(0,5),"voltar ao que fez em "+ultData.slice(0,5)];
       manter.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
     else{const gr=dn[0].grupo||"Sem grupo";const sg=(ctxTempo.semana.grupos.find(x=>x.grupo===gr)||{}).situacao;
-      const pedeMais=!inicial&&volSem==="abaixo"&&sg==="abaixo";const m=pedeMais?aMais():aManter();
+      const pedeMais=!inicial&&!cansado&&volSem==="abaixo"&&sg==="abaixo";const m=pedeMais?aMais():aManter();
       if(m){(pedeMais?mais:segue).push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
   });
   if(naoFeitas.length){
@@ -299,7 +341,10 @@ function treino(rows,key){
   }
   // comentários do treino entram na conclusão
   const C=analisarComentarios(ses.rows);const tem=id=>!!C.cont[id];
-  TEMAS.forEach(t=>{if(C.cont[t.id])out.comentarios.push("<b>"+t.nome+":</b> “"+esc(C.frases[t.id][0].slice(0,110))+"”")});
+  out.gruposTreino=[...new Set(feitas.map(r=>r.grupo))];
+  const coms=comentariosDe(ses.rows);out.comentariosTreino=coms.map(c=>({exercicio:c.nome||"treino todo",texto:c.texto.slice(0,240)}));
+  coms.slice(0,6).forEach(c=>out.comentarios.push("<b>"+esc(c.nome||"Treino")+":</b> “"+esc(c.texto.slice(0,140))+"”"));
+  out.pedidos=coms.filter(c=>RX_PEDIDO.test(strip(c.texto))).map(c=>({exercicio:c.nome||"treino todo",texto:c.texto.slice(0,240)}));
   const justifica=[tem("sono")&&"sono",tem("cansaco")&&"cansaço",tem("animo")&&"pouco ânimo",tem("comida")&&"alimentação",tem("academia")&&"a academia"].filter(Boolean);
   const animoIni=animos(ses.rows).ini;
   const dificil=animoIni==="ruim"||justifica.length>0;
@@ -371,10 +416,28 @@ function treino(rows,key){
     else if(est.ev==="firmou")out.bem.unshift("<b>"+esc(ex.nome)+"</b>: firmando "+esc(t)+", treino "+est.n+" de "+FIRMAR+".");
     else if(est.ev==="consolidou")out.bem.unshift("🏅 <b>"+esc(ex.nome)+"</b>: "+esc(t)+" consolidados. Essa carga agora é o seu padrão.");
   });
+  // O que a pessoa escreveu muda a meta: carga que não existe sai, o que pesou não sobe e o que ficou leve pode subir.
+  const comentadas=[];
+  porExercicio(ses.rows.filter(r=>!eCardio(r)&&r.done)).forEach(ex=>{
+    if(/aquec/.test(ex.k))return;
+    const seus=coms.filter(c=>c.citados.includes(ex.k)).map(c=>strip(c.texto));if(!seus.length)return;
+    const top=ex.rows.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];const P=pesoNum(top.peso);
+    const faltas=faltasDe(ex.rows);const pesou=seus.some(t=>RX_PESADO.test(t)),leve=seus.some(t=>RX_LEVE.test(t));
+    const fixa=firmando.find(m=>m.k===ex.k);let nova=null;
+    if(P&&faltas.has(P.n)){const op=faltas.get(P.n);
+      nova=op?{txt:"não há "+nf(P.n)+" kg aí, então use "+fmtP(op,P.cl)+(pesou?", porque a carga acima ficou demais":""),curto:fmtP(op,P.cl)}:{txt:"não há "+nf(P.n)+" kg aí, então use a carga mais próxima em que você mantém a técnica",curto:"a carga mais próxima que você controla"}}
+    else if(pesou)nova=fixa?{txt:fixa.txt+", sem subir: você comentou que pesou",curto:fixa.curto}:{txt:"sem subir: você comentou que pesou. Use a carga em que controla a técnica",curto:"a carga que você controla bem"};
+    else if(!fixa&&coms.some(c=>!c.doTreino&&c.k===ex.k&&RX_PEDIDO.test(strip(c.texto))))nova={txt:"repetir o que fez hoje, sem subir, enquanto essa sequência é revista",curto:"o que você fez hoje"};
+    else if(leve&&!fixa&&P){let c=P.n+incCarga(P.n);while(faltas.has(c))c+=incCarga(c);nova={txt:"subir para "+fmtP(c,P.cl)+": você comentou que ficou leve",curto:fmtP(c,P.cl),sobe:true}}
+    if(!nova)return;
+    [firmando,subir,manter,mais,segue].forEach(l=>{for(let i=l.length-1;i>=0;i--)if(base(l[i].nome)===ex.k)l.splice(i,1)});
+    comentadas.push({k:ex.k,nome:ex.nome,txt:nova.txt,curto:nova.curto});
+    out.metasEx[ex.k]=nova.curto;if(nova.sobe)out.metasTipo[ex.k]="sobe";else delete out.metasTipo[ex.k];
+  });
   const fixos=new Set(firmando.map(m=>m.k));
-  out.metasLista=firmando.concat(subir.slice(0,2),manter,mais,segue).filter(m=>!/aquec/i.test(m.nome)&&(m.k||!fixos.has(base(m.nome)))).slice(0,4);
+  out.metasLista=comentadas.concat(firmando,subir.slice(0,2),manter,mais,segue).filter(m=>!/aquec/i.test(m.nome)&&(m.k||!fixos.has(base(m.nome)))).slice(0,5);
   out.metasLista.forEach(m=>out.proximo.push("<b>"+esc(m.nome)+":</b> "+esc(m.txt)));
-  Object.keys(C.partes).slice(0,3).forEach(p=>out.proximo.push("⚠ Atenção ao <b>"+esc(p)+"</b>: reduza a carga se doer e avise o professor se continuar."));
+  Object.keys(C.partes).filter(p=>parteCabe(p,ses.rows)).slice(0,3).forEach(p=>out.proximo.push("⚠ Atenção ao <b>"+esc(p)+"</b>: reduza a carga se doer e avise o professor se continuar."));
   if(tem("dor")&&!Object.keys(C.partes).length)out.proximo.push("⚠ Você comentou dor ou incômodo. Vá com calma e avise o professor se continuar.");
   if(tem("sono"))out.proximo.push("<b>Sono:</b> tente dormir melhor na véspera.");
   if(tem("comida"))out.proximo.push("<b>Alimentação:</b> coma bem antes do treino.");
@@ -475,7 +538,7 @@ function recadoPicker(rows,sug){
 function fatosIA(A){
   const tira=s=>String(s).replace(/<[^>]+>/g,"");
   const ai=A.animoInfo||{};
-  return {treino:A.treino,data:A.dateS,inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
+  return {treino:A.treino,data:A.dateS,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
     animo:{chegou:ai.ini||"",saiu:ai.fim||"",analise:ai.texto||""},comparacao:A.comp||null,
     destaques:A.bem.slice(0,4).map(tira),atencao:A.abaixo.slice(0,4).map(tira),comentarios:A.comentarios.map(tira),
     metas:A.proximo.map(tira),sequenciaDificil:A.sequencia||null};
