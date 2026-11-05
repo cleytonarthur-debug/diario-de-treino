@@ -1808,7 +1808,7 @@ async function carregarPainel(forcar){
     for(let i=0;i<6;i++){
       const d=await Api.call("painel",{});
       S.painel=Object.assign({},S.painel||{},d.resumos);
-      Api.cacheSet("painel",{resumos:S.painel});
+      Api.cacheSet("painel",{resumos:Object.fromEntries(Object.entries(S.painel).map(([k,v])=>{const c=Object.assign({},v);delete c.s;return [k,c]}))});
       redesenharPainel();
       if(!d.faltam)break;
     }
@@ -1818,7 +1818,8 @@ async function carregarPainel(forcar){
 function redesenharPainel(){if(["inicio","alunos","aluno","alcal"].includes(S.view)&&!S.alunoForm)render()}
 function resumoDe(id){
   const r=S.painel&&S.painel[id];if(!r)return null;
-  if(!r.s)r.s=r.t.map(x=>({dateS:x[0],date:parseDate(x[0]),treino:x[1],vol:x[2],series:x[3],e:x[4]})).filter(x=>x.date).sort((a,b)=>a.date-b.date);
+  // A cópia guardada no aparelho traz as datas como texto: refaz a lista a partir de r.t.
+  if(!r.s||(r.s[0]&&!(r.s[0].date instanceof Date)))r.s=(r.t||[]).map(x=>({dateS:x[0],date:parseDate(x[0]),treino:x[1],vol:x[2],series:x[3],e:x[4]})).filter(x=>x.date).sort((a,b)=>a.date-b.date);
   return r;
 }
 function diaZero(d){const h=d||new Date();return new Date(h.getFullYear(),h.getMonth(),h.getDate())}

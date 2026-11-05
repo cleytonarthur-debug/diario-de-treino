@@ -1,9 +1,7 @@
 {
-  "versao": "2.23.0",
+  "versao": "2.23.1",
   "data": "05/11/2026",
   "notas": [
-    "Inclua exercício entre os outros, com o histórico da última vez.",
-    "As metas agora fazem perguntas, e o coach avalia a resposta.",
-    "Relatório do aluno para o professor, com a relação entre sono, comida e treino."
+    "Corrige o erro na tela inicial do professor."
   ]
 }
