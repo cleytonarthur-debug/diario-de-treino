@@ -109,6 +109,7 @@ function ingestAll(d){
   ingestModels(d.modelos);Coach.setModelos(S.models);
   ingestAvals(d.avaliacoes);
   if(d.professor!==undefined)S.profWhats=d.professor||"";
+  S.metasResp=d.metasResp||[];
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
 }
@@ -171,7 +172,7 @@ function selectAluno(id,quiet){
   if(S.alunoId===id&&S.loaded){if(!quiet)setView("inicio");return}
   S.alunoId=id;store("dt2-aluno-sel",id);
   S.aluno=S.alunos.find(a=>a.id===id)||null;
-  S.rows=[];S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
+  S.rows=[];S.metasResp=[];S.relParecer=null;S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
   S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.fim=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;S.modEdit=null;
   updateWho();
   loadDados();
@@ -505,13 +506,18 @@ function renderLancar(){
     '<div class="row-btns"><button class="btn ghost" id="b-trocar">Trocar treino</button><button class="btn ghost" id="b-stop" title="Marca as séries que faltam como não feitas">Parei aqui</button><button class="btn ghost" id="b-discard">Descartar</button></div></div>'+
     (d.metodo?metodoTopo(d):"")+
     (d.blocks.length?"":'<div class="empty">Nenhum exercício ainda. Adicione abaixo.</div>')+
-    d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)).join("")+
+    (d.blocks.length?insHtml(0):"")+d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")).join("")+
     '<div class="add-ex"><input id="new-ex" list="ex-list" placeholder="Adicionar exercício (busque pelo nome)" aria-label="Nome do exercício"><button class="btn" id="b-add">Adicionar</button></div>'+
     '<datalist id="ex-list">'+exNames.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
   bindLancar();
   updateBar();
 }
 /* ---- Método: topo do treino, cabeçalho de cada par, avisos de progressão ---- */
+// Incluir um exercício entre os outros, na posição escolhida.
+function insHtml(i){
+  if(S.insAt!==i)return '<button class="ins-ex" data-ins="'+i+'">+ Incluir exercício aqui</button>';
+  return '<div class="add-ex ins-box"><input id="ins-ex" list="ex-list" placeholder="Qual exercício?" aria-label="Exercício a incluir"><button class="btn" id="ins-ok">Incluir</button><button class="btn ghost" id="ins-no">Cancelar</button></div>';
+}
 function metodoDoDraft(d){return d&&d.metodo&&window.Metodos?Metodos.get(d.metodo.id):null}
 function metodoTopo(d){
   const m=metodoDoDraft(d);if(!m)return "";
@@ -566,7 +572,7 @@ function exCard(b,bi){
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
     (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
-    avisosProgresso(S.draft,b)+metaCoach(b)+
+    (b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
     '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
@@ -691,8 +697,10 @@ function bindLancar(){
   const iniMsg=()=>{const m=$("#ini-msg");const t=Coach.chegada(S.rows,S.draft.animoIni);m.textContent=t;m.hidden=!t};iniMsg();
   ligarAnimo("animo-ini","animoIni",iniMsg);
   $("#b-trocar").onclick=()=>{S.picker=true;render();window.scrollTo({top:0})};
-  $("#b-add").onclick=addExercise;
+  $("#b-add").onclick=()=>addExercise();
   $("#new-ex").addEventListener("keydown",e=>{if(e.key==="Enter")addExercise()});
+  el.querySelectorAll("[data-ins]").forEach(x=>x.onclick=()=>{S.insAt=+x.dataset.ins;renderLancar();const i=$("#ins-ex");if(i)i.focus()});
+  const ii=$("#ins-ex");if(ii){const ok=()=>addExercise(ii,S.insAt);$("#ins-ok").onclick=ok;ii.addEventListener("keydown",e=>{if(e.key==="Enter")ok()});$("#ins-no").onclick=()=>{S.insAt=null;renderLancar()}}
   $("#b-discard").onclick=()=>armed($("#b-discard"),"Toque de novo para descartar","Descartar",()=>{S.draft=null;saveDraft();S.confirm=false;S.fim=false;render()});
   $("#b-stop").onclick=()=>armed($("#b-stop"),"Toque de novo: marcar o que falta como não feito","Parei aqui",()=>{
     let n=0;S.draft.blocks.forEach(b=>b.sets.forEach(s=>{if(!String(s.reps).trim()&&!s.skip){s.skip=true;n++}}));
@@ -747,16 +755,25 @@ function swapToKey(b,key){
   if(b.origKey===b.exKey)delete b.origKey;
 }
 function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;const t=document.createElement("div");t.innerHTML=exCard(S.draft.blocks[bi],bi);old.replaceWith(t.firstChild);bindLancar()}
-function addExercise(){
-  const inp=$("#new-ex");const name=inp.value.trim();if(!name)return;
+// Resumo da última vez que a pessoa fez o exercício.
+function ultimaVez(name){
+  const rs=lastExact(name).filter(r=>r.done);if(!rs.length)return null;
+  const metas=rs.map(r=>String(r.meta||"").trim());const u=rs[0];
+  return {series:rs.length,metas:metas.every(m=>m===metas[0])?metas[0]:metas.join("; "),peso:String(rs[rs.length-1].peso||"").trim(),
+    txt:"Última vez em "+String(u.dateS).slice(0,5)+": "+rs.length+(rs.length===1?" série":" séries")+", "+[String(u.peso||"").trim(),u.reps?u.reps[0]+" repetições":""].filter(Boolean).join(" × ")+"."};
+}
+function addExercise(campo,pos){
+  const inp=campo||$("#new-ex");const name=inp.value.trim();if(!name)return;
   const prev=lastFor(name);
   const grupo=S.exMap.get(strip(name))||(prev&&prev[0]&&prev[0].grupo)||guessGroup(name);
   const novos=[];
   if(prev&&prev.length){prev.forEach(r=>{let x=novos.find(y=>y.name===r.ex);if(!x){x={id:newId(),name:r.ex,grupo,sets:[],obs:""};novos.push(x)}x.sets.push(makeSet(x.sets.length+1,r))})}
   else{const x={id:newId(),name,grupo,sets:[],obs:""};for(let i=0;i<3;i++)x.sets.push(makeSet(i+1,null));novos.push(x)}
-  juntarUnilaterais(novos).forEach(x=>S.draft.blocks.push(x));
+  const juntos=juntarUnilaterais(novos);const u=ultimaVez(novos[0].name);
+  juntos.forEach(x=>{x.ultTxt=u?u.txt:"Primeira vez neste exercício: sem histórico."});
+  const onde=pos==null?S.draft.blocks.length:pos;S.draft.blocks.splice(onde,0,...juntos);S.insAt=null;
   aplicarAcademia(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar();
-  const last=document.querySelector(".ex:last-of-type");if(last)last.scrollIntoView({block:"center"});
+  const card=$('.ex[data-b="'+onde+'"]');if(card)card.scrollIntoView({block:"center"});
 }
 function updateBar(){
   const n=savableSets(),feitas=doneSets();
@@ -1395,7 +1412,7 @@ function openModelEditor(alunoId){
     if(!S.modEdit.length&&!(S.aluno&&S.aluno.metodo))S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
   if(S.loaded)go();else{const t=setInterval(()=>{if(S.loaded){clearInterval(t);go()}},300);setTimeout(()=>clearInterval(t),30000)}
 }
-const novoItem=()=>({ex:"",series:3,metas:"12",peso:""});
+const novoItem=()=>({ex:"",series:3,metas:"12",peso:"",novo:true});
 const itemGrupo=it=>it.grupo||S.exMap.get(strip(it.ex))||(String(it.ex||"").trim()?guessGroup(it.ex):"Sem grupo");
 // Um dia já treinado vira lista de exercícios do treino padrão (séries, metas e peso daquele dia).
 function itensDaSessao(ses){
@@ -1420,11 +1437,11 @@ function renderModelEditor(el){
       '<button class="btn ghost small" data-act="rm-t">Remover</button></div>'+
       '<div class="mt-copy"><select data-act="copiar" aria-label="Copiar exercícios de um dia já treinado"><option value="">Copiar exercícios de um dia já treinado…</option>'+sessOpts+'</select></div>'+
       t.itens.map((it,ii)=>'<div class="mt-row" data-i="'+ii+'"><div class="ex-in"><input data-f="ex" list="mt-list" value="'+esc(it.ex)+'" placeholder="Exercício (busque pelo nome)" aria-label="Exercício">'+
-        '<div class="mt-acts"><button data-act="up" aria-label="Subir">↑</button><button data-act="down" aria-label="Descer">↓</button><button data-act="rm" aria-label="Remover exercício">✕</button></div></div>'+
+        '<div class="mt-acts"><button data-act="up" aria-label="Subir">↑</button><button data-act="down" aria-label="Descer">↓</button><button data-act="ins" aria-label="Incluir exercício abaixo" title="Incluir exercício abaixo">+</button><button data-act="rm" aria-label="Remover exercício">✕</button></div></div>'+
         '<div class="mt-nums"><label>Séries<input data-f="series" inputmode="numeric" value="'+esc(it.series)+'"></label>'+
         '<label>Reps meta<input data-f="metas" value="'+esc(it.metas)+'" placeholder="12 ou 15; 12; 10"></label>'+
         '<label>Peso inicial<input data-f="peso" value="'+esc(it.peso)+'" placeholder="ex.: 10 kg"></label>'+
-        '<label class="g">Grupo muscular'+grupoSelect(itemGrupo(it),'data-f2="grupo"')+'</label></div></div>').join("")+
+        '<label class="g">Grupo muscular'+grupoSelect(itemGrupo(it),'data-f2="grupo"')+'</label></div>'+(it.ult?'<div class="ult-vez small muted">'+esc(it.ult)+'</div>':"")+'</div>').join("")+
       '<div class="mt-f"><button class="btn" data-act="add">+ Exercício</button></div></div>').join("")+
     '<div class="row-btns" style="margin-bottom:12px"><button class="btn" id="mt-addt">+ Novo treino</button>'+
     '<select id="mt-plano" class="mt-plano" aria-label="Acrescentar plano pronto"><option value="">Acrescentar plano pronto…</option>'+(window.Metodos?Metodos.planos():[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nome+" ("+p.dias+")")+'</option>').join("")+'</select></div>'+
@@ -1445,6 +1462,9 @@ function renderModelEditor(el){
       row.querySelectorAll("[data-f]").forEach(inp=>inp.addEventListener("input",()=>{it[inp.dataset.f]=inp.value;
         if(inp.dataset.f==="ex"&&!it.grupoManual){const g=itemGrupo(it);if(![...gsel.options].some(o=>o.value===g))gsel.add(new Option(g,g));gsel.value=g}}));
       gsel.onchange=()=>{it.grupo=gsel.value;it.grupoManual=true};
+      row.querySelector('[data-f="ex"]').addEventListener("change",()=>{if(!it.novo)return;const u=ultimaVez(it.ex);if(!u){it.ult="";return}
+        it.series=u.series;it.metas=u.metas;it.peso=u.peso;it.ult=u.txt;render()});
+      row.querySelector('[data-act="ins"]').onclick=()=>{t.itens.splice(ii+1,0,novoItem());render();const r=$('.mt[data-t="'+ti+'"] .mt-row[data-i="'+(ii+1)+'"] [data-f="ex"]');if(r)r.focus()};
       row.querySelector('[data-act="rm"]').onclick=()=>{t.itens.splice(ii,1);render()};
       row.querySelector('[data-act="up"]').onclick=()=>{if(ii>0){t.itens.splice(ii-1,0,t.itens.splice(ii,1)[0]);render()}};
       row.querySelector('[data-act="down"]').onclick=()=>{if(ii<t.itens.length-1){t.itens.splice(ii+1,0,t.itens.splice(ii,1)[0]);render()}};
@@ -1550,6 +1570,7 @@ function renderPerfil(){
        ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
       (prof?'<div class="row-btns" style="margin-top:14px"><button class="btn" id="p-edit">Editar dados</button>'+(a.planilhaUrl?'<a class="btn" href="'+esc(a.planilhaUrl)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+'</div>':"")+
       '</div>';
+    if(prof)html+=relatorioHtml();
     if(prof)html+=shareBox(a)+'<div class="card" style="margin-bottom:14px"><h3>Segurança</h3><p class="muted small">Se o link vazar ou o aluno trocar de celular, gere um novo. O link antigo para de funcionar.</p><div class="row-btns"><button class="btn" id="p-newlink">Gerar novo link</button></div></div>';
     if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Treinos deste aluno</h3><p class="muted small">'+statusPill(a)+' Monte e edite os treinos aqui pelo app (ficam na aba Modelos da planilha do aluno).</p><div class="row-btns"><button class="btn primary" id="p-montar">✎ Montar treinos</button></div></div>';
   }else if(prof){
@@ -1557,6 +1578,7 @@ function renderPerfil(){
   }
   html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: toque na <b>engrenagem</b>, no topo.</p>';
   el.innerHTML=html;
+  if(prof&&S.aluno)ligarRelatorio();
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);abrir("alunos")};
   const pn=$("#p-newlink");if(pn)pn.onclick=()=>armed(pn,"Toque de novo: o link antigo vai parar","Gerar novo link",async()=>{
@@ -1605,10 +1627,58 @@ function pedirParecerIA(key){
   const A=Coach.treino(S.rows,key);if(!A)return;
   S.iaTentou.add(key);
   const id=S.alunoId;
-  callA("coachIA",{key,data:A.dateS,treino:A.treino,fatos:Coach.fatosIA(A)}).then(r=>{
+  callA("coachIA",{key,data:A.dateS,treino:A.treino,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(r=>({pergunta:r[4],resposta:r[5]}))})}).then(r=>{
     if(S.alunoId!==id||!r||!r.item)return;
     S.memoria.set(key,r.item);if(S.view==="coach")renderCoach();
   }).catch(()=>{});
+}
+/* Metas com pergunta. A resposta fica na planilha do aluno, e o coach avalia pelo objetivo e pelo jeito do professor. */
+const podeResponder=()=>S.role!=="prof"||!!(S.aluno&&S.aluno.master);
+function respostaDaMeta(id){const l=(S.metasResp||[]).filter(r=>r[2]===id);return l[l.length-1]||null}
+function metasHtml(A){
+  const qs=A&&A.metasQ||[];if(!qs.length)return "";
+  return '<div class="ch-sec foco"><h3>🎯 Metas</h3>'+qs.map(q=>{const r=respostaDaMeta(q.id);const aberta=podeResponder()&&(!r||S.metaAberta===q.id);
+    return '<div class="mq" data-q="'+esc(q.id)+'"><p>'+q.txt+'</p><p class="mq-p">'+esc(q.perg)+'</p>'+
+      (r?'<p class="aux-c eu">'+esc(r[5])+'</p>'+(r[6]?'<p class="aux-c ia">'+esc(r[6])+'</p>':'<p class="muted small">Resposta guardada. O coach ainda não comentou.</p>')+(podeResponder()&&S.metaAberta!==q.id?'<button class="btn ghost small" data-mq="abrir">Responder de novo</button>':""):podeResponder()?"":'<p class="muted small">O aluno ainda não respondeu.</p>')+
+      (aberta?'<textarea class="obs mq-t" placeholder="Escreva a sua resposta" aria-label="Sua resposta"></textarea><button class="btn small" data-mq="enviar">Responder</button>':"")+'</div>'}).join("")+'</div>';
+}
+function ligarMetas(el,A){
+  el.querySelectorAll(".mq").forEach(box=>{
+    const id=box.dataset.q,q=(A.metasQ||[]).find(x=>x.id===id);if(!q)return;
+    const ab=box.querySelector('[data-mq="abrir"]');if(ab)ab.onclick=()=>{S.metaAberta=id;renderCoach()};
+    const env=box.querySelector('[data-mq="enviar"]');if(!env)return;
+    env.onclick=async()=>{const t=box.querySelector(".mq-t").value.trim();if(!t){toast("Escreva a resposta.");return}
+      env.disabled=true;env.textContent="O coach está lendo…";
+      try{const r=await callA("metaResponder",{treino:A.treino,tema:id,meta:q.txt.replace(/<[^>]+>/g,""),pergunta:q.perg,resposta:t});
+        S.metasResp=(S.metasResp||[]).concat([r.linha]);S.metaAberta=null;renderCoach();toast(r.linha[6]?"O coach respondeu.":"Resposta guardada.");
+      }catch(x){toast(errText(x));env.disabled=false;env.textContent="Responder"}};
+  });
+}
+/* Relatório do aluno: parecer prévio para o professor, sem gastar a IA ao abrir. */
+function relatorioHtml(){
+  if(!S.loaded)return '<div class="card" style="margin-bottom:14px"><h3>Relatório do aluno</h3><p class="muted small">Lendo a planilha…</p></div>';
+  const R=Coach.relatorio(S.rows);S.relDados=R;const P=S.relParecer;
+  const pill={good:"ok",bad:"bad",flat:""}[R.tom];
+  const sec=(t,l)=>l.length?'<div class="par-h">'+t+'</div><ul class="rel-l">'+l.map(x=>'<li>'+x+'</li>').join("")+'</ul>':"";
+  const resp=(S.metasResp||[]).slice(-3).reverse().map(r=>"<b>"+esc(r[4])+"</b> “"+esc(String(r[5]).slice(0,160))+"”");
+  return '<div class="card aux-b" style="margin-bottom:14px"><h3>Relatório do aluno</h3><p><span class="pill '+pill+'">'+esc(R.veredito)+'</span></p>'+
+    '<p class="muted small">Últimas 4 semanas contra as 4 anteriores: '+R.treinos+' treinos (antes '+R.treinosAntes+')'+(R.volumeDif!=null?", volume "+(R.volumeDif>0?"+":"")+R.volumeDif+"%":"")+", "+R.recordes+(R.recordes===1?" recorde":" recordes")+", "+R.metasBatidas+(R.metasBatidas===1?" meta batida":" metas batidas")+'.</p>'+
+    (R.nexoUltimo?'<p class="small"><b>Último treino ('+esc(R.ultimoTreino)+'):</b> '+esc(R.nexoUltimo)+'</p>':"")+
+    sec("O que o aluno relatou e o efeito no treino",R.fatores.map(f=>f.texto))+
+    sec("Dor ou incômodo",R.dores.map(d=>esc(d.parte)+": "+d.treinos+(d.treinos===1?" treino":" treinos")))+
+    sec("Pedidos para rever",R.pedidos.map(p=>"<b>"+esc(p.data+" · "+p.exercicio)+":</b> “"+esc(p.texto)+"”"))+
+    sec("Respostas às metas",resp)+
+    '<p class="muted small">A relação com o treino compara o volume com e sem cada relato. Mostra um sinal, não prova a causa.</p>'+
+    '<div class="par-h">Parecer do assistente</div>'+(P&&P.parecer?'<p class="aux-c ia">'+esc(P.parecer)+'</p><p class="muted small">'+esc(P.data||"")+'</p>':'<p class="muted small">Ele junta tudo isso com o objetivo do aluno e o seu jeito de trabalhar.</p>')+
+    '<button class="btn" id="rel-ia">'+(P&&P.parecer?"Refazer parecer":"Pedir parecer")+'</button></div>';
+}
+function ligarRelatorio(){
+  if(S.loaded&&S.relParecer==null){S.relParecer={};callA("alunoParecer",{}).then(d=>{if(d.item){S.relParecer=d.item;if(S.view==="perfil")renderPerfil()}}).catch(()=>{})}
+  const b=$("#rel-ia");if(!b)return;
+  b.onclick=async()=>{b.disabled=true;b.textContent="Pensando…";
+    try{const a=S.aluno||{};const d=await callA("alunoParecer",{gerar:true,fatos:Object.assign({},S.relDados,{fatores:(S.relDados.fatores||[]).map(f=>f.texto.replace(/<[^>]+>/g,"")),respostas:(S.metasResp||[]).slice(-5).map(r=>({meta:r[3],pergunta:r[4],resposta:r[5]})),nivel:a.nivel||""})});
+      if(d.item){S.relParecer=d.item;renderPerfil()}else{toast(d.motivo==="limite_do_dia"?"O limite de hoje acabou.":"O assistente não conseguiu agora.");b.disabled=false;b.textContent="Pedir parecer"}
+    }catch(x){toast(errText(x));b.disabled=false;b.textContent="Pedir parecer"}};
 }
 function renderCoach(){
   const el=$("#coach");
@@ -1642,7 +1712,7 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(A.comp.vol)+'<small>t</small></span>'+difKpi(A.comp.volDif,true,"%")+'</div>'+
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
-      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+lista("🎯 Metas",A.metasLongo||[],"foco")+lista("📌 No próximo "+esc(A.treino),A.proximo)
+      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+(A.nexoTreino?lista("🔗 O que isso teve a ver com o treino",[esc(A.nexoTreino)]):"")+metasHtml(A)+lista("📌 No próximo "+esc(A.treino),A.proximo)
       :'<p class="muted">Analisando o treino…</p>')+'</div>'+
     (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do período</h2></div>'+
     '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
@@ -1665,6 +1735,7 @@ function renderCoach(){
       (g.cargas.length?'<div class="tbl-wrap"><table><thead><tr><th>Exercício</th><th>Última carga aqui</th></tr></thead><tbody>'+g.cargas.map(c=>'<tr><td>'+esc(c.ex)+'</td><td>'+esc(c.peso)+' × '+esc(c.reps)+'</td></tr>').join("")+'</tbody></table></div>':"")+'</details>').join("")
       :'<p class="muted small">Nenhuma academia informada neste período. Escolha a academia no início do treino: aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>';
   const cs=$("#ch-ses");if(cs)cs.onchange=e=>{S.coachSel=e.target.value;renderCoach()};
+  ligarMetas(el,A);
   const cm=$("#ch-mes");if(cm)cm.onchange=e=>{S.coachMes=e.target.value;renderCoach()};
   [["#ch-de","coachDe"],["#ch-ate","coachAte"]].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{if(i.value){S[k]=i.value;renderCoach()}}});
 }

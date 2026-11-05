@@ -127,6 +127,13 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Começar os treinos (Montar treinos):** treinos prontos do nível, copiar de outro aluno (`modelosDe`, sem as cargas) e "O coach monta os blocos" (`metTreinos`). A IA só usa exercícios da lista enviada, segue o "Meu jeito de trabalhar" e as restrições do aluno, e o programa recusa nome fora da lista. Nada vale antes de Salvar treinos.
 - **Sem plano só para avançado:** `planos.json` tem Iniciante, Intermediário e Todos. O avançado usa os intermediários como base ou o coach.
 
+## Relatório, metas com pergunta e incluir exercício (versão 2.23, 05/11/2026)
+- **Incluir no meio:** botão "+ Incluir exercício aqui" entre os cartões do treino (`insHtml`, `addExercise(campo,pos)`) e botão "+" em cada linha de Montar treinos. Não aparece entre o "a" e o "b" de um par de método.
+- **Último histórico:** ao incluir, o treino traz as séries e os pesos da última vez e mostra "Última vez em dd/mm" (`ultimaVez`). Em Montar treinos, um exercício novo já vem com séries, repetições e peso da última vez dele.
+- **Metas com pergunta:** cada meta traz uma pergunta (`metasLongo`, `metasQ`). A resposta vai para a aba **Respostas às metas** da planilha do aluno (`metaResponder`), e a IA avalia pelo objetivo e pelo jeito do professor. Sem IA, a resposta fica guardada. O professor lê e não responde no lugar do aluno.
+- **Relação com o treino:** `nexo` compara o desvio de volume nos treinos com e sem cada relato (sono, fraqueza, cansaço, alimentação, academia, e os positivos), nos últimos 90 dias. Regra nossa: menos de 2 treinos é "pouca base", diferença de 5 pontos ou mais é "pesou" ou "ajudou". É sinal, não prova.
+- **Relatório do aluno:** no Perfil, só para o professor (`Coach.relatorio`): últimas 4 semanas contra as 4 anteriores, recordes, metas batidas, relatos, dores, pedidos e respostas. "Pedir parecer" usa a IA (`alunoParecer`) e grava na aba **Relatório do aluno**.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

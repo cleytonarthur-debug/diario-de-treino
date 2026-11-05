@@ -1,10 +1,9 @@
 {
-  "versao": "2.22.0",
-  "data": "04/11/2026",
+  "versao": "2.23.0",
+  "data": "05/11/2026",
   "notas": [
-    "Pegar o contato do aluno direto do celular (Android).",
-    "Nível do aluno depois da avaliação, com treinos prontos do nível.",
-    "Copiar treinos de outro aluno.",
-    "O coach monta os blocos de treino para você revisar."
+    "Inclua exercício entre os outros, com o histórico da última vez.",
+    "As metas agora fazem perguntas, e o coach avalia a resposta.",
+    "Relatório do aluno para o professor, com a relação entre sono, comida e treino."
   ]
 }
