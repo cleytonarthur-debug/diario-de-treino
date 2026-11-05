@@ -1,7 +1,9 @@
 {
-  "versao": "2.23.1",
+  "versao": "2.24.0",
   "data": "05/11/2026",
   "notas": [
-    "Corrige o erro na tela inicial do professor."
+    "O coach entende academia e máquina diferentes, sem contar como queda.",
+    "Mês em andamento compara só com os mesmos dias do mês anterior.",
+    "Avaliação separada em Último treino e Parecer geral."
   ]
 }

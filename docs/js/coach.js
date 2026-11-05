@@ -68,6 +68,8 @@ function comentariosDe(rows){
 const RX_PESADO=/massacr|muito pesad|bem pesad|pesad[oa] demais|muito dificil|dificil de|nao aguent|acabou comigo|destruiu|exagerad|\b(mas|\d+ ?(kg)?) e muito\b(?! (bom|boa|melhor|legal|facil))/;
 const RX_LEVE=/muito leve|bem leve|leve demais|facil demais|muito facil|podia mais|dava para mais|da para subir/;
 const RX_PEDIDO=/\b(revise|revisar|verifique|verificar|confira|conferir|troque|trocar|tirar|tire|mude|corrija|corrigir|errad[oa]|tem de ser|tem que ser|deveria|nao pode ser|entenda)\b/;
+const RX_MAQ=/outra maquina|maquina diferente|maquinas diferentes|outro aparelho|aparelho diferente|aparelhos diferentes|nao e a mesma maquina|maquina nao e a mesma/;
+const RX_OUTRA_ACAD=/outra academia|academia diferente|maquinas diferentes|aparelhos diferentes/;
 const numKg=s=>parseFloat(String(s).replace(",","."));
 // "Não tem 22 kg, ou é 20 ou 25": carga que não existe naquela academia e a opção logo abaixo dela.
 function faltasDe(rows){
@@ -143,8 +145,17 @@ function desvio(todas,s){
   const m=iguais.length?iguais.reduce((a,x)=>a+volFeito(x),0)/iguais.length:0;
   return m?pct(volFeito(s),m):null;
 }
-// Treino difícil: ânimo baixo ou volume bem abaixo da média.
-function eDificil(todas,s){const d=desvio(todas,s);return animoDe(s.rows)==="ruim"||(d!=null&&d<=-15)}
+/* Treino fora da academia de sempre, sem outro treino igual feito lá: os pesos não dão para comparar. */
+function acadDif(todas,s){
+  if(s.rows.some(r=>RX_OUTRA_ACAD.test(strip(limpa(r.obs)))))return true;
+  const gym=strip(academiaDe(s.rows));if(!gym)return false;
+  const ini=new Date(+s.date-120*864e5),conta={};
+  todas.filter(x=>x.date>=ini&&x.date<s.date).forEach(x=>{const g=strip(academiaDe(x.rows));if(g)conta[g]=(conta[g]||0)+1});
+  const hab=Object.entries(conta).sort((a,b)=>b[1]-a[1])[0];if(!hab||hab[0]===gym)return false;
+  return !todas.some(x=>x.date<s.date&&x.treino===s.treino&&strip(academiaDe(x.rows))===gym);
+}
+// Treino difícil: ânimo baixo ou volume bem abaixo da média, a não ser que a academia explique.
+function eDificil(todas,s){const d=desvio(todas,s);return animoDe(s.rows)==="ruim"||(d!=null&&d<=-15&&!acadDif(todas,s))}
 // Sequência: 8 ou mais treinos difíceis entre os últimos 10.
 function sequenciaDificil(todas,ses){
   const ate=todas.filter(s=>s.date<=ses.date&&s.rows.some(r=>r.done)).slice(-10);
@@ -238,7 +249,7 @@ const sinalPct=x=>x===0?"igual ao normal":Math.abs(x)+"% "+(x>0?"acima":"abaixo"
 // Compara o volume nos treinos com e sem cada coisa relatada. Mostra relação, não prova a causa.
 function nexo(todas,ate){
   const ini=new Date(+ate-90*864e5);
-  const base=todas.filter(s=>s.date>=ini&&s.date<=ate&&s.rows.some(r=>r.done)).map(s=>({d:desvio(todas,s),c:analisarComentarios(s.rows).cont})).filter(x=>x.d!=null);
+  const base=todas.filter(s=>s.date>=ini&&s.date<=ate&&s.rows.some(r=>r.done)).filter(s=>!acadDif(todas,s)).map(s=>({d:desvio(todas,s),c:analisarComentarios(s.rows).cont})).filter(x=>x.d!=null);
   const media=l=>l.length?Math.round(l.reduce((a,x)=>a+x.d,0)/l.length):null;
   return FATORES.map(([id,nome,sinal])=>{
     const com=base.filter(x=>x.c[id]),sem=base.filter(x=>!x.c[id]);if(!com.length)return null;
@@ -249,7 +260,7 @@ function nexo(todas,ate){
 }
 // O que o relato explica neste treino. Comer e dormir bem pedem um treino que responda.
 function nexoDoTreino(todas,ses){
-  const d=desvio(todas,ses);if(d==null)return "";
+  const d=desvio(todas,ses);if(d==null||acadDif(todas,ses))return "";
   const c=analisarComentarios(ses.rows).cont;const nomes=ids=>ids.filter(i=>c[i]).map(i=>FATORES.find(f=>f[0]===i)[1].toLowerCase());
   const ruins=nomes(["sono","fraqueza","cansaco","comida","academia"]),bons=nomes(["sonobom","comidaboa","academiaboa"]);
   const lista=l=>l.join(" e ");
@@ -310,8 +321,9 @@ function estadoMeta(rows,k,ate){
   [...dias.values()].forEach(rs=>{
     st.ev=null;
     const bate=a=>rs.some(r=>bateuAlvo(a,r.reps&&r.reps[0],r.pesoN,r.meta));
-    const faltas=faltasDe(rs);
+    const faltas=faltasDe(rs);const gymDia=strip(rs[0].academia);
     if(st.alvo&&faltas.has(st.alvo.peso)){st.alvo=null;st.n=0;return}
+    if(st.alvo&&((st.gym&&gymDia&&gymDia!==st.gym)||rs.some(r=>RX_MAQ.test(strip(limpa(r.obs))))))return;
     if(st.alvo){
       st.n=bate(st.alvo)?st.n+1:0;st.ev=st.n?"firmou":"falhou";st.evAlvo=st.alvo;
       if(st.n>=FIRMAR){st.ev="consolidou";st.alvo=null;st.n=0}
@@ -319,7 +331,7 @@ function estadoMeta(rows,k,ate){
     }
     const tag=rs.map(r=>String(r.obs||"").match(/\[Meta coach: *([^\]]+)\]/i)).find(Boolean);
     const a=tag&&alvoDe(tag[1]);
-    if(a&&!faltas.has(a.peso)&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a}
+    if(a&&!faltas.has(a.peso)&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a;st.gym=gymDia}
   });
   return st;
 }
@@ -349,6 +361,7 @@ function treino(rows,key){
   const nSes=todas.filter(s=>s.rows.some(r=>r.done)).indexOf(ses)+1;const inicial=nSes>=1&&nSes<=3;
   const inicioSem=new Date(ses.date.getFullYear(),ses.date.getMonth(),ses.date.getDate()-6);
   const sessoesSem=todas.filter(s=>s!==ses&&s.date>=inicioSem&&s.date<=ses.date);
+  const outraAcad=acadDif(todas,ses);const comsCedo=comentariosDe(ses.rows);const maquinas=[];
   const contaHoje=analisarComentarios(ses.rows).cont;const cansado=!!(contaHoje.cansaco||contaHoje.sono);
   porExercicio(ses.rows.filter(r=>!eCardio(r))).forEach(ex=>{
     const dn=ex.rows.filter(r=>r.done);if(!dn.length)return;
@@ -363,6 +376,12 @@ function treino(rows,key){
       else if(!antes.some(r=>base(r.ex)===ex.k))out.bem.push("<b>"+esc(ex.nome)+":</b> primeiro recorde"+(P?", "+fmtP(P.n,P.cl)+(R?" × "+R:""):"")+". Agora ele é a sua referência.");
       const pr=inicial||cansado?aManter():aMais();if(pr){(inicial?segue:mais).push({nome:ex.nome,txt:pr[0],curto:pr[1]});out.metasEx[ex.k]=pr[1]}return}
     const mesmaGym=gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[];
+    // Academia ou máquina diferente: os pesos não comparam. Registra como referência e confirma no próximo.
+    const maqDif=comsCedo.some(c=>c.citados.includes(ex.k)&&RX_MAQ.test(strip(c.texto)));
+    if((outraAcad&&!mesmaGym.length)||maqDif){
+      if(maqDif&&!outraAcad)maquinas.push(ex.nome);
+      const mr=aManter();if(mr&&!/aquec/.test(ex.k)){segue.push({nome:ex.nome,txt:"repetir "+mr[1]+" para criar referência aqui",curto:mr[1]});out.metasEx[ex.k]=mr[1]}
+      return}
     const ref=mesmaGym.length?mesmaGym:anteriores;
     const ultData=ref[ref.length-1].dateS;const prev=ref.filter(r=>r.dateS===ultData);
     const curV=volumeDe(dn)||repsDe(dn),prevV=volumeDe(prev)||repsDe(prev);
@@ -393,7 +412,7 @@ function treino(rows,key){
       const m=P&&prevR?["manter "+fmtP(P.n,P.cl)+" e voltar às "+prevR+" repetições",fmtP(P.n,P.cl)+" × "+prevR]:["voltar ao que fez em "+ultData.slice(0,5),"voltar ao que fez em "+ultData.slice(0,5)];
       manter.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
     else{const gr=dn[0].grupo||"Sem grupo";const sg=(ctxTempo.semana.grupos.find(x=>x.grupo===gr)||{}).situacao;
-      const pedeMais=!inicial&&!cansado&&volSem==="abaixo"&&sg==="abaixo";const m=pedeMais?aMais():aManter();
+      const pedeMais=!inicial&&!cansado&&!outraAcad&&volSem==="abaixo"&&sg==="abaixo";const m=pedeMais?aMais():aManter();
       if(m){(pedeMais?mais:segue).push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
   });
   if(naoFeitas.length){
@@ -411,7 +430,8 @@ function treino(rows,key){
   const dificil=animoIni==="ruim"||justifica.length>0;
   if(out.abaixo.length&&justifica.length)out.abaixo.push("Faz sentido com o que você comentou ("+justifica.join(", ")+"). Não é perda de força: leve isso em conta.");
   // treino comparado com a média dos anteriores iguais
-  const iguais=todas.filter(s=>s.treino===ses.treino&&s.date<ses.date).slice(-4);
+  const iguaisTodos=todas.filter(s=>s.treino===ses.treino&&s.date<ses.date),iguaisGym=gym?iguaisTodos.filter(s=>strip(academiaDe(s.rows))===strip(gym)):[];
+  const iguais=(iguaisGym.length?iguaisGym:iguaisTodos).slice(-4);
   const volHoje=volumeDe(feitas);
   const media=iguais.length?iguais.reduce((a,s)=>a+volumeDe(s.rows.filter(r=>r.done&&!eCardio(r))),0)/iguais.length:0;
   const dv=media?pct(volHoje,media):null;
@@ -444,6 +464,13 @@ function treino(rows,key){
   // sugestão de academia, só quando o treino não foi forte e existe uma opção que rende mais
   const acad=melhorAcademia(todas,ses);out.academias=acad;
   if(acad&&acad.melhores.length&&(dv==null||dv<5))out.academiaDica="Na semana que vem, tente ir "+(acad.melhores.length>1?"na "+acad.melhores[0]+" ou na "+acad.melhores[1]:"na "+acad.melhores[0])+": lá você costuma render mais.";
+  if(maquinas.length)out.maquinaDif=maquinas.map(n=>"Em "+n+", percebi que a máquina é diferente, então não comparo a carga.");
+  if(maquinas.length&&!outraAcad&&!inicial&&dv!=null&&dv<5){out.titulo="Treino com máquina diferente";out.frase="a máquina mudou, então a carga não dá para comparar";out.texto=motivo+"Percebi que a máquina mudou em "+maquinas.join(", ")+", então não conto a carga como queda. No próximo treino eu confirmo.";out.fecho="No próximo treino eu confirmo.";out.comp=null;out.volumeDif=null}
+  if(outraAcad&&!inicial){
+    out.academiaDif="Percebi que os pesos mudaram. Provavelmente é a academia"+(gym?" ("+gym+")":"")+". No próximo treino eu confirmo.";
+    out.titulo="Treino em outra academia";out.frase="os pesos mudaram, provavelmente pela academia";
+    out.texto=motivo+out.academiaDif+" Não conto isso como queda.";out.fecho="No próximo treino eu confirmo.";out.academiaDica="";out.comp=null;out.volumeDif=null;
+  }
   out.numeroTreino=nSes;out.metasQ=metasLongo(todas,ses,ctxTempo,inicial);out.metasLongo=out.metasQ.map(m=>m.txt);out.nexoTreino=nexoDoTreino(todas,ses);
   if(inicial){
     const ordem=["primeiro","segundo","terceiro"][nSes-1];
@@ -458,7 +485,7 @@ function treino(rows,key){
     out.bem=primeiros.sort((a,b)=>b.e1-a.e1).slice(0,4).map((x,i)=>"<b>"+esc(x.nome)+":</b> primeiro recorde"+(x.carga?", "+esc(x.carga):"")+". Boa carga."+(i===0?" No próximo treino, tente manter, porque aumentar agora não é a ideia.":"")).concat(out.bem);
   }
   out.resumo=out.texto;
-  out.animoInfo=analisarAnimo(todas,ses,dv);
+  out.animoInfo=analisarAnimo(todas,ses,outraAcad?null:dv);
   const sq=sequenciaDificil(todas,ses);
   if(sq){out.sequencia=sq;out.sequenciaTexto=sq.dificeis+" dos seus últimos "+sq.total+" treinos foram difíceis. Eu vi que você continuou vindo, e isso conta. Agora preciso que você busque o que te motiva: relembre o seu objetivo, teste outro horário ou fale com o professor."}
   // próximo treino
@@ -515,11 +542,14 @@ const nomeMes=k=>{const [a,m]=k.split("-");return NOMES[+m-1]+" de "+a};
 function meses(rows){return [...new Set(rows.map(r=>chaveMes(r.date)))].sort().reverse()}
 function mes(rows,k){
   const [a,m]=k.split("-").map(Number);
+  const hoje=new Date();const atual=hoje.getFullYear()===a&&hoje.getMonth()===m-1;
+  // Mês em andamento: compara só com os mesmos dias do mês anterior.
+  if(atual){const P=periodo(rows,new Date(a,m-1,1),new Date(a,m,1),new Date(a,m-2,1),nomeMes(k),"mesmos dias do mês anterior",new Date(a,m-2,hoje.getDate()+1),hoje.getDate()<7);return P}
   return periodo(rows,new Date(a,m-1,1),new Date(a,m,1),new Date(a,m-2,1),nomeMes(k),"mês anterior");
 }
 // Resumo de qualquer período [ini, fim). iniAnt: início do período anterior, para comparar.
-function periodo(rows,ini,fim,iniAnt,nome,rotAnt){
-  const cur=rows.filter(r=>r.date>=ini&&r.date<fim),ant=iniAnt?rows.filter(r=>r.date>=iniAnt&&r.date<ini):[];
+function periodo(rows,ini,fim,iniAnt,nome,rotAnt,fimAnt,noComeco){
+  const cur=rows.filter(r=>r.date>=ini&&r.date<fim),ant=iniAnt?rows.filter(r=>r.date>=iniAnt&&r.date<(fimAnt&&fimAnt<ini?fimAnt:ini)):[];
   const nS=rs=>new Set(rs.map(r=>r.dateS+"|"+r.treino)).size;
   const fe=rs=>rs.filter(r=>r.done&&!eCardio(r));
   const out={nome,rotAnt:rotAnt||"período anterior",linhas:cur,treinos:nS(cur),treinosAnt:nS(ant),series:fe(cur).length,seriesAnt:fe(ant).length,volume:volumeDe(fe(cur))/1000,volumeAnt:volumeDe(fe(ant))/1000,
@@ -547,10 +577,11 @@ function periodo(rows,ini,fim,iniAnt,nome,rotAnt){
   out.partes=Object.entries(partes).map(([p,n])=>({p,n})).sort((x,y)=>y.n-x.n);
   // foco do próximo mês
   const F=out.foco;
-  if(out.treinosAnt&&out.treinos<out.treinosAnt)F.push("Frequência caiu de "+out.treinosAnt+" para "+out.treinos+" treinos. Priorize voltar à rotina.");
+  if(noComeco)F.push("O mês ainda está no começo. A comparação de frequência e de volume fica para daqui a alguns dias.");
+  else if(out.treinosAnt&&out.treinos<out.treinosAnt)F.push("Frequência caiu de "+out.treinosAnt+" para "+out.treinos+" treinos. Priorize voltar à rotina.");
   else if(out.treinosAnt&&out.treinos>out.treinosAnt)F.push("Frequência subiu de "+out.treinosAnt+" para "+out.treinos+" treinos. Mantenha.");
   const quedas=out.grupos.filter(x=>x.dif!=null&&x.dif<=-15).slice(0,2);
-  if(quedas.length)F.push("Volume caiu em "+quedas.map(x=>x.g+" ("+x.dif+"%)").join(" e ")+". Dê mais atenção.");
+  if(quedas.length&&!noComeco)F.push("Volume caiu em "+quedas.map(x=>x.g+" ("+x.dif+"%)").join(" e ")+". Dê mais atenção.");
   out.partes.filter(x=>x.n>=2).slice(0,2).forEach(x=>F.push("Dor ou incômodo no "+x.p+" apareceu em "+x.n+" treinos. Vale ajustar exercícios e conversar com o professor."));
   const c=id=>temas[id]||0;
   if(c("sono")>=2)F.push("Sono ruim apareceu em "+c("sono")+" treinos. Melhorar o sono deve render mais que qualquer ajuste.");
@@ -599,7 +630,7 @@ function recadoPicker(rows,sug){
 function fatosIA(A){
   const tira=s=>String(s).replace(/<[^>]+>/g,"");
   const ai=A.animoInfo||{};
-  return {treino:A.treino,data:A.dateS,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
+  return {treino:A.treino,data:A.dateS,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",academiaDiferente:A.academiaDif||"",maquinasDiferentes:A.maquinaDif||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
     animo:{chegou:ai.ini||"",saiu:ai.fim||"",analise:ai.texto||""},comparacao:A.comp||null,
     destaques:A.bem.slice(0,4).map(tira),atencao:A.abaixo.slice(0,4).map(tira),comentarios:A.comentarios.map(tira),
     metas:A.proximo.map(tira),sequenciaDificil:A.sequencia||null};

@@ -134,6 +134,11 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Relação com o treino:** `nexo` compara o desvio de volume nos treinos com e sem cada relato (sono, fraqueza, cansaço, alimentação, academia, e os positivos), nos últimos 90 dias. Regra nossa: menos de 2 treinos é "pouca base", diferença de 5 pontos ou mais é "pesou" ou "ajudou". É sinal, não prova.
 - **Relatório do aluno:** no Perfil, só para o professor (`Coach.relatorio`): últimas 4 semanas contra as 4 anteriores, recordes, metas batidas, relatos, dores, pedidos e respostas. "Pedir parecer" usa a IA (`alunoParecer`) e grava na aba **Relatório do aluno**.
 
+## Academia diferente, mês em andamento e tela do coach (versão 2.24, 05/11/2026)
+- **Academia ou máquina diferente:** `acadDif` marca o treino fora da academia habitual dos últimos 120 dias, sem outro treino igual feito lá, ou com comentário como "outra academia" e "máquinas diferentes". `RX_MAQ` vale para um exercício só ("máquina diferente"). Nesses casos não há queda, nem cobrança, nem meta firmada perdida. O coach diz que os pesos mudaram e que confirma no próximo treino.
+- **Mês em andamento:** compara com os mesmos dias do mês anterior. Até o dia 6, não comenta frequência nem queda de volume. A Avaliação do Coach abre em "Últimas 4 semanas".
+- **Tela:** dois blocos, "Último treino" e "Parecer geral até aqui", com botão para pular. As metas com pergunta ficam no parecer geral.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

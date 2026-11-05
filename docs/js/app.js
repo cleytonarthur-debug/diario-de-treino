@@ -1693,14 +1693,14 @@ function renderCoach(){
   const difKpi=(v,bomSeMaior,u)=>v==null?"":v===0?'<span class="delta flat">igual</span>':bomSeMaior==null?'<span class="delta flat">'+(v>0?"+":"−")+nf1.format(Math.abs(v))+(u||"")+'</span>':'<span class="delta '+((v>0)===bomSeMaior?"up":"down")+'">'+(v>0?"+":"−")+nf1.format(Math.abs(v))+(u||"")+'</span>';
   const meses=Coach.meses(S.rows);
   const fixos=[["p4","Últimas 4 semanas"],["p12","Últimas 12 semanas"],["p26","Últimos 6 meses"],["tudo","Todo o histórico"],["datas","Escolher datas…"]];
-  if(!S.coachMes||!(meses.includes(S.coachMes)||fixos.some(x=>x[0]===S.coachMes)))S.coachMes=meses[0];
+  if(!S.coachMes||!(meses.includes(S.coachMes)||fixos.some(x=>x[0]===S.coachMes)))S.coachMes="p4";
   const M=S.coachMes?resumoCoach(S.coachMes):null;
   const rot=M?M.rotAnt:"";
   const dif=(a,b,u)=>b?(a>=b?'<span class="delta up">▲ ':'<span class="delta down">▼ ')+nf1.format(Math.abs(a-b))+(u||"")+' vs '+rot+'</span>':'<span class="delta flat">sem '+rot+'</span>';
   const G=Coach.academias(M?M.linhas:S.rows);
   const AI=A&&A.animoInfo;const MEM=S.memoria.get(S.coachSel);
   if(ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
-  el.innerHTML='<div class="card" style="margin-bottom:14px">'+
+  el.innerHTML='<div class="ch-bloco"><h2>'+(S.coachSel===(ses[0]&&ses[0].key)?"Último treino":"Treino escolhido")+'</h2>'+(M?'<button class="btn ghost small" id="ch-ir">Ver parecer geral ↓</button>':"")+'</div><div class="card" style="margin-bottom:14px">'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
     (A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
@@ -1712,9 +1712,10 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Volume</span><span class="v">'+nf1.format(A.comp.vol)+'<small>t</small></span>'+difKpi(A.comp.volDif,true,"%")+'</div>'+
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
-      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+(A.nexoTreino?lista("🔗 O que isso teve a ver com o treino",[esc(A.nexoTreino)]):"")+metasHtml(A)+lista("📌 No próximo "+esc(A.treino),A.proximo)
+      lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+(A.academiaDif||A.maquinaDif?lista("🏋️ Academia ou máquina diferente",[A.academiaDif].concat(A.maquinaDif||[]).filter(Boolean).map(esc)):"")+(A.nexoTreino?lista("🔗 O que isso teve a ver com o treino",[esc(A.nexoTreino)]):"")+lista("📌 No próximo "+esc(A.treino),A.proximo)
       :'<p class="muted">Analisando o treino…</p>')+'</div>'+
-    (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Avaliação do período</h2></div>'+
+    '<div class="ch-bloco" id="ch-geral"><h2>Parecer geral até aqui</h2></div>'+(A?'<div class="card" style="margin-bottom:14px">'+metasHtml(A)+'</div>':"")+
+    (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Números do período</h2></div>'+
     '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
     (S.coachMes==="datas"?'<div class="ch-datas"><label class="fld2">De<input type="date" id="ch-de" value="'+esc(S.coachDe)+'"></label><label class="fld2">Até<input type="date" id="ch-ate" value="'+esc(S.coachAte)+'"></label></div>':"")+
     (M.treinos?"":'<p class="muted small">Nenhum treino neste período.</p>')+
@@ -1736,6 +1737,7 @@ function renderCoach(){
       :'<p class="muted small">Nenhuma academia informada neste período. Escolha a academia no início do treino: aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>';
   const cs=$("#ch-ses");if(cs)cs.onchange=e=>{S.coachSel=e.target.value;renderCoach()};
   ligarMetas(el,A);
+  const irg=$("#ch-ir");if(irg)irg.onclick=()=>{const g=$("#ch-geral");if(g)g.scrollIntoView({block:"start",behavior:"smooth"})};
   const cm=$("#ch-mes");if(cm)cm.onchange=e=>{S.coachMes=e.target.value;renderCoach()};
   [["#ch-de","coachDe"],["#ch-ate","coachAte"]].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{if(i.value){S[k]=i.value;renderCoach()}}});
 }
