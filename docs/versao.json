@@ -1,7 +1,11 @@
 {
-  "versao": "2.26.1",
-  "data": "07/11/2026",
+  "versao": "2.27.0",
+  "data": "08/11/2026",
   "notas": [
-    "Botão Parecer geral e previsão na página do aluno."
+    "Nomes dos exercícios no padrão, com a lista para conferir no Perfil",
+    "Campo Máquina em cada exercício, com o salto de carga",
+    "A carga só compara na mesma máquina e a meta respeita o salto",
+    "Fotos corrigidas",
+    "Metas: depois da resposta, o coach avalia e faz uma nova pergunta"
   ]
 }

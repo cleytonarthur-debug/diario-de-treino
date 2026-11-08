@@ -177,3 +177,9 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 
 ## Futuro (ver memória "ideias-futuras-diario")
 Play Store, cobrança de quem não for autorizado (acesso master), divulgação, colegas educadores físicos, LGPD.
+
+## Máquina, salto de carga e nomes padronizados (08/11/2026, v2.27.0)
+- Histórico ganhou as colunas **Máquina** e **Salto de carga**. A carga, a "última vez", os recordes e as metas só comparam na mesma máquina.
+- `docs/js/nomes.js` padroniza os nomes e separa a marca. Vtom, VTOX e Vox são a mesma marca (VTOX), a pedido do Cleyton.
+- O professor aplica em **Perfil → Nomes dos exercícios** (ação `padronizarNomes`): troca no Histórico, Modelos, Exercícios e Catálogo. O lado D/E continua no fim do nome.
+- Respostas às metas ganhou **Próxima pergunta**: a IA avalia e faz outra pergunta usando os comentários dos treinos. Sem IA, `proximaPergunta_` usa uma pergunta pronta.

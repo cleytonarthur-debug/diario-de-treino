@@ -73,7 +73,7 @@ function ingest(values){
     const hor=String(r[3]||"");const skipped=/n[aã]o fiz/i.test(hor);
     const reps=skipped?null:parseReps(r[8],r[7]);const peso=parsePeso(r[9]);
     out.push({i,date:d,dateS:r[0],dia:r[1]||"",treino:String(r[2]||"").trim(),hora:hor,grupo:S.exMap.get(strip(r[5]))||r[4]||guessGroup(r[5]),ex:String(r[5]||"").trim(),
-      serie:r[6]||"",meta:r[7]||"",feitas:r[8]||"",peso:r[9]||"",int:r[10]||"",rir:r[11]==null?"":String(r[11]),obs:r[12]||"",academia:String(r[13]||"").trim(),
+      serie:r[6]||"",meta:r[7]||"",feitas:r[8]||"",peso:r[9]||"",int:r[10]||"",rir:r[11]==null?"":String(r[11]),obs:r[12]||"",academia:String(r[13]||"").trim(),maq:String(r[14]||"").trim(),salto:String(r[15]||"").trim(),
       reps,pesoN:peso,vol:setVolume(reps,peso),e1:e1rm(reps,peso),done:!!reps});
   });
   S.rows=out;
@@ -383,19 +383,58 @@ function aplicarAcademia(d){
   });
 }
 /* A meta que sobe a carga vai para a última série do exercício, já com o peso preenchido. */
+// Meta com carga que a máquina não tem (57 kg numa de 5 em 5): vai para o próximo degrau real.
+function ajustarMetaAoSalto(b){
+  const m=b.metaC,sl=parseFloat(fmtSalto(b.salto).replace(",","."));if(!m||m.peso==null||!(sl>0))return;
+  const q=m.peso/sl;if(Math.abs(q-Math.round(q))<1e-6)return;
+  const novo=Math.round(Math.ceil(q)*sl*100)/100,fator=novo/m.peso,txt=v=>String(v).replace(".",",");
+  m.texto=String(m.texto).replace(new RegExp(txt(m.peso).replace(".","\\.")+"\\s*kg","i"),txt(novo)+" kg");
+  if(m.pesoT!=null)m.pesoT=m.pesoT*fator;m.peso=novo;
+}
 function aplicarMetaCoach(d){
   if(!d||!d.treino)return;
   d.blocks.forEach(b=>{
     b.sets.forEach(s=>{s.metaC=false});
     b.metaC=b.cardio?null:Coach.metaDaSerie(S.rows,d.treino,b.name);
     if(!b.metaC||!b.sets.length)return;
+    ajustarMetaAoSalto(b);
     [...new Set(b.sets.map(s=>s.lado||""))].forEach(l=>{
       const s=b.sets.filter(x=>(x.lado||"")===l).pop();s.metaC=true;
       if(b.metaC.peso!=null&&!String(s.reps).trim())s.peso=String(b.metaC.peso).replace(".",",")+"kg"+(/cada lado/i.test(b.metaC.texto)?" cl":"");
     });
   });
 }
-function prepararDraft(d){d.blocks=juntarUnilaterais(d.blocks);d.academia=d.academia||ultimaAcademia();aplicarAcademia(d);aplicarMetaCoach(d);return d}
+/* ---- Máquina: cada marca pesa diferente. A carga e a "última vez" só comparam na mesma máquina. ---- */
+const SALTOS=["1","2","2,5","5","10"];
+const fmtSalto=v=>String(v==null?"":v).replace(".",",").trim();
+function nomesMaquinas(){const v=new Map();S.rows.forEach(r=>{if(r.maq)v.set(strip(r.maq),r.maq)});return [...v.values()].reverse()}
+function rowsDoEx(b){const k=exKey(b.name);return S.rows.filter(r=>r.done&&exKey(r.ex)===k)}
+function saltoSalvo(b,maq){const rs=rowsDoEx(b).filter(r=>r.salto&&strip(r.maq)===strip(maq));return rs.length?fmtSalto(rs[rs.length-1].salto):""}
+function ultimaNaMaquina(b,maq){const rs=rowsDoEx(b);for(let i=rs.length-1;i>=0;i--)if(strip(rs[i].maq)===strip(maq)){const d=rs[i].dateS;return rs.filter(x=>x.dateS===d&&strip(x.maq)===strip(maq))}return []}
+function aplicarMaquina(d){
+  d.blocks.forEach(b=>{if(b.cardio)return;
+    if(b.maq===undefined){const rs=rowsDoEx(b).slice().reverse(),g=strip(d.academia);const r=rs.find(x=>x.maq&&(!g||strip(x.academia)===g))||rs.find(x=>x.maq);b.maq=r?r.maq:"";b.salto=b.maq?saltoSalvo(b,b.maq):""}
+    maquinaNasSeries(b)});
+}
+function maquinaNasSeries(b){
+  b.novaMaq=false;b.maqAntes="";b.sets.forEach(s=>{if(s.last)delete s.last.outraMaq});if(!b.maq)return;
+  const com=rowsDoEx(b).filter(r=>r.maq),mesma=ultimaNaMaquina(b,b.maq);
+  if(!mesma.length){if(com.length){b.novaMaq=true;b.maqAntes=com[com.length-1].maq;b.sets.forEach(s=>{if(s.last)s.last.outraMaq=b.maqAntes})}return}
+  b.sets.forEach((s,si)=>{const nome=s.exNome||b.name;let l=mesma.filter(r=>strip(r.ex)===strip(nome));if(!l.length)l=mesma;
+    const r=l[s.lado?s.n-1:si]||l[l.length-1];if(!r)return;
+    s.last={feitas:String(r.feitas||""),peso:String(r.peso||""),reps:r.reps,pesoN:r.pesoN,vol:r.vol,skipped:!r.done};
+    if(!String(s.reps).trim())s.peso=String(r.peso||"").trim()||s.peso});
+}
+// Peso livre não tem marca de máquina: o campo só aparece se a pessoa já tiver anotado uma.
+const ehLivre=n=>{const t=strip(n);return /halter|barra|prancha|no banco|mergulho|serrote|^stiff$/.test(t)&&!/pulley|polia|maquina|smith|cross/.test(t)};
+function maqHtml(b){
+  if(!b.maq&&!b.maqEdit&&ehLivre(b.name))return "";
+  if(b.maqEdit)return '<div class="maq-ed"><input data-f="maq" list="maq-list" value="'+esc(b.maq||"")+'" placeholder="Marca da máquina (ex.: Cimerian)" aria-label="Marca da máquina" autocomplete="off"><datalist id="maq-list">'+nomesMaquinas().map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>'+
+    '<label class="small">sobe de <select data-f="salto" aria-label="De quantos em quantos kg a máquina sobe"><option value="">?</option>'+SALTOS.map(v=>'<option'+(fmtSalto(b.salto)===v?" selected":"")+'>'+v+'</option>').join("")+'</select> kg</label><button class="btn small" data-act="maq-ok">OK</button></div>';
+  return '<button class="maq-l" data-act="maq">'+(b.maq?'Máquina: <b>'+esc(b.maq)+'</b>'+(b.salto?' · sobe de '+esc(fmtSalto(b.salto))+' em '+esc(fmtSalto(b.salto))+' kg':' · de quanto sobe?'):'Qual máquina? Toque para anotar a marca')+' <span aria-hidden="true">✎</span></button>'+
+    (b.novaMaq?'<div class="alerts"><span class="small muted">Primeira vez na '+esc(b.maq)+'. Cada marca pesa diferente: a carga da '+esc(b.maqAntes)+' é só uma referência, e hoje vira a referência desta máquina.</span></div>':"");
+}
+function prepararDraft(d){d.blocks=juntarUnilaterais(d.blocks);d.academia=d.academia||ultimaAcademia();aplicarAcademia(d);aplicarMaquina(d);aplicarMetaCoach(d);return d}
 /* Treino de um plano pronto (metodos/planos.json). Não muda os treinos padrão do aluno. */
 function buildPlanoDraft(planoId,idx){
   const p=Metodos.planos().find(x=>x.id===planoId);const t=p.treinos[idx];
@@ -576,7 +615,7 @@ function exCard(b,bi){
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
     '<div class="ex-okmsg"><span>🏆 Exercício concluído</span><span class="palma" aria-hidden="true">👏</span></div>'+
     (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
-    (b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
+    maqHtml(b)+(b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
     '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
@@ -598,7 +637,7 @@ function swapSugestoes(b){
 function lastText(s){
   if(!s.last)return '<span>primeira vez</span>';
   if(s.last.skipped)return '<span>última: não feita</span>';
-  return '<span>última <b>'+esc(s.last.feitas||"–")+'</b> × '+esc(s.last.peso||"–")+'</span>';
+  return '<span>última'+(s.last.outraMaq?' (na '+esc(s.last.outraMaq)+')':"")+' <b>'+esc(s.last.feitas||"–")+'</b> × '+esc(s.last.peso||"–")+'</span>';
 }
 // O aluno só vê a comparação quando superou a última vez. Igual ou abaixo, vê uma frase de incentivo.
 const INCENTIVO=["💪 Série feita. Constância é o que leva longe.","💪 Mais uma na conta. Segue firme.","💪 Feito. Cada série soma.","💪 Boa. Mantém a técnica e segue.","💪 Série no bolso. Respira e vai para a próxima."];
@@ -606,6 +645,7 @@ const veTudo=()=>S.role==="prof";
 function cmpBadge(s){
   if(!String(s.reps).trim())return "";
   const reps=parseReps(s.reps,s.meta),peso=parsePeso(s.peso);const v=setVolume(reps,peso);
+  if(s.last&&s.last.outraMaq)return veTudo()?'<span class="badge">outra máquina</span>':'<span class="badge mot">'+INCENTIVO[(s.n||1)%INCENTIVO.length]+'</span>';
   if(!veTudo()){
     if(s.last&&s.last.vol&&v&&v-s.last.vol>=0.5){
       const dr=reps&&s.last.reps?reps[0]-s.last.reps[0]:0,pn=Array.isArray(peso)?Math.max(...peso):peso,pa=Array.isArray(s.last.pesoN)?Math.max(...s.last.pesoN):s.last.pesoN,dp=pn&&pa?Math.round((pn-pa)*10)/10:0;
@@ -700,6 +740,13 @@ function bindLancar(){
     }
     card.querySelectorAll("[data-bib]").forEach(c=>c.onclick=()=>{swapExercise(b,c.dataset.bib);b.swapping=false;saveDraft();rerenderCard(bi)});
     card.querySelectorAll("[data-alt]").forEach(c=>c.onclick=()=>{swapToKey(b,c.dataset.alt);b.swapping=false;saveDraft();rerenderCard(bi)});
+    const mq=card.querySelector('[data-act="maq"]');if(mq)mq.onclick=()=>{b.maqEdit=true;rerenderCard(bi);const i=$('.ex[data-b="'+bi+'"] [data-f="maq"]');if(i)i.focus()};
+    const mo=card.querySelector('[data-act="maq-ok"]');
+    if(mo){const inp=card.querySelector('[data-f="maq"]'),sel=card.querySelector('[data-f="salto"]');
+      inp.addEventListener("change",()=>{const sv=saltoSalvo(b,inp.value.trim());if(sv&&SALTOS.includes(sv))sel.value=sv});
+      const ok=()=>{const nm=inp.value.trim();b.maq=nm?(nomesMaquinas().find(x=>strip(x)===strip(nm))||nm.charAt(0).toUpperCase()+nm.slice(1)):"";b.salto=b.maq?sel.value:"";b.maqEdit=false;
+        maquinaNasSeries(b);aplicarMetaCoach(S.draft);saveDraft();rerenderCard(bi);if(b.maq)toast("Máquina anotada: "+b.maq+(b.salto?", sobe de "+b.salto+" kg":"")+". O coach compara a carga só nela.")};
+      mo.onclick=ok;inp.addEventListener("keydown",e=>{if(e.key==="Enter")ok()})}
     const gs=card.querySelector('[data-act="grupo"]');
     if(gs)gs.onchange=()=>{b.grupo=gs.value;b.grupoManual=true;saveDraft();rerenderCard(bi);toast("Grupo de "+b.name+": "+b.grupo+". Fica salvo ao gravar o treino.")};
     card.querySelectorAll(".set").forEach(row=>{
@@ -748,9 +795,9 @@ function bindLancar(){
     const so=card.querySelector('[data-act="swap-ok"]');
     if(so){
       const inp=card.querySelector('[data-f="swapto"]');
-      const go=()=>{const name=inp.value.trim();if(!name)return;
+      const go=()=>{const bruto=inp.value.trim();if(!bruto)return;const PN=window.Nomes?Nomes.padronizar(bruto):{maquina:""};const name=PN.maquina?PN.nome:bruto;
         const g=guessGroup(name);if(b.musculo&&g!=="Sem grupo"&&g!==b.grupo)toast("Atenção: o par pede "+b.grupo+". Prefira um exercício do mesmo músculo.");
-        swapExercise(b,name);b.swapping=false;saveDraft();rerenderCard(bi)};
+        swapExercise(b,name);b.swapping=false;b.maq=PN.maquina||undefined;b.salto=PN.maquina?saltoSalvo(b,PN.maquina):"";aplicarMaquina({blocks:[b],academia:S.draft.academia});saveDraft();rerenderCard(bi)};
       so.onclick=go;inp.addEventListener("keydown",e=>{if(e.key==="Enter")go()});
       card.querySelector('[data-act="swap-cancel"]').onclick=()=>{b.swapping=false;rerenderCard(bi)};
     }
@@ -761,7 +808,7 @@ function bindLancar(){
     const rm=card.querySelector('[data-act="rm-set"]');if(rm)rm.onclick=()=>{b.sets.pop();if(b.uni)b.sets.pop();saveDraft();rerenderCard(bi);updateBar()};
   });
   const ini=$("#inicio");if(ini)ini.addEventListener("input",()=>{S.draft.inicio=ini.value;saveDraft()});
-  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar()});
+  const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);aplicarMaquina(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar()});
   if(S.draft.animo&&!S.draft.animoIni){S.draft.animoIni=S.draft.animo;S.draft.animo="";saveDraft()}
   const iniMsg=()=>{const m=$("#ini-msg");const t=Coach.chegada(S.rows,S.draft.animoIni);m.textContent=t;m.hidden=!t};iniMsg();
   ligarAnimo("animo-ini","animoIni",iniMsg);
@@ -832,16 +879,17 @@ function ultimaVez(name){
     txt:"Última vez em "+String(u.dateS).slice(0,5)+": "+rs.length+(rs.length===1?" série":" séries")+", "+[String(u.peso||"").trim(),u.reps?u.reps[0]+" repetições":""].filter(Boolean).join(" × ")+"."};
 }
 function addExercise(campo,pos){
-  const inp=campo||$("#new-ex");const name=inp.value.trim();if(!name)return;
+  const inp=campo||$("#new-ex");const bruto=inp.value.trim();if(!bruto)return;
+  const PN=window.Nomes?Nomes.padronizar(bruto):{maquina:""};const name=PN.maquina?PN.nome:bruto;
   const prev=lastFor(name);
   const grupo=S.exMap.get(strip(name))||(prev&&prev[0]&&prev[0].grupo)||guessGroup(name);
   const novos=[];
   if(prev&&prev.length){prev.forEach(r=>{let x=novos.find(y=>y.name===r.ex);if(!x){x={id:newId(),name:r.ex,grupo,sets:[],obs:""};novos.push(x)}x.sets.push(makeSet(x.sets.length+1,r))})}
   else{const x={id:newId(),name,grupo,sets:[],obs:""};for(let i=0;i<3;i++)x.sets.push(makeSet(i+1,null));novos.push(x)}
   const juntos=juntarUnilaterais(novos);const u=ultimaVez(novos[0].name);
-  juntos.forEach(x=>{x.ultTxt=u?u.txt:"Primeira vez neste exercício: sem histórico."});
+  juntos.forEach(x=>{x.ultTxt=u?u.txt:"Primeira vez neste exercício: sem histórico.";if(PN.maquina){x.maq=PN.maquina;x.salto=saltoSalvo(x,PN.maquina)}});
   const onde=pos==null?S.draft.blocks.length:pos;S.draft.blocks.splice(onde,0,...juntos);S.insAt=null;
-  aplicarAcademia(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar();
+  aplicarAcademia(S.draft);aplicarMaquina(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar();
   const card=$('.ex[data-b="'+onde+'"]');if(card)card.scrollIntoView({block:"center"});
 }
 function updateBar(){
@@ -955,7 +1003,7 @@ async function save(){
       const tagC=s.metaC&&b.metaC&&b.metaC.modo==="meta"?"[Meta coach: "+b.metaC.texto+"]":"";
       const obs=[tagM,tagA,tagD,tagC,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
-      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":intensityFromRir(s.rir),s.skip||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||""]);
+      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":intensityFromRir(s.rir),s.skip||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||"",b.maq||"",b.maq&&b.salto?String(b.salto):""]);
     });
   });
   if(!rows.length)return;
@@ -1642,7 +1690,7 @@ function renderPerfil(){
        ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
       (prof?'<div class="row-btns" style="margin-top:14px"><button class="btn" id="p-edit">Editar dados</button>'+(a.planilhaUrl?'<a class="btn" href="'+esc(a.planilhaUrl)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+'</div>':"")+
       '</div>';
-    if(prof)html+=relatorioHtml();
+    if(prof)html+=relatorioHtml()+nomesHtml();
     if(prof)html+=shareBox(a)+'<div class="card" style="margin-bottom:14px"><h3>Segurança</h3><p class="muted small">Se o link vazar ou o aluno trocar de celular, gere um novo. O link antigo para de funcionar.</p><div class="row-btns"><button class="btn" id="p-newlink">Gerar novo link</button></div></div>';
     if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Treinos deste aluno</h3><p class="muted small">'+statusPill(a)+' Monte e edite os treinos aqui pelo app (ficam na aba Modelos da planilha do aluno).</p><div class="row-btns"><button class="btn primary" id="p-montar">✎ Montar treinos</button></div></div>';
   }else if(prof){
@@ -1650,7 +1698,7 @@ function renderPerfil(){
   }
   html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: toque na <b>engrenagem</b>, no topo.</p>';
   el.innerHTML=html;
-  if(prof&&S.aluno)ligarRelatorio();
+  if(prof&&S.aluno){ligarRelatorio();ligarNomes()}
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);abrir("alunos")};
   const pn=$("#p-newlink");if(pn)pn.onclick=()=>armed(pn,"Toque de novo: o link antigo vai parar","Gerar novo link",async()=>{
@@ -1713,11 +1761,22 @@ function pedirParecerIA(key){
 /* Metas com pergunta. A resposta fica na planilha do aluno, e o coach avalia pelo objetivo e pelo jeito do professor. */
 const podeResponder=()=>S.role!=="prof"||!!(S.aluno&&S.aluno.master);
 function respostaDaMeta(id){const l=(S.metasResp||[]).filter(r=>r[2]===id);return l[l.length-1]||null}
+// Comentários dos últimos 30 dias, para o coach fazer a próxima pergunta sobre o que a pessoa viveu.
+function comentariosRecentes(){
+  const corte=Date.now()-30*864e5,v=[],vis=new Set();
+  for(let i=S.rows.length-1;i>=0&&v.length<10;i--){const r=S.rows[i];if(+r.date<corte)break;
+    const t=String(r.obs||"").replace(/\[[^\]]*\]/g," ").replace(/\s*·\s*/g," ").replace(/\s+/g," ").trim();
+    if(t.length<6||vis.has(t))continue;vis.add(t);v.push(r.ex+": "+t.slice(0,180))}
+  return v;
+}
 function metasHtml(A){
   const qs=A&&A.metasQ||[];if(!qs.length)return "";
-  return '<div class="ch-sec foco"><h3>🎯 Metas</h3>'+qs.map(q=>{const r=respostaDaMeta(q.id);const aberta=podeResponder()&&(!r||S.metaAberta===q.id);
-    return '<div class="mq" data-q="'+esc(q.id)+'"><p>'+q.txt+'</p><p class="mq-p">'+esc(q.perg)+'</p>'+
-      (r?'<p class="aux-c eu">'+esc(r[5])+'</p>'+(r[6]?'<p class="aux-c ia">'+esc(r[6])+'</p>':'<p class="muted small">Resposta guardada. O coach ainda não comentou.</p>')+(podeResponder()&&S.metaAberta!==q.id?'<button class="btn ghost small" data-mq="abrir">Responder de novo</button>':""):podeResponder()?"":'<p class="muted small">O aluno ainda não respondeu.</p>')+
+  return '<div class="ch-sec foco"><h3>🎯 Metas</h3>'+qs.map(q=>{const r=respostaDaMeta(q.id);const prox=r&&r[7];
+    const aberta=podeResponder()&&(!r||!!prox||S.metaAberta===q.id);
+    return '<div class="mq" data-q="'+esc(q.id)+'"><p>'+q.txt+'</p><p class="mq-p">'+esc(r?r[4]:q.perg)+'</p>'+
+      (r?'<p class="aux-c eu">'+esc(r[5])+'</p>'+(r[6]?'<p class="aux-c ia">'+esc(r[6])+'</p>':'<p class="muted small">Resposta guardada. O coach ainda não comentou.</p>')+
+        (prox?'<p class="mq-p mq-nova">Próxima pergunta do coach: '+esc(prox)+'</p>':(podeResponder()&&S.metaAberta!==q.id?'<button class="btn ghost small" data-mq="abrir">Responder de novo</button>':"")):podeResponder()?"":'<p class="muted small">O aluno ainda não respondeu.</p>')+
+      (r&&prox&&!podeResponder()?'<p class="muted small">Aguardando a resposta do aluno.</p>':"")+
       (aberta?'<textarea class="obs mq-t" placeholder="Escreva a sua resposta" aria-label="Sua resposta"></textarea><button class="btn small" data-mq="enviar">Responder</button>':"")+'</div>'}).join("")+'</div>';
 }
 function ligarMetas(el,A){
@@ -1727,12 +1786,35 @@ function ligarMetas(el,A){
     const env=box.querySelector('[data-mq="enviar"]');if(!env)return;
     env.onclick=async()=>{const t=box.querySelector(".mq-t").value.trim();if(!t){toast("Escreva a resposta.");return}
       env.disabled=true;env.textContent="O coach está lendo a sua resposta…";env.insertAdjacentHTML("afterend",iaLendo("O coach está lendo a sua resposta."));
-      try{const r=await callA("metaResponder",{treino:A.treino,tema:id,meta:q.txt.replace(/<[^>]+>/g,""),pergunta:q.perg,resposta:t});
-        S.metasResp=(S.metasResp||[]).concat([r.linha]);S.metaAberta=null;renderCoach();toast(r.linha[6]?"O coach respondeu.":"Resposta guardada.");
+      const ult=respostaDaMeta(id);const perg=ult&&ult[7]?ult[7]:q.perg;
+      try{const r=await callA("metaResponder",{treino:A.treino,tema:id,meta:q.txt.replace(/<[^>]+>/g,""),pergunta:perg,resposta:t,comentarios:comentariosRecentes()});
+        S.metasResp=(S.metasResp||[]).concat([r.linha]);S.metaAberta=null;renderCoach();toast(r.linha[6]?"O coach avaliou e já deixou a próxima pergunta.":"Resposta guardada. Já tem uma próxima pergunta.");
       }catch(x){toast(errText(x));env.disabled=false;env.textContent="Responder"}};
   });
 }
 /* Relatório do aluno: parecer prévio para o professor, sem gastar a IA ao abrir. */
+/* Nomes padronizados: o professor confere caso a caso e aplica. A marca sai do nome e vai para a coluna Máquina. */
+function propostasNomes(){
+  if(!window.Nomes)return [];const m=new Map();
+  const add=n=>{n=String(n||"").replace(/\s+/g," ").trim();if(!n||m.has(n))return;const p=Nomes.padronizar(n);if(p.mudou||p.maquina)m.set(n,p)};
+  S.rows.forEach(r=>add(r.ex));[...S.models.values()].forEach(l=>l.forEach(it=>add(it.ex)));
+  return [...m].map(([de,p])=>({de,para:p.nome,maq:p.maquina})).sort((a,b)=>a.para.localeCompare(b.para)||a.de.localeCompare(b.de));
+}
+function nomesHtml(){
+  if(!S.loaded)return "";const L=propostasNomes();
+  if(!L.length)return '<div class="card" style="margin-bottom:14px"><h3>Nomes dos exercícios</h3><p class="muted small">Todos os nomes já estão no padrão.</p></div>';
+  return '<div class="card" style="margin-bottom:14px"><h3>Nomes dos exercícios</h3><p class="small">'+L.length+' nomes podem ficar no padrão. A marca da máquina sai do nome e vai para o campo Máquina, e o coach passa a comparar a carga só na mesma máquina.</p>'+
+    (S.nomesAberto?'<ul class="nomes-l">'+L.map((x,i)=>'<li><label><input type="checkbox" data-nm="'+i+'" checked><span><span class="muted">'+esc(x.de)+'</span><br>→ <b>'+esc(x.para)+'</b>'+(x.maq?' · máquina <b>'+esc(x.maq)+'</b>':"")+'</span></label></li>').join("")+'</ul><button class="btn primary" id="nm-ok">Aplicar os marcados</button>':'<button class="btn" id="nm-ver">Ver a lista, caso a caso</button>')+'</div>';
+}
+function ligarNomes(){
+  const v=$("#nm-ver");if(v)v.onclick=()=>{S.nomesAberto=true;renderPerfil()};
+  const ok=$("#nm-ok");if(!ok)return;
+  ok.onclick=async()=>{const L=propostasNomes();const mapa=[...document.querySelectorAll("[data-nm]")].filter(c=>c.checked).map(c=>{const x=L[+c.dataset.nm];return [x.de,x.para,x.maq]});
+    if(!mapa.length){toast("Marque pelo menos um nome.");return}
+    ok.disabled=true;ok.textContent="Trocando na planilha…";
+    try{const r=await callA("padronizarNomes",{mapa});S.nomesAberto=false;toast("Pronto: "+r.historico+" linhas do histórico e "+r.modelos+" dos treinos com o nome novo.");S.painelAt=0;await fetchDados();renderPerfil()}
+    catch(x){toast(errText(x));ok.disabled=false;ok.textContent="Aplicar os marcados"}};
+}
 function relatorioHtml(){
   if(!S.loaded)return '<div class="card" style="margin-bottom:14px"><h3>Relatório do aluno</h3><p class="muted small">Lendo a planilha…</p></div>';
   const R=Coach.relatorio(S.rows);S.relDados=R;const P=S.relParecer;
@@ -1856,12 +1938,17 @@ function chatEvoHtml(){
     '<div>'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+'</p>').join("")+(st.pensando?iaLendo("O coach está lendo os treinos e a sua pergunta."):"")+'</div>'+
     '<textarea class="obs" id="evo-q" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você mudaria no treino de perna dele?"></textarea><button class="btn primary" id="evo-env" style="width:100%;margin-top:6px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
 }
+// Máquinas usadas no período, por exercício, com o salto de carga: a IA só compara carga na mesma máquina.
+function maquinasDoPeriodo(M){
+  const m=new Map();((M&&M.linhas)||[]).forEach(r=>{if(!r.maq)return;const k=Coach.base(r.ex)+"|"+strip(r.maq);m.set(k,{exercicio:r.ex.replace(/\s+(d|e)$/i,""),maquina:r.maq,saltoDeCargaKg:r.salto||null})});
+  return [...m.values()].slice(0,20);
+}
 function fatosPeriodo(M){
   const R=Coach.relatorio(S.rows),P=Coach.projecao(S.rows);
   return {periodo:M?M.nome:"",grupo:S.evoGrupo||"todos",treinos:M?M.treinos:0,treinosAntes:M?M.treinosAnt:0,volumeT:M?Math.round(M.volume*10)/10:0,volumeAntesT:M?Math.round(M.volumeAnt*10)/10:0,
     recordes:M?M.recordes.slice(0,6).map(r=>r.nome+": "+nf1.format(r.de)+" para "+nf1.format(r.para)+" kg estimados"):[],evolucoes:M?M.evolucoes.slice(0,6).map(e=>e.nome+" "+e.d+"%"):[],
     gruposVolume:M?M.grupos.map(g=>g.g+" "+(g.dif==null?"sem comparação":g.dif+"%")):[],comentariosRepetidos:M?M.comentarios.map(c=>c.nome+" "+c.n):[],dores:R.dores,pedidos:R.pedidos,
-    relacaoComOTreino:R.fatores.map(f=>f.texto.replace(/<[^>]+>/g,"")),metasBatidas:R.metasBatidas,situacao:R.veredito,previsao:P,objetivo:(S.aluno||{}).objetivo||"",nivel:(S.aluno||{}).nivel||""};
+    relacaoComOTreino:R.fatores.map(f=>f.texto.replace(/<[^>]+>/g,"")),metasBatidas:R.metasBatidas,situacao:R.veredito,previsao:P,objetivo:(S.aluno||{}).objetivo||"",nivel:(S.aluno||{}).nivel||"",maquinas:maquinasDoPeriodo(M)};
 }
 function ligarGeral(el,M){
   const cg=$("#ch-grupo");if(cg)cg.onchange=e=>{S.evoGrupo=e.target.value;renderCoach()};

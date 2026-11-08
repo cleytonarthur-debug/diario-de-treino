@@ -12,6 +12,9 @@ class Range{
   constructor(sh,r,c,nr,nc){Object.assign(this,{sh,r,c,nr,nc})}
   getValues(){const o=[];for(let i=0;i<this.nr;i++){const row=[];const lin=this.sh.d[this.r-1+i]||[];for(let j=0;j<this.nc;j++){const x=lin[this.c-1+j];row.push(x==null?"":x)}o.push(row)}return o}
   getDisplayValues(){return this.getValues().map(r=>r.map(disp))}
+  getDisplayValue(){return this.getDisplayValues()[0][0]}
+  getValue(){return this.getValues()[0][0]}
+  clearContent(){this.setValues(Array.from({length:this.nr},()=>Array(this.nc).fill("")));return this}
   setValue(v){return this.setValues([[v]])}
   setValues(v){
     if(v.length!==this.nr||v.some(r=>r.length!==this.nc))throw new Error("dimensões erradas");
