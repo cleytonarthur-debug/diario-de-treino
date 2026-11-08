@@ -535,6 +535,54 @@ function treino(rows,key){
   return out;
 }
 
+/* ---------- previsão de evolução ---------- */
+// Tendência da força estimada nos exercícios mais feitos das últimas 12 semanas. É estimativa simples, não promessa.
+function projecao(rows){
+  const hoje=new Date(),ini=new Date(+hoje-84*864e5),sem=864e5*7;
+  const por=new Map();
+  rows.forEach(r=>{if(!r.done||!r.e1||eCardio(r)||/aquec/i.test(r.ex)||r.date<ini)return;const k=base(r.ex);
+    if(!por.has(k))por.set(k,{nome:semLadoNome(r.ex),dias:new Map()});const o=por.get(k);const d=o.dias.get(r.dateS);if(!d||r.e1>d.e)o.dias.set(r.dateS,{t:+r.date,e:r.e1})});
+  return [...por.values()].filter(o=>o.dias.size>=4).sort((a,b)=>b.dias.size-a.dias.size).slice(0,3).map(o=>{
+    const p=[...o.dias.values()].sort((a,b)=>a.t-b.t),n=p.length,xs=p.map(q=>(q.t-+ini)/sem),ys=p.map(q=>q.e);
+    const mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n;
+    const inc=xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0)/(xs.reduce((a,x)=>a+(x-mx)*(x-mx),0)||1);
+    const hojeE=Math.round((ys[n-1]+ys[n-2])/2*10)/10,lim=hojeE*1.2;
+    const em=w=>Math.round(Math.min(lim,hojeE+Math.max(0,inc)*w)*10)/10;
+    return {nome:o.nome,hoje:hojeE,em4:em(4),em12:em(12),tendencia:inc>0.1?"sobe":inc<-0.1?"cai":"estavel"};
+  });
+}
+/* A cada 4 semanas de treino, um aviso de que está no caminho certo, só quando os dados mostram isso. */
+function caminhoCerto(rows){
+  const ses=sessoes(rows).filter(s=>s.rows.some(r=>r.done));if(!ses.length)return null;
+  const hoje=new Date(),semanas=Math.floor((+hoje-+ses[0].date)/(7*864e5)),marco=Math.floor(semanas/4);if(marco<1)return null;
+  const de=n=>new Date(+hoje-n*864e5),rec=ses.filter(s=>s.date>=de(28)),ant=ses.filter(s=>s.date>=de(56)&&s.date<de(28));
+  const vol=l=>l.reduce((a,s)=>a+volFeito(s),0);const motivos=[];
+  if(rec.length>=6)motivos.push(rec.length+" treinos nas últimas 4 semanas");
+  if(ant.length&&vol(rec)>vol(ant))motivos.push("volume maior que no mês anterior");
+  const metas=rec.filter(metaBatidaEm).length;if(metas)motivos.push(metas+(metas===1?" meta do coach batida":" metas do coach batidas"));
+  if(!motivos.length)return null;
+  return {marco,texto:"Você está no caminho certo: "+motivos.join(", ")+". São "+semanas+" semanas de treino, e é assim que se evolui."};
+}
+/* Desafios da semana: um de frequência e outros dois que mudam a cada semana. Contam sozinhos pelo que é registrado. */
+function desafios(rows){
+  const hoje=new Date(),seg=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()-((hoje.getDay()+6)%7));
+  const todas=sessoes(rows).filter(s=>s.rows.some(r=>r.done)),sem=todas.filter(s=>s.date>=seg);
+  const ant=todas.filter(s=>s.date<seg&&s.date>=new Date(+seg-28*864e5));
+  const alvo=Math.min(6,Math.max(2,Math.round(ant.length/4)||3));
+  const tag=(s,rx)=>s.rows.some(r=>rx.test(String(r.obs||"")));
+  const agua=sem.reduce((a,s)=>{const m=s.rows.map(r=>String(r.obs||"").match(/\[Água: bebeu (\d+) de (\d+)\]/)).find(Boolean);return m?{b:a.b+ +m[1],t:a.t+ +m[2]}:a},{b:0,t:0});
+  const melhor={};todas.filter(s=>s.date<seg).forEach(s=>s.rows.forEach(r=>{if(r.done&&r.e1){const k=base(r.ex);if(!melhor[k]||r.e1>melhor[k])melhor[k]=r.e1}}));
+  const recordes=sem.filter(s=>s.rows.some(r=>r.done&&r.e1&&melhor[base(r.ex)]&&r.e1>melhor[base(r.ex)]+0.5)).length;
+  const lista=[
+    {id:"meta",titulo:"Bater 1 meta do coach",feito:sem.filter(metaBatidaEm).length,alvo:1},
+    {id:"animo",titulo:"Marcar o ânimo em 3 treinos",feito:sem.filter(s=>tag(s,/\[[ÂA]nimo/)).length,alvo:3},
+    {id:"comentario",titulo:"Comentar como foi em 2 treinos",feito:sem.filter(s=>tag(s,/\[Treino\]|\[Exerc[ií]cio\]/)).length,alvo:2},
+    {id:"agua",titulo:"Beber água em 4 lembretes",feito:agua.b,alvo:4},
+    {id:"recorde",titulo:"Bater 1 recorde",feito:recordes,alvo:1}];
+  const n=Math.floor(+seg/(7*864e5));const a=lista[n%lista.length],b=lista[(n+2)%lista.length];
+  return [{id:"freq",titulo:"Treinar "+alvo+" vezes nesta semana",feito:sem.length,alvo},a,b].map(d=>Object.assign(d,{ok:d.feito>=d.alvo}));
+}
+
 /* ---------- resumo do mês ---------- */
 const chaveMes=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 const NOMES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -655,5 +703,5 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+return {projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
 })();

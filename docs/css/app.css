@@ -110,6 +110,21 @@ h3{font-size:15px;margin:0;font-weight:700}
 .ch-bloco{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:22px 0 10px;padding-top:14px;border-top:2px solid var(--line-2);scroll-margin-top:70px}
 .ch-bloco:first-child{margin-top:0;padding-top:0;border-top:0}.ch-bloco h2{margin:0}
 .add-ex{display:flex;gap:8px;margin-top:6px}
+.ex-foto{appearance:none;position:relative;width:52px;height:52px;flex:none;padding:0;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;background:#fff;cursor:pointer}
+.ex-foto img,.foto-anim img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ex-foto .f2,.foto-anim .f2{animation:troca 2.4s steps(1) infinite}
+@keyframes troca{0%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.ex-foto .f2,.foto-anim .f2{animation:none;opacity:0}}
+.foto-ov{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.foto-box{background:var(--surface);color:var(--ink);border-radius:16px;padding:14px;width:100%;max-width:420px;display:grid;gap:10px}
+.foto-anim{position:relative;width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#fff}
+.bv-tit{font-size:22px;font-weight:700;margin:0}.bv-slogan{margin:0;color:var(--action,#2f74e8);font-weight:700}
+.bv-l{margin:0;padding-left:20px;display:grid;gap:6px}
+.evo-filtros{display:flex;gap:6px;flex-wrap:wrap}.evo-filtros select{flex:1 1 140px}
+.caminho{border-color:var(--good);background:var(--good-bg)}.caminho p{margin:0;font-weight:600}
+.desafios h3{margin-bottom:8px}.desafios.ok{border:2px solid var(--ouro-chk,#e8b931)}
+.des{display:grid;grid-template-columns:1fr auto;gap:4px 8px;margin-bottom:10px;font-size:15px}.des b{font-family:var(--f-num)}
+.des i{grid-column:1/-1;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--good) var(--p),var(--surface-2) var(--p))}
 .badge.mot{background:color-mix(in srgb,var(--action,#2f74e8) 18%,transparent);color:var(--ink-2)}
 .tim{grid-column:1/-1;display:flex;align-items:baseline;gap:6px;padding:6px 10px;border-radius:9px;background:color-mix(in srgb,var(--action,#2f74e8) 16%,transparent);font-weight:600;font-size:14px}
 .tim-live{font-family:var(--f-num);font-size:20px}

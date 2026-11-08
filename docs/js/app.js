@@ -109,7 +109,7 @@ function ingestAll(d){
   ingestModels(d.modelos);Coach.setModelos(S.models);
   ingestAvals(d.avaliacoes);
   if(d.professor!==undefined)S.profWhats=d.professor||"";
-  S.metasResp=d.metasResp||[];
+  S.metasResp=d.metasResp||[];S.evoPar=d.evoPar||[];
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
 }
@@ -172,7 +172,7 @@ function selectAluno(id,quiet){
   if(S.alunoId===id&&S.loaded){if(!quiet)setView("inicio");return}
   S.alunoId=id;store("dt2-aluno-sel",id);
   S.aluno=S.alunos.find(a=>a.id===id)||null;
-  S.rows=[];S.metasResp=[];S.relParecer=null;S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
+  S.rows=[];S.metasResp=[];S.evoPar=[];S.evoChat=null;S.fotosAv={};S.relParecer=null;S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
   S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.fim=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;S.modEdit=null;
   updateWho();
   loadDados();
@@ -511,7 +511,7 @@ function renderLancar(){
     (d.blocks.length?insHtml(0):"")+(()=>{const ultOk=d.blocks.map(exOk).lastIndexOf(true);return d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)+(bi===ultOk?aguaHtml():"")+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")).join("")})()+
     '<div class="add-ex"><input id="new-ex" list="ex-list" placeholder="Adicionar exercício (busque pelo nome)" aria-label="Nome do exercício"><button class="btn" id="b-add">Adicionar</button></div>'+
     '<datalist id="ex-list">'+exNames.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
-  bindLancar();ligarAgua();
+  bindLancar();ligarAgua();ligarFotos();
   updateBar();
 }
 /* ---- Método: topo do treino, cabeçalho de cada par, avisos de progressão ---- */
@@ -569,7 +569,8 @@ function metaCoach(b){if(b.metaC)return "";const t=S.draft&&(recadoDoDraft(S.dra
 function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
-  return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
+  const im=window.Metodos&&Metodos.imagem(b.name);
+  return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
@@ -630,6 +631,15 @@ function marcarDescanso(bi,si){
   const row=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"]');if(row)row.insertAdjacentHTML("beforeend",timHtml());
 }
 function timHtml(){const R=S.draft&&S.draft.rest;return '<div class="tim">Descanso <span class="tim-live">0:00</span>'+(R?'<small> · ideal '+R.min+'–'+R.max+' s</small>':"")+'</div>'}
+/* Foto do exercício: toque abre maior, alternando as duas posições. */
+function ligarFotos(){
+  document.querySelectorAll("#lancar [data-foto]").forEach(b=>b.onclick=()=>{
+    const bl=S.draft.blocks[+b.dataset.foto];const im=bl&&Metodos.imagem(bl.name);if(!im)return;
+    const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Execução de "+bl.name);
+    ov.innerHTML='<div class="foto-box"><b>'+esc(bl.name)+'</b><div class="foto-anim">'+im.fotos.map((f,i)=>'<img src="'+esc(f)+'" alt="'+(i?"Posição final":"Posição inicial")+'"'+(i?' class="f2"':"")+'>').join("")+'</div><p class="muted small">Imagens de referência do banco livre free-exercise-db. O aparelho da sua academia pode ser diferente.</p><button class="btn primary">Fechar</button></div>';
+    ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};document.body.appendChild(ov);
+  });
+}
 /* Exercício concluído: borda dourada e palmas. A cada 2 exercícios, a pergunta da água. */
 const exOk=b=>!b.cardio&&b.sets.length>0&&b.sets.every(setDone)&&b.sets.some(s=>String(s.reps).trim());
 function exercicioPronto(card,b){
@@ -1057,6 +1067,7 @@ function renderCorpo(){
   lineChart("ch-medida",pts.map(a=>fmtShort(a.date)+"/"+String(a.date.getFullYear()).slice(2)),[{label:S.medida.replace(/ \(cm\)$/,""),data:pts.map(a=>Body.num(a.v[S.medida])),borderColor:css("--g-inf"),backgroundColor:css("--g-inf")}],"cm",{y:{beginAtZero:false}});
 }
 function renderEvo(){
+  renderCoach();
   const modoEvo=evoModo();
   $("#evo-topo").innerHTML=chaveEvo();$("#evo-graf").hidden=modoEvo==="setas";$("#evo-setas").hidden=modoEvo!=="setas";
   ligarChaveEvo($("#evo-topo"),renderEvo);
@@ -1243,8 +1254,8 @@ function renderAval(){
     '<div class="body-legend"><span><i style="background:var(--good)"></i>medido</span><span><i style="background:var(--action)"></i>medida (fita)</span><span><i style="background:#eda100"></i>dobra</span></div></div>'+
     '<div>'+sec("Geral",Body.GERAL)+sec("Bioimpedância",Body.BIO)+sec("Perímetros (fita)",Body.PER)+sec("Dobras cutâneas",Body.DOB)+
     (cur.v[Body.OBS]?'<div class="av-sec"><h3>Observações</h3><p>'+esc(cur.v[Body.OBS])+'</p></div>':"")+
-    notaGordura(c)+'</div></div>';
-  ligarEstimativa();
+    notaGordura(c)+'</div></div>'+fotosAvHtml(cur);
+  ligarEstimativa();ligarFotosAv(cur);
   $("#av-sel").onchange=e=>{S.avSel=+e.target.value;S.avPt=null;renderAval()};
   const n=$("#av-new");if(n)n.onclick=()=>startAvEdit(null);
   const ed=$("#av-edit");if(ed)ed.onclick=()=>startAvEdit(cur);
@@ -1667,6 +1678,10 @@ $("#b-refresh").onclick=()=>atualizarTudo(true);
 /* ========== COACH ========== */
 // Monta o resumo do período escolhido e compara com o período anterior de mesmo tamanho.
 function resumoCoach(sel){
+  const todasLinhas=S.rows;if(S.view==="evo"&&S.evoGrupo)S.rows=S.rows.filter(r=>r.grupo===S.evoGrupo);
+  try{return resumoCoachDe(sel)}finally{S.rows=todasLinhas}
+}
+function resumoCoachDe(sel){
   const hoje=new Date();const amanha=new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()+1);
   const dias=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
   if(/^\d{4}-\d{2}$/.test(sel))return Coach.mes(S.rows,sel);
@@ -1744,7 +1759,7 @@ function ligarRelatorio(){
     }catch(x){toast(errText(x));b.disabled=false;b.textContent="Pedir parecer"}};
 }
 function renderCoach(){
-  const el=$("#coach");
+  const naEvo=S.view==="evo";const el=naEvo?$("#evo-geral"):$("#coach");if(!el)return;
   if(needAluno(el))return;
   if(!S.loaded){el.innerHTML='<div class="empty">'+(S.error?"Sem dados da planilha. Veja o aviso acima.":"Lendo a planilha…")+'</div>';return}
   const ses=Coach.sessoes(S.rows).filter(s=>s.rows.some(r=>r.done)).reverse();
@@ -1762,8 +1777,8 @@ function renderCoach(){
   const dif=(a,b,u)=>b?(a>=b?'<span class="delta up">▲ ':'<span class="delta down">▼ ')+nf1.format(Math.abs(a-b))+(u||"")+' vs '+rot+'</span>':'<span class="delta flat">sem '+rot+'</span>';
   const G=Coach.academias(M?M.linhas:S.rows);
   const AI=A&&A.animoInfo;const MEM=S.memoria.get(S.coachSel);
-  if(ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
-  el.innerHTML='<div class="ch-bloco"><h2>'+(S.coachSel===(ses[0]&&ses[0].key)?"Último treino":"Treino escolhido")+'</h2>'+(M?'<button class="btn ghost small" id="ch-ir">Ver parecer geral ↓</button>':"")+'</div><div class="card" style="margin-bottom:14px">'+
+  if(!naEvo&&ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
+  const htmlTreino='<div class="ch-bloco"><h2>'+(S.coachSel===(ses[0]&&ses[0].key)?"Último treino":"Treino escolhido")+'</h2><button class="btn ghost small" id="ch-ir">Parecer geral na Evolução →</button></div><div class="card" style="margin-bottom:14px">'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
     (A&&S.iaPend&&S.iaPend.has(S.coachSel)?iaLendo():"")+(A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
@@ -1776,10 +1791,12 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
       lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+(A.academiaDif||A.maquinaDif?lista("🏋️ Academia ou máquina diferente",[A.academiaDif].concat(A.maquinaDif||[]).filter(Boolean).map(esc)):"")+(A.nexoTreino?lista("🔗 O que isso teve a ver com o treino",[esc(A.nexoTreino)]):"")+lista("📌 No próximo "+esc(A.treino),A.proximo)
-      :iaLendo())+'</div>'+
-    '<div class="ch-bloco" id="ch-geral"><h2>Parecer geral até aqui</h2></div>'+(A?'<div class="card" style="margin-bottom:14px">'+metasHtml(A)+'</div>':"")+
+      :iaLendo())+'</div>';
+  const htmlGeral='<div class="ch-bloco" id="ch-geral"><h2>Parecer geral até aqui</h2></div>'+
+    '<div class="pick-ex evo-filtros"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select>'+
+    '<select id="ch-grupo" aria-label="Escolher grupo muscular"><option value="">Todos os grupos</option>'+GROUPS.map(g=>'<option'+(S.evoGrupo===g.k?" selected":"")+'>'+esc(g.k)+'</option>').join("")+'</select></div>'+
+    parecerPeriodoHtml(M)+caminhoHtml()+projecaoHtml()+desafiosHtml()+(A?'<div class="card" style="margin-bottom:14px">'+metasHtml(A)+'</div>':"")+
     (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Números do período</h2></div>'+
-    '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
     (S.coachMes==="datas"?'<div class="ch-datas"><label class="fld2">De<input type="date" id="ch-de" value="'+esc(S.coachDe)+'"></label><label class="fld2">Até<input type="date" id="ch-ate" value="'+esc(S.coachAte)+'"></label></div>':"")+
     (M.treinos?"":'<p class="muted small">Nenhum treino neste período.</p>')+
     '<div class="calc" style="margin-bottom:10px">'+
@@ -1797,12 +1814,107 @@ function renderCoach(){
     (G.length?G.map(g=>'<details class="acad-card"><summary><b>'+esc(g.nome)+'</b> · '+g.treinos+(g.treinos===1?" treino":" treinos")+' · ânimo 😀'+g.bom+' 😐'+g.ok+' 😞'+g.ruim+'</summary>'+
       '<p class="small muted" style="margin:6px 0">Último treino: '+esc(g.ultima)+' · volume médio '+nf1.format(g.volMedio)+' t'+(g.duracao?' · '+fmtMin(g.duracao):"")+'</p>'+
       (g.cargas.length?'<div class="tbl-wrap"><table><thead><tr><th>Exercício</th><th>Última carga aqui</th></tr></thead><tbody>'+g.cargas.map(c=>'<tr><td>'+esc(c.ex)+'</td><td>'+esc(c.peso)+' × '+esc(c.reps)+'</td></tr>').join("")+'</tbody></table></div>':"")+'</details>').join("")
-      :'<p class="muted small">Nenhuma academia informada neste período. Escolha a academia no início do treino: aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>';
+      :'<p class="muted small">Nenhuma academia informada neste período. Escolha a academia no início do treino: aqui aparecem os pesos e o ânimo de cada uma.</p>')+'</div>'+
+    (S.role==="prof"?chatEvoHtml():"");
+  el.innerHTML=naEvo?htmlGeral:htmlTreino;
+  if(naEvo){ligarGeral(el,M);ligarMetas(el,A)}
   const cs=$("#ch-ses");if(cs)cs.onchange=e=>{S.coachSel=e.target.value;renderCoach()};
-  ligarMetas(el,A);
-  const irg=$("#ch-ir");if(irg)irg.onclick=()=>{const g=$("#ch-geral");if(g)g.scrollIntoView({block:"start",behavior:"smooth"})};
+  const irg=$("#ch-ir");if(irg)irg.onclick=()=>setView("evo");
   const cm=$("#ch-mes");if(cm)cm.onchange=e=>{S.coachMes=e.target.value;renderCoach()};
   [["#ch-de","coachDe"],["#ch-ate","coachAte"]].forEach(([id,k])=>{const i=$(id);if(i)i.onchange=()=>{if(i.value){S[k]=i.value;renderCoach()}}});
+}
+
+/* ---------- Parecer geral na Evolução ---------- */
+const chaveParecer=()=>[S.coachMes||"p4",S.evoGrupo||"todos",S.role==="prof"?"coach":"aluno"].join("|");
+function parecerPeriodoHtml(M){
+  const k=chaveParecer();const sal=(S.evoPar||[]).filter(r=>r[1]===k).pop();const pend=S.evoParPend===k;
+  const resumo=!M?"":S.role==="prof"?(()=>{const R=Coach.relatorio(S.rows);return "Situação: "+R.veredito+". "+M.treinos+(M.treinos===1?" treino":" treinos")+" no período, "+M.recordes.length+(M.recordes.length===1?" recorde":" recordes")+"."})()
+    :M.treinos?"Você fez "+M.treinos+(M.treinos===1?" treino":" treinos")+" neste período"+(M.recordes.length?" e bateu "+M.recordes.length+(M.recordes.length===1?" recorde":" recordes"):"")+". Cada treino registrado mostra o quanto você evoluiu.":"Ainda não há treinos neste período.";
+  return '<div class="card aux-b" style="margin-bottom:14px"><h3>'+(S.role==="prof"?"Leitura do coach para você":"Como você está evoluindo")+'</h3><p>'+esc(resumo)+'</p>'+
+    (pend?iaLendo("O coach está lendo os treinos e os comentários deste período."):sal?'<p class="aux-c ia">'+esc(sal[4])+'</p><p class="muted small">Parecer de '+esc(sal[0])+'</p>':"")+
+    '<button class="btn" id="evo-par"'+(pend?" disabled":"")+'>'+(sal?"Pedir parecer de novo":"Pedir parecer deste período")+'</button></div>';
+}
+function caminhoHtml(){
+  const c=Coach.caminhoCerto(S.rows);if(!c)return "";
+  return '<div class="card caminho" style="margin-bottom:14px"><p>✅ '+esc(c.texto)+'</p></div>';
+}
+function projecaoHtml(){
+  const P=Coach.projecao(S.rows);const a=S.aluno||{};const sobe={sobe:"↗",estavel:"→",cai:"↘"};
+  if(!P.length)return "";
+  return '<div class="card" style="margin-bottom:14px"><h3>Previsão de evolução</h3><p class="muted small">Pela tendência das últimas 12 semanas, se mantiver o ritmo. É estimativa, não promessa.</p>'+
+    '<ul class="rel-l">'+P.map(p=>'<li><b>'+esc(p.nome)+'</b> '+sobe[p.tendencia]+' força estimada '+nf1.format(p.hoje)+' kg hoje'+(p.tendencia==="sobe"?', cerca de '+nf1.format(p.em4)+' kg em 4 semanas e '+nf1.format(p.em12)+' kg em 12.':p.tendencia==="cai"?'. Caiu nas últimas semanas: vale olhar recuperação e carga.':'. Estável: é hora de buscar um pouco mais.')+'</li>').join("")+'</ul>'+
+    (a.pesoMeta?'<p class="small">Objetivo de peso: <b>'+esc(a.pesoMeta)+' kg</b>. Veja a estimativa completa na Avaliação física.</p>':"")+'</div>';
+}
+function desafiosHtml(){
+  const D=Coach.desafios(S.rows);const todos=D.every(d=>d.ok);
+  return '<div class="card desafios'+(todos?" ok":"")+'" style="margin-bottom:14px"><h3>'+(todos?"🏆 Desafios da semana completos!":"🎯 Desafios da semana")+'</h3>'+
+    D.map(d=>{const p=Math.min(100,Math.round(d.feito/d.alvo*100));return '<div class="des"><span>'+(d.ok?"✅ ":"")+esc(d.titulo)+'</span><b>'+Math.min(d.feito,d.alvo)+'/'+d.alvo+'</b><i style="--p:'+p+'%"></i></div>'}).join("")+'</div>';
+}
+function chatEvoHtml(){
+  const st=S.evoChat||(S.evoChat={chat:[],pensando:false});
+  return '<div class="card aux-b" style="margin-bottom:14px"><h3>Conversar com o coach sobre este período</h3><p class="muted small">Ele usa o histórico, as cargas, as trocas, os comentários e o seu jeito de trabalhar. Fica salvo na planilha do aluno.</p>'+
+    '<div>'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+'</p>').join("")+(st.pensando?iaLendo("O coach está lendo os treinos e a sua pergunta."):"")+'</div>'+
+    '<textarea class="obs" id="evo-q" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você mudaria no treino de perna dele?"></textarea><button class="btn primary" id="evo-env" style="width:100%;margin-top:6px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
+}
+function fatosPeriodo(M){
+  const R=Coach.relatorio(S.rows),P=Coach.projecao(S.rows);
+  return {periodo:M?M.nome:"",grupo:S.evoGrupo||"todos",treinos:M?M.treinos:0,treinosAntes:M?M.treinosAnt:0,volumeT:M?Math.round(M.volume*10)/10:0,volumeAntesT:M?Math.round(M.volumeAnt*10)/10:0,
+    recordes:M?M.recordes.slice(0,6).map(r=>r.nome+": "+nf1.format(r.de)+" para "+nf1.format(r.para)+" kg estimados"):[],evolucoes:M?M.evolucoes.slice(0,6).map(e=>e.nome+" "+e.d+"%"):[],
+    gruposVolume:M?M.grupos.map(g=>g.g+" "+(g.dif==null?"sem comparação":g.dif+"%")):[],comentariosRepetidos:M?M.comentarios.map(c=>c.nome+" "+c.n):[],dores:R.dores,pedidos:R.pedidos,
+    relacaoComOTreino:R.fatores.map(f=>f.texto.replace(/<[^>]+>/g,"")),metasBatidas:R.metasBatidas,situacao:R.veredito,previsao:P,objetivo:(S.aluno||{}).objetivo||"",nivel:(S.aluno||{}).nivel||""};
+}
+function ligarGeral(el,M){
+  const cg=$("#ch-grupo");if(cg)cg.onchange=e=>{S.evoGrupo=e.target.value;renderCoach()};
+  const bp=$("#evo-par");if(bp)bp.onclick=async()=>{
+    const k=chaveParecer();S.evoParPend=k;renderCoach();
+    try{const d=await callA("evoParecer",{chave:k,fatos:fatosPeriodo(M)});
+      if(d.linha)S.evoPar=(S.evoPar||[]).concat([d.linha]);else toast(d.motivo==="limite_do_dia"?"O limite de hoje acabou.":d.motivo==="nao_liberada"?"O coach com IA vale depois que o aluno aceita os termos.":"O coach não conseguiu agora.");
+    }catch(x){toast(errText(x))}
+    S.evoParPend=null;if(S.view==="evo")renderCoach()};
+  const env=$("#evo-env");if(env)env.onclick=async()=>{
+    const q=$("#evo-q").value.trim();if(!q)return;const st=S.evoChat;const hist=st.chat.slice(-6);
+    st.chat.push({papel:"eu",texto:q});st.pensando=true;renderCoach();
+    try{const d=await callA("auxChat",{pergunta:q,historico:hist,fatos:fatosPeriodo(M),origem:"Evolução"});
+      st.chat.push({papel:"ia",texto:d.resposta||(d.motivo==="limite_do_dia"?"O limite de conversas de hoje acabou.":"Não consegui responder agora.")})}
+    catch(x){st.chat.push({papel:"ia",texto:errText(x)})}
+    st.pensando=false;if(S.view==="evo")renderCoach()};
+}
+
+/* ---------- Boas-vindas: aparece uma vez, no primeiro acesso ---------- */
+function boasVindas(){
+  if(!S.aluno||!S.aluno.aceite||document.querySelector(".foto-box.bv"))return;
+  const k="dt2-boasvindas-"+S.aluno.id;if(Api.store.load(k))return;
+  const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Boas-vindas");
+  const nome=String((S.aluno&&S.aluno.nome)||"").split(" ")[0];
+  ov.innerHTML='<div class="foto-box bv"><p class="bv-tit">Olá'+(nome?", "+esc(nome):"")+'! Eu sou o seu coach. 💪</p><p class="bv-slogan">Não só aprendo com você: eu evoluo junto.</p>'+
+    '<ol class="bv-l"><li><b>Treinar:</b> escolha o treino do dia e preencha as repetições. Eu marco a série e conto o descanso.</li><li><b>Comente:</b> sono, comida, dor, máquina diferente. Eu leio tudo e ajusto as próximas metas.</li><li><b>Avaliação do Coach:</b> depois de cada treino, o meu parecer.</li><li><b>Evolução:</b> como você está indo, a previsão e os desafios da semana.</li></ol>'+
+    '<button class="btn primary" style="width:100%">Vamos começar</button></div>';
+  ov.querySelector("button").onclick=()=>{Api.store.put(k,1);ov.remove()};document.body.appendChild(ov);
+}
+
+/* ---------- Fotos da avaliação: salvas no Drive do professor ---------- */
+function fotosAvHtml(cur){
+  if(S.role!=="prof")return "";
+  const lista=(S.fotosAv||{})[cur.dataS];
+  return '<div class="card" style="margin:14px 0"><h3>Fotos desta avaliação</h3><p class="muted small">Ficam numa pasta do aluno no seu Google Drive. Não vão para a galeria do celular.</p>'+
+    '<div class="row-btns">'+["Frente","Lado","Costas"].map(p=>'<label class="btn">📷 '+p+'<input type="file" accept="image/*" capture="environment" data-pose="'+p+'" hidden></label>').join("")+'</div>'+
+    '<div id="av-fotos">'+(lista==null?'<p class="muted small">Lendo as fotos…</p>':lista.length?'<ul class="rel-l">'+lista.map(f=>'<li><a href="'+esc(f.url)+'" target="_blank" rel="noopener">'+esc(f.nome)+'</a></li>').join("")+'</ul>':'<p class="muted small">Nenhuma foto ainda.</p>')+'</div></div>';
+}
+function reduzirFoto(file){
+  return new Promise((ok,no)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const m=1280,e=Math.min(1,m/Math.max(img.width,img.height));
+    const c=document.createElement("canvas");c.width=Math.round(img.width*e);c.height=Math.round(img.height*e);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+    ok(c.toDataURL("image/jpeg",0.82).split(",")[1])};img.onerror=no;img.src=u});
+}
+function ligarFotosAv(cur){
+  if(S.role!=="prof")return;
+  S.fotosAv=S.fotosAv||{};
+  if(S.fotosAv[cur.dataS]==null){S.fotosAv[cur.dataS]=undefined;callA("fotosListar",{data:cur.dataS}).then(d=>{S.fotosAv[cur.dataS]=d.fotos||[];if(S.view==="aval"&&!S.avEdit)renderAval()}).catch(()=>{S.fotosAv[cur.dataS]=[];if(S.view==="aval"&&!S.avEdit)renderAval()})}
+  document.querySelectorAll("#aval [data-pose]").forEach(inp=>inp.onchange=async()=>{
+    const f=inp.files&&inp.files[0];if(!f)return;toast("Enviando a foto para o seu Drive…");
+    try{const b64=await reduzirFoto(f);const d=await callA("fotoSalvar",{data:cur.dataS,pose:inp.dataset.pose,b64});
+      S.fotosAv[cur.dataS]=(S.fotosAv[cur.dataS]||[]).concat([d.foto]);toast("Foto salva no Drive.");renderAval()}
+    catch(x){toast(/teste.html/.test(location.pathname)?"Na versão de teste as fotos não são salvas.":errText(x))}
+  });
 }
 
 /* ========== CONFIGURAÇÕES ========== */
@@ -2344,6 +2456,7 @@ function textoTreinar(){
   return sug?"Próximo: "+sug:"Escolher o treino";
 }
 function renderInicio(){
+  if(S.role==="aluno"&&S.aluno&&!S.aluno.cadastroPendente)setTimeout(boasVindas,400);
   const tile=(v,ic,nome)=>'<button class="home-tile" data-ir="'+v+'">'+nome+'<span class="home-ic">'+Icone(ic,58)+'</span></button>';
   if(S.role==="prof"){
     // A primeira tela é sempre do próprio professor: o Treinar nunca grava na planilha de outro aluno.

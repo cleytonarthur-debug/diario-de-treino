@@ -147,6 +147,15 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **IA lendo:** `iaLendo()` aparece onde a IA responde: parecer do treino, metas, relatório, conversas e montagem de blocos.
 - **Histórico:** `Coach.base` ignora "cl", "cada lado" e "ambas" no fim do nome. "Primeira vez nesta academia" só aparece se a pessoa já registra academias, nunca treinou nesta e já fez o exercício.
 
+## Fase 2: imagens, Evolução, desafios, boas-vindas, fotos e conversas (versão 2.26, 07/11/2026)
+- **Imagens dos exercícios:** `docs/metodos/imagens.json` liga nomes em português (expressões) a 96 exercícios do free-exercise-db (domínio público), com 2 fotos cada, servidas pelo jsDelivr. Gerado por um script (lista de regras). Sem par: bicicleta no solo, perdigueiro, polichinelo e aquecimentos. Toque na foto abre maior, alternando as posições.
+- **Parecer geral na Evolução:** saiu da Avaliação do Coach. Em cima da Evolução, nos dois modos: período e grupo muscular, "Pedir parecer deste período" (`evoParecer`: aluno motivador, coach analítico com ajustes), guardado na aba **Pareceres da evolução** e reaproveitado. O professor tem a conversa com o coach ali (`auxChat` com os fatos do período).
+- **Previsão:** `Coach.projecao`, regressão da força estimada nas 12 semanas dos 3 exercícios mais feitos, com teto de +20%. **Caminho certo:** `Coach.caminhoCerto` a cada 4 semanas, só com dados que mostram isso. Só aparece com o app aberto.
+- **Desafios da semana:** `Coach.desafios` por regras: frequência (média das 4 semanas) e mais 2 que mudam por semana (meta do coach, ânimo, comentário, água, recorde).
+- **Boas-vindas:** uma vez por aparelho e pessoa, para o aluno, com o slogan.
+- **Fotos da avaliação:** botões Frente, Lado e Costas na Avaliação física (só professor). A foto é reduzida a 1280 px e vai para "Diário de Treino — Fotos das avaliações/nome do aluno" no Drive do professor (`fotoSalvar`, `fotosListar`). Na versão de teste não salva.
+- **Conversas salvas:** conversas com o Coach Auxiliar e da Evolução vão para a aba **Conversas com o coach** da planilha do aluno. As de "Meu jeito de trabalhar" vão para essa aba no Painel.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

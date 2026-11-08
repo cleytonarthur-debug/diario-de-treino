@@ -1,10 +1,11 @@
 {
-  "versao": "2.25.0",
+  "versao": "2.26.0",
   "data": "07/11/2026",
   "notas": [
-    "Preencheu a série: já marca e o descanso começa sozinho.",
-    "Exercício concluído fica dourado, com palmas.",
-    "Pergunta da água a cada 2 exercícios e aviso de pausa longa.",
-    "O coach avisa quando está lendo os comentários."
+    "Fotos dos exercícios no treino.",
+    "Parecer geral na Evolução, por período e grupo, com previsão e desafios da semana.",
+    "Conversa com o coach na Evolução e conversas salvas na planilha.",
+    "Fotos da avaliação salvas no Drive do professor.",
+    "Boas-vindas do coach."
   ]
 }
