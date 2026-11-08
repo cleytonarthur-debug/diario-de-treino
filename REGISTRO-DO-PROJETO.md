@@ -193,3 +193,9 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - `tools/colab/fotos-femininas.ipynb` troca o homem por uma mulher nas fotos do banco, usando a máquina grátis do Google Colab e a IA `ovedrive/qwen-image-edit-4bit` (Apache 2.0, uso comercial). A versão 2511 compacta é não comercial: não usar.
 - Salva em `diario-fotos-femininas` no Drive, com `registro.txt`, e continua de onde parou. Ainda não testado numa máquina Colab; nada entrou no app.
 - Decisão do Cleyton (08/11/2026): manter as fotos de homens para todos. Não há fonte grátis viável de modelos femininas; o arquivo do Colab foi retirado (está no histórico do git).
+
+## Fotos femininas nos exercícios de pernas (08/11/2026, v2.30.0)
+- O Cleyton mudou a decisão anterior: alunas veem a mulher nos exercícios de pernas e glúteos que deu para criar. Os demais continuam com a foto de homem.
+- São 10 exercícios, 20 fotos (cerca de 1,3 MB) em `docs/fotos-femininas/`: agachamento, extensora, leg press, mesa flexora, cadeira flexora, stiff, elevação pélvica, afundo com halteres, abdutora e adutora. Criadas por IA no Runway a partir das fotos do free-exercise-db.
+- A lista fica em `imagens.json`, chave `femininas`. `Metodos.imagem(nome, sexo)` usa a foto feminina quando o sexo começa com "F". Para somar um exercício: colocar `0.jpg` e `1.jpg` na pasta e incluir o nome em inglês na lista.
+- Restam 3 créditos do Runway, que não renovam no plano grátis.

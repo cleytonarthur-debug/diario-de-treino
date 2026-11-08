@@ -16,13 +16,13 @@ function load(){
     json("index.json").then(ix=>Promise.all((ix.metodos||[]).map(it=>json(it.arquivo).then(m=>lista.set(m.id,m)).catch(()=>{})))).catch(()=>{}),
     json("biblioteca.json").then(b=>Object.entries(b.grupos||{}).forEach(([g,ns])=>ns.forEach(n=>bib.set(norm(n),{nome:n,grupo:g})))).catch(()=>{}),
     json("planos.json").then(p=>{planosLista=p.planos||[]}).catch(()=>{}),
-    json("imagens.json").then(j=>{imagens={base:j.base,regras:(j.regras||[]).map(r=>({rx:new RegExp(r.rx),img:r.img,en:r.en}))}}).catch(()=>{})
+    json("imagens.json").then(j=>{imagens={base:j.base,regras:(j.regras||[]).map(r=>({rx:new RegExp(r.rx),img:r.img,en:r.en})),femBase:(j.femininas||{}).base||"",fem:new Set((j.femininas||{}).exercicios||[])}}).catch(()=>{})
   ]);
   return pronto;
 }
 const planos=()=>planosLista;
-// As duas fotos do exercício (posição inicial e final), ou null.
-function imagem(nome){if(!imagens)return null;const n=norm(nome);const r=imagens.regras.find(x=>x.rx.test(n));return r?{fotos:r.img.map(p=>imagens.base+p),en:r.en}:null}
+// As duas fotos do exercício (posição inicial e final), ou null. Alunas veem a versão feminina quando existe.
+function imagem(nome,sexo){if(!imagens)return null;const n=norm(nome);const r=imagens.regras.find(x=>x.rx.test(n));if(!r)return null;const fem=/^f/i.test(sexo||"")&&imagens.fem.has(r.img[0].split("/")[0]);return {fotos:r.img.map(p=>(fem?imagens.femBase:imagens.base)+p),en:r.en,fem}}
 const bibGrupo=n=>{const x=bib.get(norm(n));return x?x.grupo:null};
 const bibNomes=()=>[...bib.values()].map(x=>x.nome);
 const bibDoGrupo=g=>[...bib.values()].filter(x=>x.grupo===g).map(x=>x.nome);

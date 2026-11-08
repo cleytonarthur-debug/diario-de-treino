@@ -608,7 +608,7 @@ function metaCoach(b){if(b.metaC)return "";const t=S.draft&&(recadoDoDraft(S.dra
 function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
-  const im=window.Metodos&&Metodos.imagem(b.name);
+  const im=window.Metodos&&Metodos.imagem(b.name,S.aluno&&S.aluno.sexo);
   return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
@@ -674,9 +674,9 @@ function timHtml(){const R=S.draft&&S.draft.rest;return '<div class="tim">Descan
 /* Foto do exercício: toque abre maior, alternando as duas posições. */
 function ligarFotos(){
   document.querySelectorAll("#lancar [data-foto]").forEach(b=>b.onclick=()=>{
-    const bl=S.draft.blocks[+b.dataset.foto];const im=bl&&Metodos.imagem(bl.name);if(!im)return;
+    const bl=S.draft.blocks[+b.dataset.foto];const im=bl&&Metodos.imagem(bl.name,S.aluno&&S.aluno.sexo);if(!im)return;
     const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Execução de "+bl.name);
-    ov.innerHTML='<div class="foto-box"><b>'+esc(bl.name)+'</b><div class="foto-anim">'+im.fotos.map((f,i)=>'<img src="'+esc(f)+'" alt="'+(i?"Posição final":"Posição inicial")+'"'+(i?' class="f2"':"")+'>').join("")+'</div><p class="muted small">Imagens de referência do banco livre free-exercise-db. O aparelho da sua academia pode ser diferente.</p><button class="btn primary">Fechar</button></div>';
+    ov.innerHTML='<div class="foto-box"><b>'+esc(bl.name)+'</b><div class="foto-anim">'+im.fotos.map((f,i)=>'<img src="'+esc(f)+'" alt="'+(i?"Posição final":"Posição inicial")+'"'+(i?' class="f2"':"")+'>').join("")+'</div><p class="muted small">'+(im.fem?"Imagens criadas por IA a partir do banco livre free-exercise-db. O aparelho da sua academia pode ser diferente.":"Imagens de referência do banco livre free-exercise-db. O aparelho da sua academia pode ser diferente.")+'</p><button class="btn primary">Fechar</button></div>';
     ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};document.body.appendChild(ov);
   });
 }
