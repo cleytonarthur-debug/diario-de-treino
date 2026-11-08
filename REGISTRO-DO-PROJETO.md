@@ -203,5 +203,5 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 ## Meu plano para o aluno (08/11/2026, v2.31.0)
 - O aluno vê o próprio plano: botão **Meu plano** na tela inicial (plano, valor, vencimento, forma de pagamento e situação), a chave Pix e botões que abrem o WhatsApp do professor com a mensagem pronta: **Renovar meu plano** e **upgrade** para os planos mais longos. O app não cobra nem muda o plano sozinho: o professor combina o valor e registra no Financeiro.
 - O programa central entrega ao aluno só a linha dele (`planoDoAluno_`, campo `plano` em `inicio`). A lista, os valores dos outros e os pagamentos continuam só do professor (`finLer` segue recusado ao aluno, testado).
-- Sem a nova versão do programa central no ar, o botão não aparece (o site sozinho não mostra nada). Precisa de `clasp push` e `clasp deploy` com o sim direto do Cleyton.
+- Sem a nova versão do programa central no ar, o botão não aparece (o site sozinho não mostra nada). Publicado no ar em 08/11/2026, com o sim direto do Cleyton: `clasp push -f` e `clasp deploy` na implantação numerada (versão 28 do script). Não mexe em permissões.
 - Sem WhatsApp do professor cadastrado, a tela mostra os dados e pede para falar com ele.
