@@ -167,7 +167,7 @@ const ACOES = {
   inicio: function (ctx) {
     const out = { papel: ctx.papel };
     if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); }
-    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); }
+    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); out.plano = planoDoAluno_(ctx.aluno.id); }
     return out;
   },
   dados: function (ctx) {
@@ -514,6 +514,14 @@ function finDados_() {
     return { linha: i + 2, data: r[0], alunoId: r[1], nome: r[2], valor: r[3], forma: r[4], plano: r[5], vencPago: r[6], vencAntes: r[7], aulas: r[8] };
   }).filter(function (g) { return g.alunoId; });
   return { ativo: true, pix: PropertiesService.getScriptProperties().getProperty('PIX_CHAVE') || '', planos: lerPlanos_(), pagamentos: pags };
+}
+/* O aluno vê só o próprio plano: nunca a lista, os valores dos outros nem os pagamentos. */
+function planoDoAluno_(alunoId) {
+  if (!financeiroAtivo_()) return { ativo: false };
+  const p = lerPlanos_().filter(function (x) { return x.alunoId === String(alunoId); })[0];
+  const pix = PropertiesService.getScriptProperties().getProperty('PIX_CHAVE') || '';
+  if (!p) return { ativo: true, tem: false, pix: pix };
+  return { ativo: true, tem: true, plano: p.plano, valor: p.valor, venc: p.venc, forma: p.forma, pausado: p.pausado, aulasTotal: p.aulasTotal, aulasDadas: p.aulasDadas, pix: pix };
 }
 function comTrava_(fn) {
   const lock = LockService.getScriptLock();

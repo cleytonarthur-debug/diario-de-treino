@@ -115,6 +115,7 @@ h3{font-size:15px;margin:0;font-weight:700}
 .ex-foto .f2,.foto-anim .f2{animation:troca 3.6s ease-in-out infinite}
 @keyframes troca{0%,25%{opacity:0}45%,75%{opacity:1}95%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.ex-foto .f2,.foto-anim .f2{animation:none;opacity:0}}
+.meuplano-l{display:grid;gap:8px}.meuplano-r{display:flex;justify-content:space-between;align-items:center;gap:10px}.meuplano-up{display:flex;flex-wrap:wrap;gap:8px}.meuplano-up .btn{flex:1 1 40%;text-align:center}
 .foto-ov{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
 .foto-box{background:var(--surface);color:var(--ink);border-radius:16px;padding:14px;width:100%;max-width:420px;display:grid;gap:10px}
 .foto-anim{position:relative;width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#fff}

@@ -161,6 +161,7 @@ function applyInicio(d,fresh){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
     if(d.professor!==undefined)S.profWhats=d.professor||"";
+    if(d.plano!==undefined)S.plano=d.plano;
     if(fresh&&!d.aluno.aceite)showAceite();
     else if(d.aluno.aceite&&d.aluno.cadastroPendente)showCadastro();
   }
@@ -2542,6 +2543,36 @@ function textoTreinar(){
   const sug=suggestion(templates());
   return sug?"Próximo: "+sug:"Escolher o treino";
 }
+/* O aluno vê só o próprio plano: o programa central entrega só a linha dele. */
+function planoAlunoTile(){
+  const pl=S.plano;if(!pl||!pl.ativo)return "";
+  const st=pl.tem?finStatus(pl):null;
+  return '<button class="home-alunos" data-ir="meuplano">'+Icone("coin",28)+'<span><b>Meu plano</b>'+(pl.tem?esc(pl.plano)+(avulsa(pl)||!pl.venc?"":" · vence em "+esc(pl.venc)):"Ver planos")+'</span>'+(st&&st.k!=="ok"&&st.k!=="sem"?pillFin(st):"")+Icone("chevron-right",22)+'</button>';
+}
+function abrirMeuPlano(){
+  const pl=S.plano||{},st=pl.tem?finStatus(pl):null,w=S.profWhats||"";
+  const nome=String((S.aluno&&S.aluno.nome)||"").split(" ")[0];
+  const zap=txt=>w?"https://wa.me/"+w+"?text="+encodeURIComponent(txt):"";
+  const ms=pl.tem?mesesPlano(pl):0;
+  const ups=PLANOS_FIN.filter(x=>x[1]>ms&&x[1]>0);
+  let h='<b>Meu plano</b>';
+  if(pl.tem){
+    h+='<div class="meuplano-l"><div class="meuplano-r"><span class="muted">Plano</span><b>'+esc(pl.plano)+'</b></div>'+
+      (+pl.valor?'<div class="meuplano-r"><span class="muted">Valor</span><b>'+brl(+pl.valor)+'</b></div>':"")+
+      (avulsa(pl)?'<div class="meuplano-r"><span class="muted">Aulas</span><b>'+(+pl.aulasDadas||0)+' de '+(+pl.aulasTotal||0)+'</b></div>':(pl.venc?'<div class="meuplano-r"><span class="muted">Vencimento</span><b>'+esc(pl.venc)+'</b></div>':""))+
+      (pl.forma?'<div class="meuplano-r"><span class="muted">Forma de pagamento</span><b>'+esc(pl.forma)+'</b></div>':"")+
+      (st?'<div class="meuplano-r"><span class="muted">Situação</span>'+pillFin(st)+'</div>':"")+'</div>';
+    if(pl.pix)h+='<p class="muted small">Chave Pix para pagar: <b>'+esc(pl.pix)+'</b></p>';
+    if(w)h+='<a class="btn" href="'+esc(zap("Oi! Aqui é "+nome+". Quero renovar meu plano "+String(pl.plano).toLowerCase()+"."))+'" target="_blank" rel="noopener">Renovar meu plano</a>';
+  }else h+='<p class="muted small">Você ainda não tem um plano cadastrado. Fale com o seu professor.</p>';
+  if(ups.length&&w){
+    h+='<p class="muted small">Quer mudar para um plano maior?</p><div class="meuplano-up">'+ups.map(x=>'<a class="btn" href="'+esc(zap("Oi! Aqui é "+nome+". Quero fazer upgrade"+(pl.tem?" do meu plano "+String(pl.plano).toLowerCase():"")+" para o plano "+x[0].toLowerCase()+". Pode me passar o valor?"))+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>').join("")+'</div>';
+  }else if(pl.tem&&!ups.length)h+='<p class="muted small">Você já está no plano mais longo.</p>';
+  if(!w)h+='<p class="muted small">O WhatsApp do seu professor ainda não está cadastrado. Peça a ele para combinar o plano.</p>';
+  const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Meu plano");
+  ov.innerHTML='<div class="foto-box">'+h+'<button class="btn">Fechar</button></div>';
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};document.body.appendChild(ov);
+}
 function renderInicio(){
   if(S.role==="aluno"&&S.aluno&&!S.aluno.cadastroPendente)setTimeout(boasVindas,400);
   const tile=(v,ic,nome)=>'<button class="home-tile" data-ir="'+v+'">'+nome+'<span class="home-ic">'+Icone(ic,58)+'</span></button>';
@@ -2565,8 +2596,9 @@ function renderInicio(){
   $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-grid">'+
     '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
     tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+
-    tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>';
+    tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div>'+planoAlunoTile()+'</div>';
   $("#inicio-tela").querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.ir==="meuplano")return abrirMeuPlano();
     if(b.dataset.ir==="lancar")S.picker=false;
     abrir(b.dataset.ir);
   });
@@ -2889,7 +2921,7 @@ function comecarHtml(a){
     (n?'<div class="par-h">Treinos prontos para '+esc(n)+'</div>'+(n==="Avançado"?'<p class="muted small">Ainda não há plano só para avançado. Estes servem de base, ou peça ao coach.</p>':"")+
       pl.map(p=>'<div class="mp-f"><span><b>'+esc(p.nome)+'</b><span class="muted small">'+esc(p.dias+" · "+p.local)+'</span></span><button class="btn ghost small" data-plano="'+esc(p.id)+'">Usar</button></div>').join("")
       :'<p class="muted small" style="margin-top:6px">Escolha o nível para ver os treinos prontos.</p>')+
-    '<div class="par-h">Copiar de outro aluno</div><div class="mp-l"><select id="cm-de" aria-label="Copiar treinos de qual aluno"><option value="">Escolha o aluno…</option>'+outros.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.nome+(x.nivel?" ("+x.nivel+")":""))+'</option>').join("")+'</select><button class="btn" id="cm-copiar">Copiar</button></div>'+
+    '<div class="par-h">Copiar de outro aluno</div><div class="meuplano-l"><select id="cm-de" aria-label="Copiar treinos de qual aluno"><option value="">Escolha o aluno…</option>'+outros.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.nome+(x.nivel?" ("+x.nivel+")":""))+'</option>').join("")+'</select><button class="btn" id="cm-copiar">Copiar</button></div>'+
     '<div class="par-h">Pedir ao coach</div>'+(S.cmNota?'<p class="aux-c ia">'+esc(S.cmNota)+'</p>':"")+
     '<textarea class="obs" id="cm-pedido" style="height:64px;padding:8px 10px;width:100%" placeholder="Opcional: o que você quer nesses treinos" aria-label="Pedido para o coach">'+esc(S.cmPedido||"")+'</textarea>'+
     '<button class="btn" id="cm-ia" style="width:100%;margin-top:6px">O coach monta os blocos</button></div>';
@@ -2950,7 +2982,7 @@ function metodosProntosHtml(a){
   const seq=seqDoAluno(a),at=faseAtual(seq,S.modEdit);
   return '<div class="card aux-b mp-c"><h3 class="dia-t">Métodos prontos</h3>'+
     '<p class="muted small">O app monta e você confere. Nada vale para o aluno antes de tocar em <b>Salvar treinos</b>.</p>'+
-    '<div class="par-h">Bi-set montado sozinho</div><div class="mp-l"><select id="mp-par" aria-label="Músculos do bi-set">'+PARES_BI.map((p,i)=>'<option value="'+i+'">'+esc(p.n)+'</option>').join("")+'</select>'+
+    '<div class="par-h">Bi-set montado sozinho</div><div class="meuplano-l"><select id="mp-par" aria-label="Músculos do bi-set">'+PARES_BI.map((p,i)=>'<option value="'+i+'">'+esc(p.n)+'</option>').join("")+'</select>'+
     '<select id="mp-n" aria-label="Quantos pares"><option value="2">2 pares</option><option value="3" selected>3 pares</option><option value="4">4 pares</option></select><button class="btn" id="mp-bi">Montar bi-set</button></div>'+
     '<div class="par-h">Sequência para '+esc(String(a.objetivo||"este aluno").toLowerCase())+'</div>'+
     seq.map((f,i)=>'<div class="mp-f'+(i===at?" on":"")+'"><i>'+(i+1)+'</i><span><b>'+esc(f.n)+'</b><span class="muted small">'+esc(f.d)+(i===at?" · fase atual":"")+'</span></span><button class="btn '+(i===at+1?"":"ghost ")+'small" data-fase="'+i+'">Preparar</button></div>').join("")+'</div>';

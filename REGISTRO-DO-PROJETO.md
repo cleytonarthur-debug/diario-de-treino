@@ -199,3 +199,9 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - São 10 exercícios, 20 fotos (cerca de 1,3 MB) em `docs/fotos-femininas/`: agachamento, extensora, leg press, mesa flexora, cadeira flexora, stiff, elevação pélvica, afundo com halteres, abdutora e adutora. Criadas por IA no Runway a partir das fotos do free-exercise-db.
 - A lista fica em `imagens.json`, chave `femininas`. `Metodos.imagem(nome, sexo)` usa a foto feminina quando o sexo começa com "F". Para somar um exercício: colocar `0.jpg` e `1.jpg` na pasta e incluir o nome em inglês na lista.
 - Restam 3 créditos do Runway, que não renovam no plano grátis.
+
+## Meu plano para o aluno (08/11/2026, v2.31.0)
+- O aluno vê o próprio plano: botão **Meu plano** na tela inicial (plano, valor, vencimento, forma de pagamento e situação), a chave Pix e botões que abrem o WhatsApp do professor com a mensagem pronta: **Renovar meu plano** e **upgrade** para os planos mais longos. O app não cobra nem muda o plano sozinho: o professor combina o valor e registra no Financeiro.
+- O programa central entrega ao aluno só a linha dele (`planoDoAluno_`, campo `plano` em `inicio`). A lista, os valores dos outros e os pagamentos continuam só do professor (`finLer` segue recusado ao aluno, testado).
+- Sem a nova versão do programa central no ar, o botão não aparece (o site sozinho não mostra nada). Precisa de `clasp push` e `clasp deploy` com o sim direto do Cleyton.
+- Sem WhatsApp do professor cadastrado, a tela mostra os dados e pede para falar com ele.
