@@ -188,3 +188,7 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - Os desenhos da v2.28.0 foram rejeitados pelo Cleyton ("incômodos de assistir") e retirados; estão no histórico do git (commit 83ff367).
 - Voltaram as fotos do free-exercise-db. A troca entre as duas posições agora é um esmaecimento de 3,6 s (só CSS, sem peso a mais). O banco tem só duas fotos por exercício, então não há movimento real entre elas.
 - Modelos por sexo: não feito. O banco quase só tem homens; mulheres só em exercícios fora da lista (119, 460, 461, 525, 805 na ordem do `exercises.json`). O app já tem `S.aluno.sexo`.
+
+## Teste de fotos femininas no Colab (08/11/2026)
+- `tools/colab/fotos-femininas.ipynb` troca o homem por uma mulher nas fotos do banco, usando a máquina grátis do Google Colab e a IA `ovedrive/qwen-image-edit-4bit` (Apache 2.0, uso comercial). A versão 2511 compacta é não comercial: não usar.
+- Salva em `diario-fotos-femininas` no Drive, com `registro.txt`, e continua de onde parou. Ainda não testado numa máquina Colab; nada entrou no app.
