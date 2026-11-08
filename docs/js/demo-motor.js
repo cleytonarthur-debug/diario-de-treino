@@ -151,9 +151,9 @@ function doPost(e) {
     catch (x) { throw appErr_('bad_request', 'Pedido inválido.'); }
     if (ACOES_TESTE[b.action]) return json_(Object.assign({ ok: true, versao: VERSAO }, ACOES_TESTE[b.action](b)));
     const ctx = auth_(b);
-    if ((FIN_ACOES[b.action] || JEITO_ACOES[b.action])) {
+    if ((FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action])) {
       precisaProf_(ctx);
-      return json_(Object.assign({ ok: true, versao: VERSAO }, (FIN_ACOES[b.action] || JEITO_ACOES[b.action])(b)));
+      return json_(Object.assign({ ok: true, versao: VERSAO }, (FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action])(b)));
     }
     const fn = ACOES[b.action];
     if (!fn) throw appErr_('bad_request', 'Ação desconhecida: ' + b.action);
@@ -166,8 +166,8 @@ function doPost(e) {
 const ACOES = {
   inicio: function (ctx) {
     const out = { papel: ctx.papel };
-    if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); }
-    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); out.plano = planoDoAluno_(ctx.aluno.id); }
+    if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); out.metodosProf = metodosParaProf_(); }
+    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); out.plano = planoDoAluno_(ctx.aluno.id); out.metodoDef = defDoAluno_(ctx.aluno); }
     return out;
   },
   dados: function (ctx) {
@@ -475,6 +475,129 @@ const ACOES = {
     al.codigo = novoCodigo_(20);
     escreverAluno_(al);
     return { aluno: alunoParaProfessor_(al) };
+  }
+};
+
+/* =============== métodos do professor (criados pelo app) =============== */
+/* Aba "Meus métodos" do Painel: uma linha por método, com a definição em JSON. Só o professor escreve.
+   O aluno recebe apenas a definição do método que está ligado nele. */
+const ABA_MP = 'Meus métodos';
+const HEAD_MP = ['ID', 'Nome', 'Público', 'Estado', 'Atualizado', 'Definição'];
+const DIAS_NOME_ = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+function lerMP_() {
+  const sh = abaTexto_(ABA_MP, HEAD_MP), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, HEAD_MP.length).getDisplayValues().map(function (r, i) {
+    let def = null;
+    try { def = JSON.parse(r[5]); } catch (e) { def = null; }
+    return { linha: i + 2, id: r[0], nome: r[1], publico: r[2], estado: r[3] === 'rascunho' ? 'rascunho' : 'pronto', atualizado: r[4], def: def };
+  }).filter(function (m) { return m.id && m.def; });
+}
+function metodosParaProf_() {
+  const alunos = listarAlunos_();
+  return lerMP_().map(function (m) {
+    return { id: m.id, nome: m.nome, publico: m.publico, estado: m.estado, atualizado: m.atualizado, def: m.def,
+      usando: alunos.filter(function (a) { return a.metodo === m.id; }).length };
+  });
+}
+function defDoAluno_(al) {
+  const id = String((al && al.metodo) || '');
+  if (!/^m-/.test(id)) return null;
+  const m = lerMP_().filter(function (x) { return x.id === id && x.estado === 'pronto'; })[0];
+  return m ? m.def : null;
+}
+/* Limpa e confere o que veio do app: só entram os campos conhecidos, com tamanho e valores dentro dos limites. */
+function limparMetodo_(d, completo) {
+  d = d || {};
+  const t = function (v, n) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n); };
+  const num = function (v, a, b, pad) { const x = Number(v); return isFinite(x) && x >= a && x <= b ? Math.round(x) : pad; };
+  const par = function (v, a, b) {
+    if (!v || v.length !== 2) return null;
+    const lo = num(v[0], a, b, null), hi = num(v[1], a, b, null);
+    return lo == null || hi == null || hi < lo ? null : [lo, hi];
+  };
+  const m = { id: t(d.id, 20), nome: t(d.nome, 60), versao: 1, livre: true, publico: t(d.publico, 30), objetivo: t(d.objetivo, 80), descricao: t(d.descricao, 300) };
+  if (!m.nome) throw appErr_('bad_request', 'Dê um nome ao método.');
+  m.dias = {};
+  const dias = d.dias || {};
+  Object.keys(dias).forEach(function (k) { if (/^[0-6]$/.test(k) && /^[A-F]$/.test(String(dias[k]))) m.dias[k] = String(dias[k]); });
+  m.diasTexto = [1, 2, 3, 4, 5, 6, 0].filter(function (k) { return m.dias[String(k)]; }).map(function (k) { return DIAS_NOME_[k] + ' = ' + m.dias[String(k)]; }).join(' · ');
+  m.diaLivre = t(d.diaLivre, 120) || 'Dia livre: descanso ou caminhada leve.';
+  m.aquecimento = (Array.isArray(d.aquecimento) ? d.aquecimento : []).slice(0, 6).map(function (x) { return t(x, 100); }).filter(Boolean);
+  m.exercicios = {}; m.treinos = {}; m.musculos = {};
+  let cont = 0;
+  const tr = d.treinos || {};
+  Object.keys(tr).slice(0, 6).sort().forEach(function (letra) {
+    if (!/^[A-F]$/.test(letra)) return;
+    const pares = [];
+    (Array.isArray(tr[letra].exercicios) ? tr[letra].exercicios : []).slice(0, 20).forEach(function (e) {
+      const nome = t(e && e.nome, 80);
+      if (!nome) return;
+      cont++;
+      const key = 'e' + cont, grupo = t(e.grupo, 30) || 'Sem grupo', gk = grupo.toLowerCase().replace(/[^a-z0-9]/g, '') || 'sg';
+      m.musculos[gk] = { nome: grupo, grupo: grupo };
+      const ex = { nome: nome, musculo: gk, tipo: ['maquina', 'cabo', 'halter', 'corpo'].indexOf(e.tipo) >= 0 ? e.tipo : 'maquina', series: num(e.series, 1, 10, 3), descanso: num(e.descanso, 10, 600, 60) };
+      if (e.unidade === 's') { ex.unidade = 's'; ex.tempo = par(e.reps, 5, 600) || [20, 30]; }
+      else ex.reps = par(e.reps, 1, 100) || [8, 12];
+      m.exercicios[key] = ex;
+      pares.push({ a: key });
+    });
+    if (pares.length) m.treinos[letra] = { nome: t(tr[letra].nome, 60) || 'Treino ' + letra, pares: pares };
+  });
+  m.fases = [];
+  (Array.isArray(d.fases) ? d.fases : []).slice(0, 8).forEach(function (f, i) {
+    const ini = num(f && f.semanas && f.semanas[0], 1, 104, null), fim = num(f && f.semanas && f.semanas[1], 1, 104, null);
+    if (ini == null || fim == null || fim < ini) return;
+    const fase = { id: 'f' + (i + 1), nome: t(f.nome, 40) || 'Fase ' + (i + 1), semanas: [ini, fim], rir: par(f.rir, 0, 6) || [2, 3] };
+    const sr = num(f.series, 1, 10, null); if (sr != null) fase.series = sr;
+    const rp = par(f.reps, 1, 100); if (rp) fase.reps = rp;
+    const tp = par(f.tempo, 5, 600); if (tp) fase.tempo = tp;
+    fase.cardio = { padrao: t(f.cardio, 100) };
+    m.fases.push(fase);
+  });
+  m.cicloSemanas = m.fases.length ? Math.max.apply(null, m.fases.map(function (f) { return f.semanas[1]; })) : 0;
+  m.aposCiclo = 'Recomeça na semana 1, mantendo as cargas já alcançadas.';
+  const p = d.progressao || {}, inc = p.incremento || {}, est = num(p.estagnacaoSemanas, 1, 8, 2);
+  m.progressao = { tipo: 'dupla',
+    regra: t(p.regra, 300) || 'Quando fizer o topo da faixa de repetições em todas as séries, sobe a carga e volta ao início da faixa.',
+    incremento: { maquina: t(inc.maquina, 40) || '+2 a 5 kg', cabo: t(inc.cabo, 40) || '+2 a 5 kg', halter: t(inc.halter, 40) || '+1 a 2 kg', corpo: t(inc.corpo, 80) || 'aumente o tempo ou deixe o exercício um pouco mais difícil' },
+    avisoSubir: 'Subir carga', estagnacaoSemanas: est, avisoEstagnacao: 'Sem evolução há ' + est + ' semanas: conferir sono e alimentação.' };
+  m.intensidade = { falha: false };
+  m.descanso = {};
+  if (completo) {
+    const letras = Object.keys(m.dias).map(function (k) { return m.dias[k]; });
+    if (!letras.length) throw appErr_('bad_request', 'Escolha pelo menos um dia de treino.');
+    letras.forEach(function (l) { if (!m.treinos[l]) throw appErr_('bad_request', 'O Treino ' + l + ' está sem exercícios.'); });
+    if (!m.fases.length) throw appErr_('bad_request', 'Cadastre pelo menos uma fase.');
+  }
+  return m;
+}
+const MP_ACOES = {
+  mpSalvar: function (b) {
+    const rascunho = b.estado === 'rascunho';
+    const def = limparMetodo_(b.def, !rascunho);
+    if (!/^m-[a-z0-9]{6,12}$/.test(def.id)) def.id = 'm-' + Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+    const json = JSON.stringify(def);
+    if (json.length > 40000) throw appErr_('bad_request', 'O método ficou grande demais. Tire alguns exercícios.');
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+    try {
+      const sh = abaTexto_(ABA_MP, HEAD_MP);
+      const antigo = lerMP_().filter(function (x) { return x.id === def.id; })[0];
+      const agora = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+      const linha = antigo ? antigo.linha : sh.getLastRow() + 1;
+      sh.getRange(linha, 1, 1, HEAD_MP.length).setValues([[def.id, def.nome, def.publico, rascunho ? 'rascunho' : 'pronto', agora, json].map(String)]);
+    } finally { lock.releaseLock(); }
+    return { id: def.id, metodos: metodosParaProf_() };
+  },
+  mpApagar: function (b) {
+    const id = String(b.id || '');
+    const m = lerMP_().filter(function (x) { return x.id === id; })[0];
+    if (!m) throw appErr_('not_found', 'Método não encontrado.');
+    const usando = listarAlunos_().filter(function (a) { return a.metodo === id; });
+    if (usando.length) throw appErr_('bad_request', 'Este método está ligado em ' + usando.length + (usando.length === 1 ? ' aluno' : ' alunos') + '. Desligue nele antes de apagar.');
+    abaTexto_(ABA_MP, HEAD_MP).deleteRow(m.linha);
+    return { metodos: metodosParaProf_() };
   }
 };
 

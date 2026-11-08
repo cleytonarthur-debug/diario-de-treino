@@ -1,7 +1,7 @@
 {
-  "versao": "2.31.0",
+  "versao": "2.32.0",
   "data": "08/11/2026",
   "notas": [
-    "Aluno vê o próprio plano, vencimento e pode pedir renovação ou upgrade"
+    "Professor cria e inclui o próprio método, liga no aluno e confere como o aluno vai ver"
   ]
 }

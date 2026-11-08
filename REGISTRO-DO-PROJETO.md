@@ -205,3 +205,11 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - O programa central entrega ao aluno só a linha dele (`planoDoAluno_`, campo `plano` em `inicio`). A lista, os valores dos outros e os pagamentos continuam só do professor (`finLer` segue recusado ao aluno, testado).
 - Sem a nova versão do programa central no ar, o botão não aparece (o site sozinho não mostra nada). Publicado no ar em 08/11/2026, com o sim direto do Cleyton: `clasp push -f` e `clasp deploy` na implantação numerada (versão 28 do script). Não mexe em permissões.
 - Sem WhatsApp do professor cadastrado, a tela mostra os dados e pede para falar com ele.
+
+## Meus métodos: o professor cria o próprio método (08/11/2026, v2.32.0)
+- **Onde:** Perfil → **Meus métodos**, e na página do aluno (Montar treinos → Método de treino) o botão **Criar ou editar meus métodos**. Lista os métodos do app (Método Par: ver e copiar para editar) e os do professor (criado por você ou rascunho).
+- **Cadastro em 5 passos:** nome e público; dias da semana (cada dia liga a uma letra de treino, A a F); treinos e exercícios (da biblioteca ou digitados, com séries, repetições, descanso e opção em segundos); fases (semanas, séries e repetições opcionais, repetições sobrando, cardio); aquecimento e progressão. Salva pronto ou como rascunho.
+- **Ligar no aluno:** passo 1 **Ver como a aluna vai ver** (tela de conferência com semana, treino, fase, exercícios e progressão; não salva nada) e passo 2 **Ligar método**. A conferência também tem o botão Ligar.
+- **Onde fica guardado:** aba **Meus métodos** do Painel (uma linha por método, definição em JSON). O programa central limpa e limita o que recebe (`limparMetodo_`). Apagar recusa método ligado em aluno. O aluno recebe só a definição do método dele (`metodoDef` em `inicio`); o professor recebe todos (`metodosProf`). Ações: `mpSalvar`, `mpApagar` (só professor).
+- **Como o app usa:** método do professor tem `livre: true`: lista simples de exercícios (sem pares a/b), descanso por exercício (cronômetro usa o descanso do exercício), cabeçalho "Grupo · descanso N s". Série e repetições valem da fase; se a fase deixa vazio, valem as do exercício (`Metodos.efetiva`). O Método Par não mudou (testado).
+- Ids dos métodos do professor começam com `m-`. A aba é criada na primeira leitura.

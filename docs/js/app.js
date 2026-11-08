@@ -156,12 +156,14 @@ function applyInicio(d,fresh){
     if(!S.alunoId&&sel&&S.alunos.some(a=>a.id===sel))selectAluno(sel,true);
     else if(S.alunoId){const a=S.alunos.find(x=>x.id===S.alunoId);if(a)S.aluno=Object.assign({},S.aluno,a)}
     if(d.catalogo)S.catalogo=d.catalogo;
+    if(d.metodosProf)ingerirMetodos(d.metodosProf);
     if(fresh){profNotice();carregarPainel()}
   }else if(d.aluno){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
     if(d.professor!==undefined)S.profWhats=d.professor||"";
     if(d.plano!==undefined)S.plano=d.plano;
+    if(d.metodoDef&&window.Metodos)Metodos.registrar(d.metodoDef);
     if(fresh&&!d.aluno.aceite)showAceite();
     else if(d.aluno.aceite&&d.aluno.cadastroPendente)showCadastro();
   }
@@ -273,7 +275,7 @@ function cardMetodo(t,sug,today){
   const grs=[...new Set(pares.flatMap(p=>[p.a,p.b]).map(x=>(m.musculos[(m.exercicios[x]||{}).musculo]||{}).grupo))].filter(g=>GROUP_VAR[g]);
   const days=t.last?Math.round((today-t.last.date)/864e5):0;
   return '<button data-t="'+esc(t.name)+'" class="'+(sug?"sug":"")+'">'+(sug?'<span class="tag">Treino de hoje no '+esc(m.nome)+'</span>':"")+
-    '<b>'+esc(t.name)+'</b><span class="muted small">'+esc(faseTexto(F))+' · '+pares.length+' pares · '+f.series+' séries de '+(f.reps||[]).join("–")+'</span>'+
+    '<b>'+esc(t.name)+'</b><span class="muted small">'+esc(faseTexto(F))+' · '+(m.livre?pares.length+(pares.length===1?" exercício":" exercícios"):pares.length+' pares · '+f.series+' séries de '+(f.reps||[]).join("–"))+'</span>'+
     (t.last?'<span class="muted small">Último: '+fmtShort(t.last.date)+' ('+(days===0?"hoje":days===1?"ontem":days+" dias")+')</span>':"")+
     '<span class="tag">'+grs.map(g=>'<i style="background:var('+GROUP_VAR[g]+')"></i>'+esc(g)).join(" ")+'</span></button>';
 }
@@ -292,9 +294,11 @@ function buildMetodoDraft(t){
     const prev=lastExact(ex.nome);
     const b={id:newId(),name:ex.nome,grupo:(m.musculos[ex.musculo]||{}).grupo||guessGroup(ex.nome),sets:[],obs:"",
       par:pi+1,lado:l,exKey:p[l],musculo:ex.musculo,tipo:ex.tipo,unidade:ex.unidade||""};
-    const n=Metodos.seriesDoPar(f,pi+1);
+    const fx=Metodos.efetiva(f,ex);
+    const n=m.livre?fx.series:Metodos.seriesDoPar(f,pi+1);
+    if(m.livre)b.descanso=ex.descanso||60;
     for(let i=0;i<n;i++){
-      const s=makeSet(i+1,prev[i]||null);s.meta=Metodos.meta(f,ex);s.rirMeta=f.rir.join("–");
+      const s=makeSet(i+1,prev[i]||null);s.meta=Metodos.meta(fx,ex);s.rirMeta=f.rir.join("–");
       if(!s.peso&&prev.length)s.peso=String(prev[prev.length-1].peso||"").trim();
       b.sets.push(s);
     }
@@ -566,13 +570,15 @@ function metodoTopo(d){
   const z=Metodos.zona2(m,idade(S.aluno));
   return '<div class="card mtopo"><div class="card-h"><h2>'+esc(m.nome)+'</h2><p>Semana '+d.metodo.semana+' de '+d.metodo.total+' · '+esc(d.metodo.fase)+' · deixe '+esc((d.metodo.rir||[]).join("–"))+' reps sobrando</p></div>'+
     '<p class="small"><b>Aquecimento:</b> '+(m.aquecimento||[]).map(esc).join(" + ")+'.</p>'+
-    '<p class="small"><b>Como fazer:</b> série do <b>a</b> → descanso '+m.descanso.entreAeB.join("–")+' s → série do <b>b</b> → descanso '+m.descanso.entrePares.join("–")+' s. Repita até fechar as séries do par e só então vá ao próximo.</p>'+
+    (m.livre?'<p class="small"><b>Como fazer:</b> faça as séries de cada exercício, descansando o tempo indicado, e só então passe ao próximo.</p>':'<p class="small"><b>Como fazer:</b> série do <b>a</b> → descanso '+m.descanso.entreAeB.join("–")+' s → série do <b>b</b> → descanso '+m.descanso.entrePares.join("–")+' s. Repita até fechar as séries do par e só então vá ao próximo.</p>')+
     (z?'<p class="small"><b>Zona 2:</b> '+z.lo+'–'+z.hi+' bpm (FC máx. ≈ '+z.max+'). '+esc(z.descricao||"")+'</p>':"")+'</div>';
 }
 function parHeader(d,b){
   if(b.cardio)return '<div class="par-h">Cardio no fim</div>';
   if(!d.metodo||b.lado!=="a")return "";
-  const m=metodoDoDraft(d);const nb=d.blocks.find(x=>x.par===b.par&&x.lado==="b");
+  const m=metodoDoDraft(d);
+  if(m&&m.livre)return '<div class="par-h">'+esc(b.grupo||"")+(b.descanso?' · descanso '+b.descanso+' s':"")+'</div>';
+  const nb=d.blocks.find(x=>x.par===b.par&&x.lado==="b");
   const nome=k=>m&&m.musculos[k]?m.musculos[k].nome:k;
   return '<div class="par-h">Par '+b.par+' · '+esc(nome(b.musculo))+(nb?' ↔ '+esc(nome(nb.musculo)):"")+'</div>';
 }
@@ -580,14 +586,14 @@ function avisosProgresso(d,b){
   if(!d.metodo||b.cardio)return "";
   const m=metodoDoDraft(d);if(!m)return "";
   const f=(Metodos.fase(m,S.aluno&&S.aluno.metodoInicio,new Date())||{}).fase||m.fases[0];
-  const ex={unidade:b.unidade};const out=[];
+  const exm=Metodos.exercicio(m,b.exKey)||{};const ex={unidade:b.unidade};const out=[];const fx=Metodos.efetiva(f,exm);
   // progressão dupla: topo da faixa em todas as séries da última vez, com as reps sobrando da fase
   let prev=lastExact(b.name);
   const ult=prev.map(r=>String(r.serie).trim()).lastIndexOf("1");if(ult>0)prev=prev.slice(ult); // só a última sessão do dia
   prev=prev.filter(r=>!/n[aã]o fiz/i.test(r.feitas));
-  const top=Metodos.topo(f,ex);
+  const top=Metodos.topo(fx,ex);
   if(prev.length&&prev.every(r=>r.reps&&r.reps[0]>=top&&r.rir!==""&&+r.rir>=f.rir[0]))
-    out.push('<span class="badge up">⬆ '+esc(m.progressao.avisoSubir)+': '+esc(Metodos.incremento(m,b.tipo))+' e volte para '+(b.unidade==="s"?f.tempo[0]+" s":f.reps[0]+" reps")+'</span>');
+    out.push('<span class="badge up">⬆ '+esc(m.progressao.avisoSubir)+': '+esc(Metodos.incremento(m,b.tipo))+' e volte para '+(b.unidade==="s"?fx.tempo[0]+" s":fx.reps[0]+" reps")+'</span>');
   // estagnação: 2 semanas sem melhorar a melhor série
   const k=exKey(b.name);const byDay=new Map();
   S.rows.forEach(r=>{if(exKey(r.ex)!==k||!r.reps)return;const sc=r.e1||r.reps.reduce((a,c)=>a+c,0);const o=byDay.get(r.dateS);if(!o||sc>o.sc)byDay.set(r.dateS,{d:r.date,sc})});
@@ -856,6 +862,11 @@ function startRest(bi,si){
   if(!m||!b.par){d.rest=null;return}
   const pend=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
   const blk=(par,l)=>d.blocks.find(x=>x.par===par&&x.lado===l);
+  if(m.livre){
+    const dsc=+b.descanso||60;
+    const cur=pend(b)>=0?b:d.blocks.find(x=>!x.cardio&&pend(x)>=0)||d.blocks.find(x=>x.cardio&&pend(x)>=0)||null;
+    d.rest={min:dsc,max:dsc,at:Date.now(),buzz:0,prox:cur?(cur.name+" · série "+(pend(cur)+1)):"fim do treino"};return;
+  }
   let alvo,prox=null;
   if(b.lado==="a"){alvo=m.descanso.entreAeB;const nb=blk(b.par,"b");if(nb&&pend(nb)>=0)prox=nb;}
   else{alvo=m.descanso.entrePares;const na=blk(b.par,"a");prox=na&&pend(na)>=0?na:d.blocks.find(x=>x.par>b.par&&!x.cardio&&pend(x)>=0)||d.blocks.find(x=>x.cardio&&pend(x)>=0)||null;}
@@ -868,7 +879,7 @@ function swapToKey(b,key){
   b.origKey=b.origKey||b.exKey;b.exKey=key;b.tipo=ex.tipo;b.unidade=ex.unidade||"";
   swapExercise(b,ex.nome);
   const f=(Metodos.fase(m,S.aluno&&S.aluno.metodoInicio,new Date())||{}).fase||m.fases[0];
-  b.sets.forEach(s=>{if(!String(s.reps).trim())s.meta=Metodos.meta(f,ex)});
+  b.sets.forEach(s=>{if(!String(s.reps).trim())s.meta=Metodos.meta(Metodos.efetiva(f,ex),ex)});
   if(b.origKey===b.exKey)delete b.origKey;
 }
 function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;const t=document.createElement("div");t.innerHTML=exCard(S.draft.blocks[bi],bi);old.replaceWith(t.firstChild);bindLancar()}
@@ -1602,17 +1613,38 @@ function renderModelEditor(el){
 /* Ligar um método (arquivo em metodos/) no aluno, com data de início. */
 function proximaSegunda(){const d=new Date();const k=(8-d.getDay())%7;d.setDate(d.getDate()+(d.getDay()===1?0:k));return d}
 function metodoCard(a){
-  const ms=window.Metodos?Metodos.todos():[];
+  garantirMetodos();
+  const ms=(window.Metodos?Metodos.todos():[]).filter(m=>!m.rascunho);
+  const nomeA=primeiroNome(a);
   const atual=a.metodo&&window.Metodos?Metodos.get(a.metodo):null;
   const F=atual?Metodos.fase(atual,a.metodoInicio,new Date()):null;
   return '<div class="card" style="margin-bottom:12px"><h3>Método de treino</h3>'+
     (atual?'<p class="small" style="margin:6px 0">Ligado: <b>'+esc(atual.nome)+'</b> desde '+esc(a.metodoInicio)+' · '+esc(faseTexto(F))+'</p>':'<p class="muted small" style="margin:6px 0">Ligue um método e o app monta os treinos, as fases e a progressão sozinho.</p>')+
     '<div class="form-grid"><label class="fld2">Método<select id="me-m"><option value="">Nenhum</option>'+ms.map(m=>'<option value="'+esc(m.id)+'"'+(a.metodo===m.id?" selected":"")+'>'+esc(m.nome)+' ('+esc(m.publico||"")+')</option>').join("")+'</select></label>'+
     '<label class="fld2">Começa em<input id="me-d" type="date" value="'+esc(brToIso(a.metodoInicio)||brToIso(fmtDate(proximaSegunda())))+'"></label></div>'+
-    '<p class="setup-msg" id="me-msg" role="status"></p><div class="row-btns"><button class="btn" id="me-save">'+(atual?"Atualizar método":"Ligar método")+'</button></div></div>';
+    '<p class="muted small" id="me-res" style="margin:8px 0 0"></p>'+
+    '<p class="setup-msg" id="me-msg" role="status"></p>'+
+    '<div class="met-pas"><span class="pas">Passo 1: conferir</span><button class="btn" id="me-prev">Ver como '+esc(nomeA)+' vai ver</button>'+
+    '<span class="pas">Passo 2: ligar</span><button class="btn primary" id="me-save">'+(atual?"Atualizar método":"Ligar método")+'</button></div>'+
+    '<div class="row-btns" style="margin-top:10px"><button class="btn" id="me-novo">Criar ou editar meus métodos</button></div></div>';
 }
 function bindMetodoCard(){
   const b=$("#me-save");if(!b)return;
+  const sel=$("#me-m");
+  const resumo=()=>{
+    const m=Metodos.get(sel.value),el=$("#me-res");if(!el)return;
+    if(!m){el.textContent="";return}
+    const n=Object.keys(m.dias||{}).length,a=S.aluno||{};
+    el.textContent=n+(n===1?" treino":" treinos")+" por semana · "+(m.cicloSemanas||0)+" semanas · "+(m.fases||[]).length+(((m.fases||[]).length===1)?" fase.":" fases.")+(a.dias&&+a.dias!==n?" "+primeiroNome(a)+" treina "+a.dias+"x por semana; o método tem "+n+" dias.":"");
+  };
+  sel.onchange=resumo;resumo();
+  $("#me-prev").onclick=()=>{
+    const msg=$("#me-msg");
+    if(!sel.value){msg.textContent="Escolha o método para conferir.";msg.className="setup-msg bad";return}
+    msg.textContent="";msg.className="setup-msg";
+    abrirConferencia(Metodos.get(sel.value),S.aluno,()=>b.click());
+  };
+  $("#me-novo").onclick=()=>{S.metDe="aluno";S.metEdit=null;abrir("metodos")};
   b.onclick=async()=>{
     const metodo=$("#me-m").value,inicio=isoToBr($("#me-d").value),msg=$("#me-msg");
     if(metodo&&!inicio){msg.textContent="Escolha a data de início.";msg.className="setup-msg bad";return}
@@ -1683,6 +1715,7 @@ async function doInstall(){if(!installEvt)return;installEvt.prompt();try{await i
 function renderPerfil(){
   const el=$("#perfil");const prof=S.role==="prof";
   let html="";
+  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>';
   if(S.aluno){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="perfil-top"><span class="perfil-av">'+Icone("user-circle",32)+'</span><div><h2 style="text-transform:none">'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div></div><dl class="kv">'+
@@ -1700,6 +1733,7 @@ function renderPerfil(){
   html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: toque na <b>engrenagem</b>, no topo.</p>';
   el.innerHTML=html;
   if(prof&&S.aluno){ligarRelatorio();ligarNomes()}
+  const pmt=$("#p-metodos");if(pmt)pmt.onclick=()=>{S.metDe="perfil";S.metEdit=null;abrir("metodos")};
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);abrir("alunos")};
   const pn=$("#p-newlink");if(pn)pn.onclick=()=>armed(pn,"Toque de novo: o link antigo vai parar","Gerar novo link",async()=>{
@@ -2458,12 +2492,273 @@ function renderAuxil(){
     st.pensando=false;if(S.aux===st&&S.view==="auxil")renderAuxil()});
 }
 
+/* ========== MEUS MÉTODOS: o professor cria, liga no aluno e confere como o aluno vai ver ========== */
+const DIAS_SEM=[[1,"Seg"],[2,"Ter"],[3,"Qua"],[4,"Qui"],[5,"Sex"],[6,"Sáb"],[0,"Dom"]];
+const LETRAS=["A","B","C","D","E","F"];
+const PUBLICOS=["Iniciantes","Intermediários","Avançados","Todos os níveis"];
+// Os métodos do professor vêm do programa central e entram na mesma lista dos métodos do app.
+function ingerirMetodos(list){
+  S.metodosProf=list||[];garantirMetodos();
+}
+function garantirMetodos(){
+  if(!window.Metodos)return;
+  Metodos.limparCustom();
+  (S.metodosProf||[]).forEach(x=>{if(x.def)Metodos.registrar(Object.assign({},x.def,{rascunho:x.estado==="rascunho"}))});
+}
+function tipoDe(nome){
+  const k=strip(nome);
+  if(/halter|dumbbell|kettlebell/.test(k))return "halter";
+  if(/polia|cabo|corda|crossover|pulley|pulldown|puxada|remada baixa|face pull/.test(k))return "cabo";
+  if(/flexao|prancha|abdominal|barra fixa|paralela|mergulho|agachamento (livre|sem peso)|afundo|superman|perdigueiro|ponte|bicicleta|polichinelo|corrida|caminhada/.test(k))return "corpo";
+  return "maquina";
+}
+function metNovo(){
+  return {id:"",nome:"",publico:"Intermediários",objetivo:"",descricao:"",dias:{1:"A",3:"B",5:"C"},diaLivre:"",
+    treinos:{A:{nome:"Treino A",ex:[]},B:{nome:"Treino B",ex:[]},C:{nome:"Treino C",ex:[]}},
+    fases:[{nome:"Fase 1",ini:1,fim:4,series:"",lo:"",hi:"",rirLo:2,rirHi:3,cardio:""}],
+    aquec:"5 min de bike ou esteira leve\n1 série leve no primeiro exercício",
+    prog:{regra:"",maquina:"",cabo:"",halter:"",corpo:"",estag:2},passo:1,aba:"A",rascunho:false};
+}
+// Da definição guardada (ou de um método do app) para os campos da tela de cadastro.
+function metParaTela(m,copia){
+  const t={};
+  Object.entries(m.treinos||{}).forEach(([k,tr])=>{
+    t[k]={nome:tr.nome,ex:(tr.pares||[]).flatMap(p=>[p.a,p.b]).filter(Boolean).map(key=>{
+      const e=(m.exercicios||{})[key]||{},seg=e.unidade==="s";
+      const r=seg?(e.tempo||(m.fases[0]&&m.fases[0].tempo)||[20,30]):(e.reps||(m.fases[0]&&m.fases[0].reps)||[8,12]);
+      return {nome:e.nome||"",grupo:((m.musculos||{})[e.musculo]||{}).grupo||"",tipo:e.tipo||"",series:e.series||(m.fases[0]&&m.fases[0].series)||3,lo:r[0],hi:r[1],seg,descanso:e.descanso||60}})};
+  });
+  const inc=(m.progressao&&m.progressao.incremento)||{};
+  const dias={};Object.entries(m.dias||{}).forEach(([d,l])=>dias[d]=l);
+  const letras=Object.keys(t);
+  return {id:copia?"":(m.id||""),nome:copia?"Cópia de "+m.nome:m.nome,publico:m.publico||"Intermediários",objetivo:m.objetivo||"",descricao:m.descricao||"",
+    dias,diaLivre:m.diaLivre||"",treinos:t,
+    fases:(m.fases||[]).map(f0=>{const f=m.livre?f0:Metodos.resolver(m,f0);return {nome:f0.nome,ini:f0.semanas[0],fim:f0.semanas[1],series:f.series!=null?f.series:"",lo:(f.reps||["",""])[0],hi:(f.reps||["",""])[1],rirLo:(f.rir||[2,3])[0],rirHi:(f.rir||[2,3])[1],cardio:(f0.cardio&&f0.cardio.padrao)||""}}),
+    aquec:(m.aquecimento||[]).join("\n"),
+    prog:{regra:(m.progressao&&m.progressao.regra)||"",maquina:inc.maquina||"",cabo:inc.cabo||"",halter:inc.halter||"",corpo:inc.corpo||"",estag:(m.progressao&&m.progressao.estagnacaoSemanas)||2},
+    passo:1,aba:letras[0]||"A",rascunho:false};
+}
+// Da tela de cadastro para a definição que o programa central guarda.
+function metDaTela(E){
+  const treinos={};
+  const usadas=new Set(Object.values(E.dias));
+  LETRAS.forEach(l=>{
+    const t=E.treinos[l];if(!t)return;
+    const ex=t.ex.filter(e=>String(e.nome).trim());
+    if(!ex.length&&!usadas.has(l))return;
+    treinos[l]={nome:t.nome||"Treino "+l,exercicios:ex.map(e=>({nome:String(e.nome).trim(),grupo:e.grupo||(window.Metodos&&Metodos.bibGrupo(e.nome))||guessGroup(e.nome),tipo:e.tipo||tipoDe(e.nome),unidade:e.seg?"s":"",series:+e.series||3,reps:[+e.lo||8,+e.hi||+e.lo||12],descanso:+e.descanso||60}))};
+  });
+  return {id:E.id,nome:E.nome,publico:E.publico,objetivo:E.objetivo,descricao:E.descricao,dias:E.dias,diaLivre:E.diaLivre,treinos,
+    aquecimento:String(E.aquec||"").split("\n").map(x=>x.trim()).filter(Boolean),
+    fases:E.fases.map(f=>({nome:f.nome,semanas:[+f.ini,+f.fim],series:f.series===""?null:+f.series,reps:(f.lo===""||f.hi==="")?null:[+f.lo,+f.hi],rir:[+f.rirLo,+f.rirHi],cardio:f.cardio})),
+    progressao:{regra:E.prog.regra,incremento:{maquina:E.prog.maquina,cabo:E.prog.cabo,halter:E.prog.halter,corpo:E.prog.corpo},estagnacaoSemanas:+E.prog.estag||2}};
+}
+const letrasUsadas=E=>[...new Set([...Object.values(E.dias),...LETRAS.filter(l=>E.treinos[l]&&E.treinos[l].ex.some(e=>String(e.nome).trim()))])].sort();
+// Confere um passo. Devolve o aviso, ou "" se está tudo certo.
+function metConferir(E,p){
+  if(p>=1&&String(E.nome).trim().length<2)return "Dê um nome ao método.";
+  if(p>=2&&!Object.keys(E.dias).length)return "Escolha pelo menos um dia de treino.";
+  if(p>=3){
+    for(const l of letrasUsadas(E)){
+      const t=E.treinos[l];const ex=t?t.ex.filter(e=>String(e.nome).trim()):[];
+      if(!ex.length)return "O Treino "+l+" está sem exercícios.";
+      for(const e of ex){
+        if(!(+e.series>=1&&+e.series<=10))return "Séries de “"+e.nome+"”: use de 1 a 10.";
+        if(!(+e.lo>=1&&+e.hi>=+e.lo))return "Repetições de “"+e.nome+"”: o primeiro número não pode ser maior que o segundo.";
+      }
+    }
+  }
+  if(p>=4){
+    if(!E.fases.length)return "Cadastre pelo menos uma fase.";
+    let prev=0;
+    for(const f of E.fases){
+      if(!(+f.ini>=1&&+f.fim>=+f.ini))return "Semanas da fase “"+f.nome+"”: confira os números.";
+      if(+f.ini!==prev+1)return "As fases precisam seguir em ordem, sem buraco: a fase “"+f.nome+"” deveria começar na semana "+(prev+1)+".";
+      prev=+f.fim;
+      if((f.lo===""||f.hi==="")!==(f.lo===""&&f.hi===""))return "Fase “"+f.nome+"”: preencha as duas repetições ou deixe as duas vazias.";
+      if(f.lo!==""&&+f.hi<+f.lo)return "Fase “"+f.nome+"”: as repetições estão invertidas.";
+    }
+  }
+  return "";
+}
+const metGrupoDe=n=>(window.Metodos&&Metodos.bibGrupo(n))||(String(n).trim()?guessGroup(n):"");
+function metPasso1(E){
+  return '<div class="card"><div class="form-grid">'+
+    '<label class="fld2">Nome do método<input data-k="nome" maxlength="60" value="'+esc(E.nome)+'" placeholder="Ex.: Meu método ABC"></label>'+
+    '<label class="fld2">Para quem<select data-k="publico">'+PUBLICOS.map(x=>'<option'+(x===E.publico?" selected":"")+'>'+x+'</option>').join("")+'</select></label>'+
+    '<label class="fld2">Objetivo (opcional)<input data-k="objetivo" maxlength="80" value="'+esc(E.objetivo)+'" placeholder="Ex.: Hipertrofia"></label>'+
+    '<label class="fld2">Descrição curta (opcional)<input data-k="descricao" maxlength="300" value="'+esc(E.descricao)+'"></label></div></div>';
+}
+function metPasso2(E){
+  const sel=DIAS_SEM.filter(([d])=>E.dias[d]);
+  return '<div class="card"><h3>Em quais dias o aluno treina?</h3><div class="chips-l">'+
+    DIAS_SEM.map(([d,n])=>'<button class="chip'+(E.dias[d]?" on":"")+'" data-dia="'+d+'">'+n+'</button>').join("")+'</div>'+
+    (sel.length?'<div class="form-grid">'+sel.map(([d,n])=>'<label class="fld2">'+n+': qual treino?<select data-dl="'+d+'">'+LETRAS.map(l=>'<option'+(E.dias[d]===l?" selected":"")+'>'+l+'</option>').join("")+'</select></label>').join("")+'</div>':'<p class="muted small">Toque nos dias da semana.</p>')+
+    '<label class="fld2" style="margin-top:10px">Nos outros dias<input data-k="diaLivre" maxlength="120" value="'+esc(E.diaLivre)+'" placeholder="Dia livre: descanso ou caminhada leve."></label></div>';
+}
+function metPasso3(E){
+  const letras=letrasUsadas(E);if(!letras.includes(E.aba))E.aba=letras[0]||"A";
+  if(!E.treinos[E.aba])E.treinos[E.aba]={nome:"Treino "+E.aba,ex:[]};
+  const t=E.treinos[E.aba];
+  const nomes=[...new Set((S.catalogo||[]).map(r=>r[0]).concat(window.Metodos?Metodos.bibNomes():[]))];
+  const livre=LETRAS.find(l=>!letras.includes(l));
+  return '<div class="chips-l">'+letras.map(l=>'<button class="chip'+(l===E.aba?" on":"")+'" data-aba="'+l+'">Treino '+l+'</button>').join("")+(livre?'<button class="chip" data-addtr="'+livre+'">+ Treino</button>':"")+'</div>'+
+    '<datalist id="mp-bib">'+nomes.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>'+
+    '<div class="card"><label class="fld2">Nome do treino<input data-tn="1" maxlength="60" value="'+esc(t.nome)+'"></label>'+
+    t.ex.map((e,i)=>'<div class="metw-ex" data-ei="'+i+'"><input data-ef="nome" list="mp-bib" placeholder="Nome do exercício" value="'+esc(e.nome)+'">'+
+      '<span class="muted small">'+esc(metGrupoDe(e.nome))+'</span>'+
+      '<div class="metw-n"><label>Séries<input data-ef="series" type="number" min="1" max="10" inputmode="numeric" value="'+esc(e.series)+'"></label>'+
+      '<label>'+(e.seg?"Segundos":"Reps")+'<span class="metw-r"><input data-ef="lo" type="number" min="1" inputmode="numeric" value="'+esc(e.lo)+'"><b>a</b><input data-ef="hi" type="number" min="1" inputmode="numeric" value="'+esc(e.hi)+'"></span></label>'+
+      '<label>Desc. (s)<input data-ef="descanso" type="number" min="10" max="600" inputmode="numeric" value="'+esc(e.descanso)+'"></label></div>'+
+      '<label class="metw-chk"><input type="checkbox" data-ef="seg"'+(e.seg?" checked":"")+'> Conta em segundos (prancha, por exemplo)</label>'+
+      '<div class="row-btns"><button class="btn" data-up="'+i+'"'+(i?"":" disabled")+'>↑ Subir</button><button class="btn" data-dn="'+i+'"'+(i<t.ex.length-1?"":" disabled")+'>↓ Descer</button><button class="btn" data-rm="'+i+'">Tirar</button></div></div>').join("")+
+    '<button class="btn" data-eadd="1" style="margin-top:8px">+ Exercício da biblioteca</button>'+
+    '<p class="muted small" style="margin:6px 0 0">Comece a digitar e escolha da lista do app. Se não achar, escreva o nome.</p></div>';
+}
+function metPasso4(E){
+  return '<p class="muted small" style="margin:0 0 8px">Cada fase tem as semanas em que vale. Deixe séries e repetições vazias para usar as de cada exercício.</p>'+
+    E.fases.map((f,i)=>'<div class="card" data-fi="'+i+'" style="margin-bottom:10px"><label class="fld2">Nome da fase<input data-ff="nome" maxlength="40" value="'+esc(f.nome)+'"></label>'+
+      '<div class="form-grid"><label class="fld2">Da semana<input data-ff="ini" type="number" min="1" inputmode="numeric" value="'+esc(f.ini)+'"></label><label class="fld2">Até a semana<input data-ff="fim" type="number" min="1" inputmode="numeric" value="'+esc(f.fim)+'"></label>'+
+      '<label class="fld2">Séries (opcional)<input data-ff="series" type="number" min="1" max="10" inputmode="numeric" value="'+esc(f.series)+'"></label>'+
+      '<label class="fld2">Reps (opcional)<span class="metw-r"><input data-ff="lo" type="number" min="1" inputmode="numeric" value="'+esc(f.lo)+'"><b>a</b><input data-ff="hi" type="number" min="1" inputmode="numeric" value="'+esc(f.hi)+'"></span></label>'+
+      '<label class="fld2">Reps sobrando<span class="metw-r"><input data-ff="rirLo" type="number" min="0" max="6" inputmode="numeric" value="'+esc(f.rirLo)+'"><b>a</b><input data-ff="rirHi" type="number" min="0" max="6" inputmode="numeric" value="'+esc(f.rirHi)+'"></span></label>'+
+      '<label class="fld2">Cardio (opcional)<input data-ff="cardio" maxlength="100" value="'+esc(f.cardio)+'" placeholder="Ex.: 20 min em zona 2"></label></div>'+
+      (E.fases.length>1?'<div class="row-btns" style="margin-top:8px"><button class="btn" data-frm="'+i+'">Tirar esta fase</button></div>':"")+'</div>').join("")+
+    '<button class="btn" data-fadd="1">+ Fase</button>';
+}
+function metPasso5(E){
+  const P=E.prog;
+  return '<div class="card"><label class="fld2">Aquecimento (uma linha para cada item)<textarea data-aq="1" rows="3" maxlength="400">'+esc(E.aquec)+'</textarea></label></div>'+
+    '<div class="card"><h3>Quando subir a carga</h3><label class="fld2">Regra, com as suas palavras<textarea data-pk="regra" rows="3" maxlength="300" placeholder="Quando fizer o topo da faixa de repetições em todas as séries, sobe a carga.">'+esc(P.regra)+'</textarea></label>'+
+    '<div class="form-grid"><label class="fld2">Máquina<input data-pk="maquina" maxlength="40" value="'+esc(P.maquina)+'" placeholder="+2 a 5 kg"></label><label class="fld2">Cabo<input data-pk="cabo" maxlength="40" value="'+esc(P.cabo)+'" placeholder="+2 a 5 kg"></label>'+
+    '<label class="fld2">Halter<input data-pk="halter" maxlength="40" value="'+esc(P.halter)+'" placeholder="+1 a 2 kg"></label><label class="fld2">Peso do corpo<input data-pk="corpo" maxlength="80" value="'+esc(P.corpo)+'" placeholder="mais tempo ou mais difícil"></label>'+
+    '<label class="fld2">Avisar sem evolução após (semanas)<input data-pk="estag" type="number" min="1" max="8" inputmode="numeric" value="'+esc(P.estag)+'"></label></div></div>';
+}
+function renderMetEditor(el){
+  const E=S.metEdit,p=E.passo;
+  const nomes=["Nome","Dias","Treinos","Fases","Progressão"];
+  const corpo=[metPasso1,metPasso2,metPasso3,metPasso4,metPasso5][p-1](E);
+  el.innerHTML='<div class="chips-l">'+nomes.map((n,i)=>'<button class="chip'+(i+1===p?" on":i+1<p?" ok":"")+'" data-mp="'+(i+1)+'">'+(i+1)+" "+n+(i+1<p?" ✓":"")+'</button>').join("")+'</div>'+corpo+
+    '<p class="setup-msg" id="mp-msg" role="status"></p><div class="row-btns">'+(p>1?'<button class="btn" id="mp-volta">Voltar</button>':"")+
+    (p<5?'<button class="btn primary" id="mp-prox">Próximo: '+nomes[p].toLowerCase()+'</button>':'<button class="btn" id="mp-rasc">Salvar como rascunho</button><button class="btn primary" id="mp-salva">Salvar método</button>')+'</div>';
+  const msg=t=>{const m=$("#mp-msg");m.textContent=t||"";m.className="setup-msg"+(t?" bad":"")};
+  const ir=n=>{S.metEdit.passo=n;render();window.scrollTo({top:0})};
+  el.oninput=el.onchange=ev=>{
+    const t=ev.target,E=S.metEdit;if(!E)return;
+    if(t.dataset.k){E[t.dataset.k]=t.value;return}
+    if(t.dataset.dl){E.dias[t.dataset.dl]=t.value;return}
+    if(t.dataset.tn){E.treinos[E.aba].nome=t.value;return}
+    if(t.dataset.aq){E.aquec=t.value;return}
+    if(t.dataset.pk){E.prog[t.dataset.pk]=t.value;return}
+    const row=t.closest("[data-ei]");
+    if(row&&t.dataset.ef){
+      const e0=E.treinos[E.aba].ex[+row.dataset.ei];e0[t.dataset.ef]=t.type==="checkbox"?t.checked:t.value;
+      if(t.dataset.ef==="nome"){e0.grupo="";e0.tipo="";const g=row.querySelector(".muted");if(g)g.textContent=metGrupoDe(t.value)}
+      if(t.dataset.ef==="seg"&&ev.type==="change")render();
+      return;
+    }
+    const fc=t.closest("[data-fi]");
+    if(fc&&t.dataset.ff){E.fases[+fc.dataset.fi][t.dataset.ff]=t.value}
+  };
+  el.onclick=ev=>{
+    const b=ev.target.closest("button");if(!b||!el.contains(b)||b.disabled)return;
+    const E=S.metEdit,d=b.dataset;
+    if(d.mp){const n=+d.mp;if(n<p){ir(n)}else if(n>p){const w=metConferir(E,p);if(w)return msg(w);ir(n)}return}
+    if(d.dia!==undefined){
+      const k=d.dia;if(E.dias[k])delete E.dias[k];else{const usadas=new Set(Object.values(E.dias));E.dias[k]=LETRAS.find(l=>!usadas.has(l))||"A"}
+      return render();
+    }
+    if(d.aba){E.aba=d.aba;return render()}
+    if(d.addtr){E.treinos[d.addtr]=E.treinos[d.addtr]||{nome:"Treino "+d.addtr,ex:[]};E.aba=d.addtr;return render()}
+    const ex=E.treinos[E.aba]&&E.treinos[E.aba].ex;
+    if(d.eadd){ex.push({nome:"",grupo:"",tipo:"",series:3,lo:8,hi:12,seg:false,descanso:60});render();const ins=el.querySelectorAll('[data-ef="nome"]');if(ins.length)ins[ins.length-1].focus();return}
+    if(d.up!==undefined){const i=+d.up;[ex[i-1],ex[i]]=[ex[i],ex[i-1]];return render()}
+    if(d.dn!==undefined){const i=+d.dn;[ex[i+1],ex[i]]=[ex[i],ex[i+1]];return render()}
+    if(d.rm!==undefined){ex.splice(+d.rm,1);return render()}
+    if(d.fadd){const u=E.fases[E.fases.length-1];const ini=u?(+u.fim||0)+1:1;E.fases.push({nome:"Fase "+(E.fases.length+1),ini,fim:ini+3,series:"",lo:"",hi:"",rirLo:2,rirHi:3,cardio:""});return render()}
+    if(d.frm!==undefined){E.fases.splice(+d.frm,1);return render()}
+    if(b.id==="mp-volta")return ir(p-1);
+    if(b.id==="mp-prox"){const w=metConferir(E,p);if(w)return msg(w);return ir(p+1)}
+    if(b.id==="mp-rasc"||b.id==="mp-salva"){
+      const rasc=b.id==="mp-rasc";
+      if(rasc&&String(E.nome).trim().length<2)return msg("Dê um nome ao método.");
+      if(!rasc){const w=metConferir(E,5);if(w)return msg(w)}
+      b.disabled=true;msg("");$("#mp-msg").textContent="Salvando…";
+      Api.call("mpSalvar",{def:metDaTela(E),estado:rasc?"rascunho":"pronto"}).then(r=>{
+        ingerirMetodos(r.metodos);S.metEdit=null;toast(rasc?"Rascunho guardado.":"Método guardado. Já pode ligar nos alunos.");render();window.scrollTo({top:0});
+      }).catch(e=>{b.disabled=false;msg(errText(e))});
+    }
+  };
+}
+function renderMetodos(){
+  const el=$("#v-metodos");garantirMetodos();
+  if(S.metEdit)return renderMetEditor(el);
+  const meus=S.metodosProf||[];
+  const doApp=window.Metodos?Metodos.todos().filter(m=>!/^m-/.test(m.id)):[];
+  const resumo=m=>esc(m.publico||"")+" · "+Object.keys(m.dias||{}).length+"x por semana · "+(m.cicloSemanas||0)+" semanas";
+  el.innerHTML='<p class="muted small" style="margin:0 0 10px">Métodos que você pode ligar nos seus alunos.</p>'+
+    doApp.map(m=>'<div class="card" style="margin-bottom:12px"><h3>'+esc(m.nome)+' <span class="pill">Pronto do app</span></h3><p class="muted small" style="margin:2px 0 10px">'+resumo(m)+'</p><div class="row-btns"><button class="btn" data-mv="'+esc(m.id)+'">Ver como o aluno vê</button><button class="btn" data-mcopia="'+esc(m.id)+'">Copiar para editar</button></div></div>').join("")+
+    meus.map(x=>'<div class="card" style="margin-bottom:12px'+(x.estado==="pronto"?";border-color:var(--good)":"")+'"><h3>'+esc(x.nome)+' '+(x.estado==="pronto"?'<span class="pill good">Criado por você</span>':'<span class="pill warn">Rascunho</span>')+'</h3>'+
+      '<p class="muted small" style="margin:2px 0 10px">'+(x.estado==="pronto"?resumo(x.def)+(x.usando?" · "+x.usando+(x.usando===1?" aluno usando":" alunos usando"):""):"Falta terminar o cadastro")+'</p>'+
+      '<div class="row-btns"><button class="btn" data-medit="'+esc(x.id)+'">'+(x.estado==="pronto"?"Editar":"Continuar")+'</button>'+(x.estado==="pronto"?'<button class="btn" data-mv="'+esc(x.id)+'">Ver como o aluno vê</button>':"")+'<button class="btn" data-mdel="'+esc(x.id)+'">Apagar</button></div></div>').join("")+
+    '<button class="btn primary" id="mt-novo" style="width:100%">+ Criar método</button>';
+  el.onclick=ev=>{
+    const b=ev.target.closest("button");if(!b||!el.contains(b))return;
+    const d=b.dataset;
+    if(b.id==="mt-novo"){S.metEdit=metNovo();render();window.scrollTo({top:0});return}
+    if(d.mv){const m=Metodos.get(d.mv);if(m&&m.rascunho)return toast("Termine o cadastro para conferir.");abrirConferencia(m,null,null);return}
+    if(d.mcopia){S.metEdit=metParaTela(Metodos.get(d.mcopia),true);render();window.scrollTo({top:0});return}
+    if(d.medit){const x=meus.find(y=>y.id===d.medit);if(x){S.metEdit=metParaTela(x.def,false);S.metEdit.rascunho=x.estado==="rascunho";render();window.scrollTo({top:0})}return}
+    if(d.mdel)armed(b,"Toque de novo para apagar","Apagar",()=>{
+      Api.call("mpApagar",{id:d.mdel}).then(r=>{ingerirMetodos(r.metodos);toast("Método apagado.");render()}).catch(e=>toast(errText(e)));
+    });
+  };
+}
+// Conferência: abre a tela do aluno como ela vai aparecer, sem salvar e sem ligar nada.
+function abrirConferencia(m,al,onLigar){
+  if(!m||!(m.fases||[]).length||!Object.keys(m.treinos||{}).length){toast("Complete os treinos e as fases para conferir.");return}
+  const nome=al?primeiroNome(al):"o aluno";
+  let semana=1,letra=Object.keys(m.treinos)[0];
+  const ov=document.createElement("div");ov.className="conf-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Conferência do método");
+  const fechar=()=>ov.remove();
+  const desenha=()=>{
+    const F=Metodos.faseDaSemana(m,semana),f=F.fase,t=m.treinos[letra];
+    const prog=m.progressao||{},inc=prog.incremento||{};
+    const linhas=[];
+    (t.pares||[]).forEach((p,pi)=>["a","b"].forEach(l=>{
+      const ex=Metodos.exercicio(m,p[l]);if(!ex)return;
+      const fx=Metodos.efetiva(f,ex);const n=m.livre?fx.series:Metodos.seriesDoPar(f,pi+1);
+      linhas.push({nome:ex.nome,q:n+" × "+Metodos.meta(fx,ex),sub:m.livre?((((m.musculos||{})[ex.musculo])||{}).grupo||"")+(ex.descanso?" · descanso "+ex.descanso+" s":""):"Par "+(pi+1)+(l==="a"?" (a)":" (b)")});
+    }));
+    const semTxt=DIAS_SEM.map(([d,n])=>'<div class="'+(m.dias[d]===letra?"h":"")+'">'+n+'<br>'+(m.dias[d]||"—")+'</div>').join("");
+    const cardio=(f.cardio&&(f.cardio.padrao||""))||"";
+    const opts=[];for(let i=1;i<=(m.cicloSemanas||1);i++)opts.push('<option value="'+i+'"'+(i===semana?" selected":"")+'>Semana '+i+'</option>');
+    ov.innerHTML='<div class="conf-top">Modo conferência: é assim que '+esc(nome)+' vai ver. Nada é salvo nem ligado ainda.</div>'+
+      '<div class="conf-in"><div><div class="conf-ola">Olá, <span>'+esc(al?primeiroNome(al):"aluno")+'</span></div><div class="muted small">Próximo: '+esc(m.nome)+' – Treino '+letra+'</div></div>'+
+      '<div class="conf-sem">'+semTxt+'</div>'+
+      '<div class="conf-ctl"><select id="cf-sem" aria-label="Semana">'+opts.join("")+'</select><div class="chips-l" style="margin:0">'+Object.keys(m.treinos).map(l=>'<button class="chip'+(l===letra?" on":"")+'" data-cl="'+l+'">Treino '+l+'</button>').join("")+'</div></div>'+
+      '<div class="card"><div class="conf-tp"><b>Treino '+letra+(t.nome&&t.nome!=="Treino "+letra?' · '+esc(t.nome):"")+'</b><span class="pill good">Semana '+F.semanaCiclo+'</span></div>'+
+      '<p class="muted small" style="margin:2px 0 4px">'+(/^fase/i.test(f.nome)?"":"Fase ")+esc(f.nome)+(f.series!=null?" · "+f.series+" séries":"")+(f.reps?" de "+f.reps[0]+"–"+f.reps[1]:"")+' · deixe '+((f.rir||[2,3]).join("–"))+' reps sobrando</p>'+
+      linhas.map(x=>'<div class="conf-ex"><b>'+esc(x.nome)+'</b><span class="q">'+esc(x.q)+'</span><span class="muted small">'+esc(x.sub)+'</span></div>').join("")+
+      ((m.aquecimento||[]).length?'<p class="small" style="margin:8px 0 0"><b>Aquecimento:</b> '+m.aquecimento.map(esc).join(" + ")+'.</p>':"")+
+      (cardio?'<p class="small" style="margin:4px 0 0"><b>Cardio:</b> '+esc(cardio)+'</p>':"")+
+      '<p class="small" style="margin:4px 0 0"><b>Progressão:</b> '+esc(prog.regra||"")+' Máquina '+esc(inc.maquina||"")+', cabo '+esc(inc.cabo||"")+', halter '+esc(inc.halter||"")+'.</p></div>'+
+      (m.diaLivre?'<p class="muted small">Nos outros dias: '+esc(m.diaLivre)+'</p>':"")+
+      '<div class="row-btns"><button class="btn" id="cf-fecha" style="flex:1">Fechar conferência</button>'+(onLigar?'<button class="btn primary" id="cf-liga" style="flex:1.4">Ligar na '+esc(nome)+'</button>':"")+'</div></div>';
+    ov.querySelector("#cf-sem").onchange=e=>{semana=+e.target.value;desenha()};
+    ov.querySelectorAll("[data-cl]").forEach(b=>b.onclick=()=>{letra=b.dataset.cl;desenha()});
+    ov.querySelector("#cf-fecha").onclick=fechar;
+    const lg=ov.querySelector("#cf-liga");if(lg)lg.onclick=()=>{fechar();onLigar()};
+  };
+  desenha();document.body.appendChild(ov);
+}
+
 /* ========== navegação ========== */
-const VIEWS=["fin","inicio","alunos","aluno","alcal","auxil","lancar","coach","evo","aval","perfil","config"];
-const TITULOS={fin:"Financeiro",auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
+const VIEWS=["metodos","fin","inicio","alunos","aluno","alcal","auxil","lancar","coach","evo","aval","perfil","config"];
+const TITULOS={metodos:"Meus métodos",fin:"Financeiro",auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
 function setView(v){
   if(!VIEWS.includes(v))v="inicio";
-  if(["alunos","aluno","alcal","auxil"].includes(v)&&S.role!=="prof")v="inicio";
+  if(["alunos","aluno","alcal","auxil","metodos"].includes(v)&&S.role!=="prof")v="inicio";
   if(v==="inicio")S.ctxAluno=false;
   S.view=v;
   VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});
@@ -2490,6 +2785,7 @@ function destinoVoltar(){
       if(S.finAluno){const de=S.finDe;S.finAluno=null;S.finDe="";return de==="aluno"?"aluno":"fin"}
       return "inicio";
     }
+    if(S.view==="metodos"){if(S.metEdit){S.metEdit=null;return "metodos"}const de=S.metDe||"perfil";S.metDe=null;return de}
     if(S.view==="auxil"&&S.aux&&S.aux.proposta){S.aux.proposta=null;S.aux.retorno="Nada foi alterado no treino.";return "auxil"}
     if(S.view==="auxil"&&S.aux&&S.aux.verMetodos){S.aux.verMetodos=false;return "auxil"}
     if(S.ctxAluno&&["evo","alcal","auxil","coach","aval","perfil","lancar"].includes(S.view))return "aluno";
@@ -2525,6 +2821,7 @@ function renderTopo(){
   let t=TITULOS[S.view]||"Diário de Treino";
   if(S.view==="lancar"){if(S.fim)t="Concluir treino";else if(S.modEdit&&S.role==="prof")t="Montar treinos";else if(S.draft&&!S.picker)t=S.draft.treino}
   if(S.view==="aluno"&&S.aluno)t=S.aluno.nome;
+  if(S.view==="metodos"&&S.metEdit)t=S.metEdit.id?"Editar método":"Criar método";
   if(S.view==="auxil"&&S.aux&&S.aux.proposta)t="Conferir mudança";
   if(S.view==="alunos"&&!S.alunoForm)t={calendario:"Calendário",comparar:"Comparar",escolher:"Quem aparece"}[S.alunosAba]||t;
   $("#top-titulo").textContent=t;
@@ -2612,6 +2909,7 @@ function render(){
   else if(S.view==="alunos")renderAlunos();
   else if(S.view==="aluno")renderAlunoPag();
   else if(S.view==="fin")renderFin();
+  else if(S.view==="metodos")renderMetodos();
   else if(S.view==="alcal")renderAlunoCal();
   else if(S.view==="auxil")renderAuxil();
   else if(S.view==="lancar")renderLancar();

@@ -38,7 +38,10 @@ function fase(m,inicioBr,data){
   const hoje=dia(data||new Date());
   const dias=Math.round((hoje-dia(ini))/864e5);
   if(dias<0)return {antes:true,diasPara:-dias};
-  const semana=Math.floor(dias/7)+1;
+  return faseDaSemana(m,Math.floor(dias/7)+1);
+}
+// A fase de uma semana (1, 2, 3…), sem precisar de data. Serve também para conferir um método antes de ligar.
+function faseDaSemana(m,semana){
   const N=m.cicloSemanas||13;
   const semanaCiclo=((semana-1)%N)+1,ciclo=Math.floor((semana-1)/N)+1;
   const f=m.fases.find(x=>semanaCiclo>=x.semanas[0]&&semanaCiclo<=x.semanas[1])||m.fases[m.fases.length-1];
@@ -51,6 +54,18 @@ function resolver(m,f){
   const k=f.fatorSeries||1;
   const porPar={};Object.entries(b.seriesPorPar||{}).forEach(([p,n])=>porPar[p]=Math.ceil(n*k));
   return Object.assign({},b,f,{series:Math.ceil((b.series||2)*k),seriesPorPar:porPar,reps:f.reps||b.reps,tempo:f.tempo||b.tempo});
+}
+// Métodos criados pelo professor (ids começam com "m-"). Entram na mesma lista dos métodos do app.
+const registrar=m=>{if(m&&m.id)lista.set(m.id,m)};
+const limparCustom=()=>[...lista.keys()].forEach(k=>{if(/^m-/.test(k))lista.delete(k)});
+// Série e repetições valem da fase; se a fase deixar vazio, valem as do próprio exercício.
+function efetiva(f,ex){
+  const o=Object.assign({},f);
+  if(o.series==null)o.series=(ex&&ex.series)||3;
+  if(!o.reps)o.reps=(ex&&ex.reps)||[8,12];
+  if(!o.tempo)o.tempo=(ex&&ex.tempo)||[20,30];
+  if(!o.rir)o.rir=[2,3];
+  return o;
 }
 const seriesDoPar=(f,par)=>(f.seriesPorPar&&f.seriesPorPar[String(par)])||f.series;
 const meta=(f,ex)=>ex&&ex.unidade==="s"?f.tempo[0]+"-"+f.tempo[1]+" s":f.reps[0]+"-"+f.reps[1];
@@ -66,5 +81,5 @@ const exercicio=(m,k)=>m&&m.exercicios[k]||null;
 const alternativas=(m,k)=>{const e=exercicio(m,k);return e?(e.alternativas||[]).map(a=>({key:a,ex:m.exercicios[a]})).filter(x=>x.ex&&x.ex.musculo===e.musculo):[]};
 const incremento=(m,tipo)=>(m.progressao&&m.progressao.incremento&&m.progressao.incremento[tipo])||"";
 
-return {imagem,load,planos,bibGrupo,bibNomes,bibDoGrupo,get,todos,fase,seriesDoPar,meta,topo,treinoDoDia,cardio,zona2,exercicio,alternativas,incremento,parseBr};
+return {imagem,load,planos,bibGrupo,bibNomes,bibDoGrupo,get,todos,fase,faseDaSemana,registrar,limparCustom,efetiva,resolver,seriesDoPar,meta,topo,treinoDoDia,cardio,zona2,exercicio,alternativas,incremento,parseBr};
 })();
