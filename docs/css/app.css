@@ -112,9 +112,12 @@ h3{font-size:15px;margin:0;font-weight:700}
 .add-ex{display:flex;gap:8px;margin-top:6px}
 .ex-foto{appearance:none;position:relative;width:52px;height:52px;flex:none;padding:0;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;background:#fff;cursor:pointer}
 .ex-foto img,.foto-anim img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ex-foto img.des{object-fit:contain}
 .ex-foto .f2,.foto-anim .f2{animation:troca 2.4s steps(1) infinite}
 @keyframes troca{0%{opacity:0}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.ex-foto .f2,.foto-anim .f2{animation:none;opacity:0}}
+@media (prefers-reduced-motion:reduce){.ex-foto img.des{object-fit:contain}
+.ex-foto .f2,.foto-anim .f2{animation:none;opacity:0}}
+.foto-anim.des{aspect-ratio:1/1}.foto-anim.des img{object-fit:contain}
 .foto-ov{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
 .foto-box{background:var(--surface);color:var(--ink);border-radius:16px;padding:14px;width:100%;max-width:420px;display:grid;gap:10px}
 .foto-anim{position:relative;width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#fff}

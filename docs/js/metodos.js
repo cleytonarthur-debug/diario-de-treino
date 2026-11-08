@@ -16,13 +16,13 @@ function load(){
     json("index.json").then(ix=>Promise.all((ix.metodos||[]).map(it=>json(it.arquivo).then(m=>lista.set(m.id,m)).catch(()=>{})))).catch(()=>{}),
     json("biblioteca.json").then(b=>Object.entries(b.grupos||{}).forEach(([g,ns])=>ns.forEach(n=>bib.set(norm(n),{nome:n,grupo:g})))).catch(()=>{}),
     json("planos.json").then(p=>{planosLista=p.planos||[]}).catch(()=>{}),
-    json("imagens.json").then(j=>{imagens={base:j.base,regras:(j.regras||[]).map(r=>({rx:new RegExp(r.rx),img:r.img,en:r.en}))}}).catch(()=>{})
+    json("imagens.json").then(j=>{imagens={base:j.base,regras:(j.regras||[]).map(r=>({rx:new RegExp(r.rx),img:r.img,en:r.en})),desBase:(j.desenhos||{}).base||"",des:((j.desenhos||{}).regras||[]).map(r=>({rx:new RegExp(r.rx),g:r.g}))}}).catch(()=>{})
   ]);
   return pronto;
 }
 const planos=()=>planosLista;
-// As duas fotos do exercício (posição inicial e final), ou null.
-function imagem(nome){if(!imagens)return null;const n=norm(nome);const r=imagens.regras.find(x=>x.rx.test(n));return r?{fotos:r.img.map(p=>imagens.base+p),en:r.en}:null}
+// O desenho animado do exercício (com o músculo pintado) ou, se não houver, as duas fotos. Null se não houver nada.
+function imagem(nome){if(!imagens)return null;const n=norm(nome);const d=imagens.des.find(x=>x.rx.test(n));if(d)return {fotos:[imagens.desBase+d.g],desenho:true};const r=imagens.regras.find(x=>x.rx.test(n));return r?{fotos:r.img.map(p=>imagens.base+p),en:r.en}:null}
 const bibGrupo=n=>{const x=bib.get(norm(n));return x?x.grupo:null};
 const bibNomes=()=>[...bib.values()].map(x=>x.nome);
 const bibDoGrupo=g=>[...bib.values()].filter(x=>x.grupo===g).map(x=>x.nome);

@@ -183,3 +183,8 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - `docs/js/nomes.js` padroniza os nomes e separa a marca. Vtom, VTOX e Vox são a mesma marca (VTOX), a pedido do Cleyton.
 - O professor aplica em **Perfil → Nomes dos exercícios** (ação `padronizarNomes`): troca no Histórico, Modelos, Exercícios e Catálogo. O lado D/E continua no fim do nome.
 - Respostas às metas ganhou **Próxima pergunta**: a IA avalia e faz outra pergunta usando os comentários dos treinos. Sem IA, `proximaPergunta_` usa uma pergunta pronta.
+
+## Desenhos animados dos exercícios (08/11/2026, v2.28.0)
+- 103 desenhos próprios, com o músculo trabalhado em vermelho, em `docs/desenhos/` (cerca de 4 MB no total). Custo zero, gerados no Blender; como refazer em `tools/desenhos/LEIA-ME.md`.
+- `Metodos.imagem()` procura primeiro o desenho (`imagens.json`, chave `desenhos`) e, se não houver, usa as fotos. Cardio continua com as fotos; Polichinelo segue sem imagem.
+- Limites conhecidos: áreas dos músculos simplificadas, aparelhos genéricos; prancha lateral e stiff na máquina são os mais fracos.
