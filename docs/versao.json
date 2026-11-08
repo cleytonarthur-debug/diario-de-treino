@@ -1,9 +1,10 @@
 {
-  "versao": "2.24.0",
-  "data": "05/11/2026",
+  "versao": "2.25.0",
+  "data": "07/11/2026",
   "notas": [
-    "O coach entende academia e máquina diferentes, sem contar como queda.",
-    "Mês em andamento compara só com os mesmos dias do mês anterior.",
-    "Avaliação separada em Último treino e Parecer geral."
+    "Preencheu a série: já marca e o descanso começa sozinho.",
+    "Exercício concluído fica dourado, com palmas.",
+    "Pergunta da água a cada 2 exercícios e aviso de pausa longa.",
+    "O coach avisa quando está lendo os comentários."
   ]
 }

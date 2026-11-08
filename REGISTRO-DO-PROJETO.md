@@ -139,6 +139,14 @@ Substitui a versão 1 (APK, pasta `diario-de-treino-app`).
 - **Mês em andamento:** compara com os mesmos dias do mês anterior. Até o dia 6, não comenta frequência nem queda de volume. A Avaliação do Coach abre em "Últimas 4 semanas".
 - **Tela:** dois blocos, "Último treino" e "Parecer geral até aqui", com botão para pular. As metas com pergunta ficam no parecer geral.
 
+## Fase 1: durante o treino (versão 2.25, 07/11/2026)
+- **Check automático:** preencher as repetições marca o ✓ e liga o descanso, que aparece na própria série (`marcarDescanso`, `timHtml`). Tocar no ✓ de uma série preenchida só desfaz a confirmação.
+- **Comparação:** o aluno só vê "🔥 X a mais que da última vez" quando superou. Igual ou abaixo, vê uma frase de `INCENTIVO`. O professor (`S.role==="prof"`) continua vendo superou, igual e abaixo.
+- **Exercício concluído:** borda dourada e palmas (`exOk`, `exercicioPronto`). A cada 2 exercícios concluídos, "Bebeu água?" (`aguaHtml`). Vai para a 1ª linha como [Água: bebeu X de Y].
+- **Pausa longa:** com 8 min ou mais sem registrar série, pergunta o motivo (`checarPausa`). Vai como [Pausa: máquina ocupada 9 min]. "Máquina ocupada" conta como tema de academia, não como queda.
+- **IA lendo:** `iaLendo()` aparece onde a IA responde: parecer do treino, metas, relatório, conversas e montagem de blocos.
+- **Histórico:** `Coach.base` ignora "cl", "cada lado" e "ambas" no fim do nome. "Primeira vez nesta academia" só aparece se a pessoa já registra academias, nunca treinou nesta e já fez o exercício.
+
 ## Proteções
 - Se a gravação falhar sem resposta clara, o app não reenvia. Ele relê a planilha e confere antes. O servidor também ignora o mesmo envio repetido (6 horas).
 - Se o professor abrir no próprio celular o link de um aluno, o app pergunta antes de trocar de conta.

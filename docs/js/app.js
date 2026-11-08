@@ -369,8 +369,10 @@ function ultimaNaAcademia(nome,gym){
 }
 function aplicarAcademia(d){
   if(!d||!d.academia)return;
+  // Só fala em academia nova se a pessoa já registra academias e nunca treinou nesta.
+  const g=strip(d.academia),registra=S.rows.some(r=>r.academia),conhece=S.rows.some(r=>strip(r.academia)===g);
   d.blocks.forEach(b=>{
-    if(b.cardio)return;b.novaAcad=true;
+    if(b.cardio)return;b.novaAcad=registra&&!conhece&&!!lastFor(b.name);
     b.sets.forEach((s,si)=>{
       const rs=ultimaNaAcademia(s.exNome||b.name,d.academia);if(!rs.length)return;
       b.novaAcad=false;
@@ -506,10 +508,10 @@ function renderLancar(){
     '<div class="row-btns"><button class="btn ghost" id="b-trocar">Trocar treino</button><button class="btn ghost" id="b-stop" title="Marca as séries que faltam como não feitas">Parei aqui</button><button class="btn ghost" id="b-discard">Descartar</button></div></div>'+
     (d.metodo?metodoTopo(d):"")+
     (d.blocks.length?"":'<div class="empty">Nenhum exercício ainda. Adicione abaixo.</div>')+
-    (d.blocks.length?insHtml(0):"")+d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")).join("")+
+    (d.blocks.length?insHtml(0):"")+(()=>{const ultOk=d.blocks.map(exOk).lastIndexOf(true);return d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)+(bi===ultOk?aguaHtml():"")+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")).join("")})()+
     '<div class="add-ex"><input id="new-ex" list="ex-list" placeholder="Adicionar exercício (busque pelo nome)" aria-label="Nome do exercício"><button class="btn" id="b-add">Adicionar</button></div>'+
     '<datalist id="ex-list">'+exNames.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
-  bindLancar();
+  bindLancar();ligarAgua();
   updateBar();
 }
 /* ---- Método: topo do treino, cabeçalho de cada par, avisos de progressão ---- */
@@ -567,10 +569,11 @@ function metaCoach(b){if(b.metaC)return "";const t=S.draft&&(recadoDoDraft(S.dra
 function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
-  return '<div class="ex" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
+  return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span><h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
+    '<div class="ex-okmsg"><span>🏆 Exercício concluído</span><span class="palma" aria-hidden="true">👏</span></div>'+
     (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
     (b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
@@ -596,10 +599,21 @@ function lastText(s){
   if(s.last.skipped)return '<span>última: não feita</span>';
   return '<span>última <b>'+esc(s.last.feitas||"–")+'</b> × '+esc(s.last.peso||"–")+'</span>';
 }
+// O aluno só vê a comparação quando superou a última vez. Igual ou abaixo, vê uma frase de incentivo.
+const INCENTIVO=["💪 Série feita. Constância é o que leva longe.","💪 Mais uma na conta. Segue firme.","💪 Feito. Cada série soma.","💪 Boa. Mantém a técnica e segue.","💪 Série no bolso. Respira e vai para a próxima."];
+const veTudo=()=>S.role==="prof";
 function cmpBadge(s){
-  if(!s.last||!s.last.vol||!String(s.reps).trim())return "";
+  if(!String(s.reps).trim())return "";
   const reps=parseReps(s.reps,s.meta),peso=parsePeso(s.peso);const v=setVolume(reps,peso);
-  if(!v)return "";
+  if(!veTudo()){
+    if(s.last&&s.last.vol&&v&&v-s.last.vol>=0.5){
+      const dr=reps&&s.last.reps?reps[0]-s.last.reps[0]:0,pn=Array.isArray(peso)?Math.max(...peso):peso,pa=Array.isArray(s.last.pesoN)?Math.max(...s.last.pesoN):s.last.pesoN,dp=pn&&pa?Math.round((pn-pa)*10)/10:0;
+      const partes=[dr>0?dr+(dr===1?" repetição":" repetições"):"",dp>0?nf1.format(dp)+" kg":""].filter(Boolean);
+      return '<span class="badge up">🔥 '+(partes.length?partes.join(" e ")+" a mais que da última vez":"Superou a última vez")+'</span>';
+    }
+    return '<span class="badge mot">'+INCENTIVO[(s.n||1)%INCENTIVO.length]+'</span>';
+  }
+  if(!s.last||!s.last.vol||!v)return "";
   const diff=v-s.last.vol;if(Math.abs(diff)<0.5)return '<span class="badge">igual</span>';
   return diff>0?'<span class="badge up">▲ superou</span>':'<span class="badge down">▼ abaixo</span>';
 }
@@ -608,6 +622,48 @@ function metaRotulo(m,bateu){return bateu?"★ Meta cumprida":m.modo==="firmar"?
 function pintarMeta(row,s,m){
   const ok=metaBatida(s,m);row.classList.toggle("meta-o",ok);row.classList.toggle("meta-v",!ok);
   const e=row.querySelector(".meta-s b");if(e)e.textContent=metaRotulo(m,ok);
+}
+/* Descanso na própria série: aparece na última série preenchida e o relógio conta sozinho. */
+function marcarDescanso(bi,si){
+  const d=S.draft;d.ultSerie=bi+"_"+si;
+  document.querySelectorAll("#lancar .tim").forEach(x=>x.remove());
+  const row=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"]');if(row)row.insertAdjacentHTML("beforeend",timHtml());
+}
+function timHtml(){const R=S.draft&&S.draft.rest;return '<div class="tim">Descanso <span class="tim-live">0:00</span>'+(R?'<small> · ideal '+R.min+'–'+R.max+' s</small>':"")+'</div>'}
+/* Exercício concluído: borda dourada e palmas. A cada 2 exercícios, a pergunta da água. */
+const exOk=b=>!b.cardio&&b.sets.length>0&&b.sets.every(setDone)&&b.sets.some(s=>String(s.reps).trim());
+function exercicioPronto(card,b){
+  const ok=exOk(b);if(card.classList.contains("ex-ok")===ok)return;
+  card.classList.toggle("ex-ok",ok);
+  if(ok){const box=aguaHtml();if(box&&!$("#lancar .agua-box")){card.insertAdjacentHTML("afterend",box);ligarAgua()}}
+}
+function aguaPendente(){
+  const d=S.draft;if(!d)return 0;const n=d.blocks.filter(exOk).length,m=Math.floor(n/2)*2;
+  return m>=2&&!(d.agua||{})[m]?m:0;
+}
+function aguaHtml(){
+  const m=aguaPendente();if(!m)return "";
+  return '<div class="box-tr agua-box" data-m="'+m+'"><p>💧 Bebeu água?</p><div class="row-btns"><button class="btn primary small" data-agua="bebi">Bebi</button><button class="btn ghost small" data-agua="depois">Vou beber agora</button></div></div>';
+}
+function ligarAgua(){
+  document.querySelectorAll("#lancar [data-agua]").forEach(b=>b.onclick=()=>{
+    const box=b.closest(".agua-box");const d=S.draft;d.agua=d.agua||{};d.agua[box.dataset.m]=b.dataset.agua;saveDraft();
+    box.innerHTML='<p>'+(b.dataset.agua==="bebi"?"Boa! Hidratado rende mais. 💧":"Combinado. Um gole antes da próxima série.")+'</p>';setTimeout(()=>box.remove(),2500)});
+}
+/* Mais de 8 minutos sem registrar: pergunta o motivo, que vai para o comentário do treino. */
+const PAUSA_MIN=8;
+function checarPausa(){
+  const d=S.draft;if(!d||!d.lastTick||S.view!=="lancar"||S.fim||$("#pausa-box"))return;
+  const min=Math.floor((Date.now()-d.lastTick)/60000);if(min<PAUSA_MIN||d.pausaVista===d.lastTick)return;
+  const box=document.createElement("div");box.id="pausa-box";box.className="box-tr pausa-box";box.setAttribute("role","dialog");box.setAttribute("aria-label","Pausa longa");
+  box.innerHTML='<p>⏱ Faz '+min+' min desde a última série. Tudo certo?</p><div class="row-btns">'+[["maquina","Máquina ocupada"],["conversa","Conversando"],["descanso","Descansando mais"],["voltei","Voltei"]].map(([k,t])=>'<button class="btn small'+(k==="voltei"?" primary":" ghost")+'" data-pausa="'+k+'">'+t+'</button>').join("")+'</div>';
+  document.body.appendChild(box);
+  box.querySelectorAll("[data-pausa]").forEach(b=>b.onclick=()=>{
+    const mm=Math.floor((Date.now()-d.lastTick)/60000);d.pausaVista=d.lastTick;
+    const motivo={maquina:"máquina ocupada",conversa:"conversando",descanso:"descanso maior"}[b.dataset.pausa];
+    if(motivo){d.pausas=(d.pausas||[]).concat([motivo+" "+mm+" min"])}
+    saveDraft();box.remove();if(motivo)toast("Anotei. O coach não conta isso como queda.");
+  });
 }
 function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
@@ -619,7 +675,7 @@ function setRow(s,bi,si){
       '<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>'+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
-    '</div>'+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
+    '</div>'+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
 }
 function bindLancar(){
   const el=$("#lancar");
@@ -646,8 +702,10 @@ function bindLancar(){
             if(inp.value.trim()&&!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si);const t=row.querySelector('[data-f="time"]');if(t)t.value=s.time}
             if(inp.value.trim()&&s.skip){s.skip=false;row.classList.remove("skip")}
             row.classList.toggle("done",!!inp.value.trim());
-            s.okAuto=false;
-            if(!inp.value.trim()&&s.ok){s.ok=false;const c=row.querySelector('[data-act="check"]');c.classList.remove("on");c.setAttribute("aria-pressed","false")}
+            s.okAuto=false;s.ok=!!inp.value.trim();
+            const c=row.querySelector('[data-act="check"]');c.classList.toggle("on",s.ok);c.setAttribute("aria-pressed",String(s.ok));
+            if(s.ok)marcarDescanso(bi,si);
+            exercicioPronto(card,b);
           }
           if(f==="time")s.time=inp.value||null;
           if(f==="reps"||f==="peso"){row.querySelector(".cmp").innerHTML=cmpBadge(s);if(s.metaC&&b.metaC)pintarMeta(row,s,b.metaC)}
@@ -665,8 +723,9 @@ function bindLancar(){
           }
           s.ok=true;s.skip=false;
           if(!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si)}
+          S.draft.ultSerie=bi+"_"+si;
         }
-        saveDraft();rerenderCard(bi);updateBar();
+        saveDraft();rerenderCard(bi);updateBar();const nc=$('.ex[data-b="'+bi+'"]');if(nc)exercicioPronto(nc,b);
       };
       row.querySelector('[data-act="note"]').onclick=()=>{s.note=!s.note;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o)o.focus()};
       const sk=row.querySelector('[data-act="skip"]');
@@ -795,6 +854,8 @@ setInterval(()=>{
   if(!S.draft||S.view!=="lancar")return;
   const mins=minutosTreino(S.draft);const st=$("#sb-time");if(st)st.textContent="⏱ "+fmtMin(mins)+" de treino";
   const c=$("#clock");if(c)c.textContent="treino há "+fmtMin(mins);
+  const tl=$("#lancar .tim-live");if(tl&&S.draft.lastTick){const q=Math.floor((Date.now()-((S.draft.rest&&S.draft.rest.at)||S.draft.lastTick))/1000);tl.textContent=Math.floor(q/60)+":"+pad(q%60)}
+  checarPausa();
   const r=$("#sb-rest");if(!r)return;
   const R=S.draft.rest;
   if(R){
@@ -805,7 +866,7 @@ setInterval(()=>{
     if(s>=R.min&&R.buzz<1){R.buzz=1;try{navigator.vibrate&&navigator.vibrate(250)}catch(e){}}
     if(s>=R.max&&R.buzz<2){R.buzz=2;try{navigator.vibrate&&navigator.vibrate([200,120,200])}catch(e){}}
   }else if(S.draft.lastTick){const s=Math.floor((Date.now()-S.draft.lastTick)/1000);r.textContent="descanso "+Math.floor(s/60)+":"+pad(s%60)}
-  else r.textContent="toque ✓ ao terminar cada série";
+  else r.textContent="preencha as repetições ao terminar cada série";
 },1000);
 
 /* Fogos simples ao concluir o treino. Quem pediu menos movimento no celular não vê a animação. */
@@ -880,7 +941,7 @@ async function save(){
       const tagM=firstOfTreino&&d.metodo?"["+((metodoDoDraft(d)||{}).nome||"Método")+" · semana "+d.metodo.semana+" · "+d.metodo.fase+"]":"";
       const iniA=d.animoIni||d.animo;
       const tagA=firstOfTreino?[iniA?"[Ânimo início: "+iniA+"]":"",d.animoFim?"[Ânimo fim: "+d.animoFim+"]":""].filter(Boolean).join(" · "):"";
-      const tagD=firstOfTreino?"[Duração: "+minutosTreino(d)+" min]":"";
+      const tagD=firstOfTreino?["[Duração: "+minutosTreino(d)+" min]",(d.pausas||[]).length?"[Pausa: "+d.pausas.join("; ")+"]":"",Object.values(d.agua||{}).length?"[Água: bebeu "+Object.values(d.agua).filter(x=>x==="bebi").length+" de "+Object.values(d.agua).length+"]":""].filter(Boolean).join(" · "):"";
       const tagC=s.metaC&&b.metaC&&b.metaC.modo==="meta"?"[Meta coach: "+b.metaC.texto+"]":"";
       const obs=[tagM,tagA,tagD,tagC,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
@@ -1622,15 +1683,17 @@ function resumoCoach(sel){
   return Coach.periodo(S.rows,ini,amanha,dias(ini,-n),"Últimos "+n+" dias","período anterior");
 }
 /* A IA reescreve o parecer em texto. Sem ela, ou se falhar, fica o parecer por regras. */
+const iaLendo=t=>'<div class="ia-lendo" role="status"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><div><b>'+esc(t||"O coach está lendo os comentários do treino.")+'</b><div class="muted small">Já volta com a resposta.</div></div></div>';
 function pedirParecerIA(key){
   if(!key||S.memoria.has(key)||S.iaTentou.has(key))return;
   const A=Coach.treino(S.rows,key);if(!A)return;
-  S.iaTentou.add(key);
+  S.iaTentou.add(key);S.iaPend=S.iaPend||new Set();S.iaPend.add(key);
+  const fim=()=>{S.iaPend.delete(key);if(S.view==="coach")renderCoach()};
   const id=S.alunoId;
   callA("coachIA",{key,data:A.dateS,treino:A.treino,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(r=>({pergunta:r[4],resposta:r[5]}))})}).then(r=>{
     if(S.alunoId!==id||!r||!r.item)return;
-    S.memoria.set(key,r.item);if(S.view==="coach")renderCoach();
-  }).catch(()=>{});
+    S.memoria.set(key,r.item);
+  }).catch(()=>{}).finally(fim);
 }
 /* Metas com pergunta. A resposta fica na planilha do aluno, e o coach avalia pelo objetivo e pelo jeito do professor. */
 const podeResponder=()=>S.role!=="prof"||!!(S.aluno&&S.aluno.master);
@@ -1648,7 +1711,7 @@ function ligarMetas(el,A){
     const ab=box.querySelector('[data-mq="abrir"]');if(ab)ab.onclick=()=>{S.metaAberta=id;renderCoach()};
     const env=box.querySelector('[data-mq="enviar"]');if(!env)return;
     env.onclick=async()=>{const t=box.querySelector(".mq-t").value.trim();if(!t){toast("Escreva a resposta.");return}
-      env.disabled=true;env.textContent="O coach está lendo…";
+      env.disabled=true;env.textContent="O coach está lendo a sua resposta…";env.insertAdjacentHTML("afterend",iaLendo("O coach está lendo a sua resposta."));
       try{const r=await callA("metaResponder",{treino:A.treino,tema:id,meta:q.txt.replace(/<[^>]+>/g,""),pergunta:q.perg,resposta:t});
         S.metasResp=(S.metasResp||[]).concat([r.linha]);S.metaAberta=null;renderCoach();toast(r.linha[6]?"O coach respondeu.":"Resposta guardada.");
       }catch(x){toast(errText(x));env.disabled=false;env.textContent="Responder"}};
@@ -1675,7 +1738,7 @@ function relatorioHtml(){
 function ligarRelatorio(){
   if(S.loaded&&S.relParecer==null){S.relParecer={};callA("alunoParecer",{}).then(d=>{if(d.item){S.relParecer=d.item;if(S.view==="perfil")renderPerfil()}}).catch(()=>{})}
   const b=$("#rel-ia");if(!b)return;
-  b.onclick=async()=>{b.disabled=true;b.textContent="Pensando…";
+  b.onclick=async()=>{b.disabled=true;b.textContent="Lendo os treinos…";b.insertAdjacentHTML("beforebegin",iaLendo("O assistente está lendo os treinos e os comentários do aluno."));
     try{const a=S.aluno||{};const d=await callA("alunoParecer",{gerar:true,fatos:Object.assign({},S.relDados,{fatores:(S.relDados.fatores||[]).map(f=>f.texto.replace(/<[^>]+>/g,"")),respostas:(S.metasResp||[]).slice(-5).map(r=>({meta:r[3],pergunta:r[4],resposta:r[5]})),nivel:a.nivel||""})});
       if(d.item){S.relParecer=d.item;renderPerfil()}else{toast(d.motivo==="limite_do_dia"?"O limite de hoje acabou.":"O assistente não conseguiu agora.");b.disabled=false;b.textContent="Pedir parecer"}
     }catch(x){toast(errText(x));b.disabled=false;b.textContent="Pedir parecer"}};
@@ -1702,7 +1765,7 @@ function renderCoach(){
   if(ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
   el.innerHTML='<div class="ch-bloco"><h2>'+(S.coachSel===(ses[0]&&ses[0].key)?"Último treino":"Treino escolhido")+'</h2>'+(M?'<button class="btn ghost small" id="ch-ir">Ver parecer geral ↓</button>':"")+'</div><div class="card" style="margin-bottom:14px">'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
-    (A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
+    (A&&S.iaPend&&S.iaPend.has(S.coachSel)?iaLendo():"")+(A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
       (A.academiaDica?'<div class="ch-seq">'+esc(A.academiaDica)+'</div>':"")+
       (S.role==="aluno"&&S.profWhats&&(A.sequencia||A.abaixo.length||A.comentarios.some(c=>/Dor ou incômodo/.test(c)))?'<a class="btn ch-prof" href="https://wa.me/'+esc(S.profWhats)+'?text='+encodeURIComponent("Professor, queria falar sobre o meu treino.")+'" target="_blank" rel="noopener">Falar com o professor</a>':"")+
@@ -1713,7 +1776,7 @@ function renderCoach(){
         '<div class="kpi"><span class="l">Séries</span><span class="v">'+A.comp.series+'</span>'+difKpi(A.comp.seriesDif,true)+'</div>'+
         (A.comp.tempo?'<div class="kpi"><span class="l">Tempo</span><span class="v">'+esc(fmtMin(A.comp.tempo))+'</span>'+difKpi(A.comp.tempoDif,null," min")+'</div>':"")+'</div>':"")+
       lista("🏆 Melhor do dia",A.bem.slice(0,4),"bem")+lista("⚠️ Merece atenção",A.abaixo.slice(0,4),"mal")+lista("💬 O que você comentou",A.comentarios)+lista("📝 Pedidos para o professor rever",(A.pedidos||[]).map(p=>"<b>"+esc(p.exercicio)+":</b> “"+esc(p.texto.slice(0,140))+"”"))+(A.academiaDif||A.maquinaDif?lista("🏋️ Academia ou máquina diferente",[A.academiaDif].concat(A.maquinaDif||[]).filter(Boolean).map(esc)):"")+(A.nexoTreino?lista("🔗 O que isso teve a ver com o treino",[esc(A.nexoTreino)]):"")+lista("📌 No próximo "+esc(A.treino),A.proximo)
-      :'<p class="muted">Analisando o treino…</p>')+'</div>'+
+      :iaLendo())+'</div>'+
     '<div class="ch-bloco" id="ch-geral"><h2>Parecer geral até aqui</h2></div>'+(A?'<div class="card" style="margin-bottom:14px">'+metasHtml(A)+'</div>':"")+
     (M?'<div class="card" style="margin-bottom:14px"><div class="card-h"><h2>Números do período</h2></div>'+
     '<div class="pick-ex"><select id="ch-mes" aria-label="Escolher período">'+fixos.map(x=>'<option value="'+x[0]+'"'+(x[0]===S.coachMes?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'<optgroup label="Mês">'+meses.slice(0,18).map(k=>'<option value="'+k+'"'+(k===S.coachMes?" selected":"")+'>'+esc(Coach.nomeMes(k))+'</option>').join("")+'</optgroup></select></div>'+
@@ -2164,7 +2227,7 @@ function renderAuxil(){
     h+='<div class="card aux-b"><h3 class="dia-t">Sua decisão</h3><div class="chips-l" id="aux-dec">'+["Vou aplicar","Vou ajustar","Não vou aplicar"].map(d=>'<button class="chip'+(rel.decisao===d?" on":"")+'" data-d="'+d+'">'+d+'</button>').join("")+'</div><textarea class="obs" id="aux-obs" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: trocar remada baixa por unilateral, 4 séries cada lado">'+esc(rel.obs||"")+'</textarea><p class="muted small" style="margin:6px 0 0">Ao salvar, abre uma página com o treino citado já preenchido, para você conferir. Nada muda antes de você confirmar.</p><div class="row-btns" style="margin-top:8px"><button class="btn primary" id="aux-sal">Salvar e conferir</button><button class="btn" id="aux-mon">Montar treinos</button></div>'+
       (st.retorno?'<p class="setup-msg bad" style="margin-top:8px">'+esc(st.retorno)+'</p>':"")+
       (rel.mudancas?'<div class="aux-feito"><b>O que mudou no treino</b>'+rel.mudancas.split("\n").map(l=>'<p>'+esc(l)+'</p>').join("")+'<button class="btn" id="aux-desf">Desfazer</button></div>':"")+'</div>';
-    h+='<div class="card aux-b"><h3 class="dia-t">Conversar sobre este aluno</h3><div id="aux-chat">'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+(m.papel==="ia"&&m.confere===false?'<small>Confira: esta resposta cita um número que não está nos dados.</small>':"")+'</p>').join("")+(st.pensando?'<p class="muted small">Pensando…</p>':"")+'</div><textarea class="obs" id="aux-p" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você faria com o supino?">'+esc(st.rascunho||"")+'</textarea><button class="btn primary" id="aux-env" style="width:100%;margin-top:8px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
+    h+='<div class="card aux-b"><h3 class="dia-t">Conversar sobre este aluno</h3><div id="aux-chat">'+st.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+(m.papel==="ia"&&m.confere===false?'<small>Confira: esta resposta cita um número que não está nos dados.</small>':"")+'</p>').join("")+(st.pensando?iaLendo("O coach está lendo os treinos e a sua pergunta."):"")+'</div><textarea class="obs" id="aux-p" style="height:64px;padding:8px 10px;width:100%" placeholder="Ex.: o que você faria com o supino?">'+esc(st.rascunho||"")+'</textarea><button class="btn primary" id="aux-env" style="width:100%;margin-top:8px"'+(st.pensando?" disabled":"")+'>Enviar</button></div>';
   }
   h+='<div class="row-btns" style="margin-top:4px"><button class="btn" id="aux-met">Métodos ('+aprov+(aprov===1?' aprovado':' aprovados')+')</button><button class="btn" id="aux-ger"'+(st.gerando?" disabled":"")+'>Gerar agora</button></div>';
   el.innerHTML=h;
@@ -2648,7 +2711,7 @@ function ligarComecar(el,a,M){
   const ped=$("#cm-pedido");ped.addEventListener("input",()=>{S.cmPedido=ped.value});
   $("#cm-ia").onclick=async e=>{
     const btn=e.target;if(!a.nivel){toast("Escolha primeiro o nível do aluno.");return}
-    btn.disabled=true;btn.textContent="O coach está montando…";
+    btn.disabled=true;btn.textContent="O coach está montando…";btn.insertAdjacentHTML("beforebegin",iaLendo("O coach está lendo o perfil do aluno e o seu jeito de trabalhar."));
     const nomes={};["Peito","Costas","Ombros","Braços","Inferiores","Abdômen"].forEach(g=>{nomes[g]=[...new Set((window.Metodos?Metodos.bibDoGrupo(g):[]).concat((S.catalogo||[]).filter(r=>r[1]===g).map(r=>r[0])))].slice(0,30)});
     try{const r=await Api.call("metTreinos",{nivel:a.nivel,objetivo:a.objetivo,dias:a.dias,obs:a.obs,pedido:S.cmPedido||"",nomes});
       if(!r.treinos||!r.treinos.length){toast(r.motivo==="limite_do_dia"?"O limite de hoje acabou. Use um treino pronto.":"O coach não conseguiu montar agora. Use um treino pronto.");btn.disabled=false;btn.textContent="O coach monta os blocos";return}
@@ -2726,7 +2789,7 @@ function pintarJeito(){
   if(!J.regras&&!J.lendo){J.lendo=true;Api.call("jeitoLer").then(d=>{J.regras=d.regras;J.lendo=false;pintarJeito()}).catch(()=>{J.lendo=false;J.regras=[];pintarJeito()})}
   const rs=J.regras||[];
   box.innerHTML='<div class="card aux-b"><h3 class="dia-t">Coach Auxiliar</h3><p class="muted small">Ensine o seu jeito de trabalhar. Ele usa isso nas próximas sugestões.</p>'+
-    '<div id="jt-chat">'+J.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+'</p>').join("")+(J.pensando?'<p class="muted small">Pensando…</p>':"")+'</div>'+
+    '<div id="jt-chat">'+J.chat.map(m=>'<p class="aux-c '+m.papel+'">'+esc(m.texto)+'</p>').join("")+(J.pensando?iaLendo("O coach está lendo o que você escreveu."):"")+'</div>'+
     (J.proposta?'<div class="jt-prop"><span class="muted small">Vou guardar:</span><input id="jt-regra" value="'+esc(J.proposta)+'" aria-label="Regra que será guardada"><div class="row-btns"><button class="btn primary" id="jt-sim">Guardar</button><button class="btn ghost" id="jt-nao">Não guardar</button></div></div>':"")+
     '<textarea class="obs" id="jt-txt" style="height:64px;padding:8px 10px;width:100%" placeholder="Escreva para o coach…" aria-label="Mensagem para o coach"></textarea><button class="btn" id="jt-env" style="width:100%;margin-top:6px"'+(J.pensando?" disabled":"")+'>Enviar</button>'+
     '<details class="others"'+(J.aberto?" open":"")+'><summary>Meu jeito de trabalhar ('+rs.length+')</summary>'+(rs.length?rs.map(r=>'<div class="jt-r" data-l="'+r.linha+'"><input value="'+esc(r.regra)+'" aria-label="Regra"><button class="x" data-rm aria-label="Apagar regra">×</button></div>').join(""):'<p class="muted small">Ainda não há regras guardadas.</p>')+'</details></div>';

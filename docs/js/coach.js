@@ -5,7 +5,7 @@ window.Coach=(function(){
 "use strict";
 const strip=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\bdoreita\b/g,"direita").replace(/\s+/g," ").trim();
 const SEM_LADO=/\s+(?:lado\s+)?(e|d|esquerd[oa]|direit[oa])\s*$/;
-const base=n=>strip(n).replace(SEM_LADO,"").trim();
+const base=n=>strip(n).replace(SEM_LADO,"").replace(/\s+(cl|cada lado|ambas?|ambos)\s*$/,"").trim();
 const semLadoNome=n=>String(n||"").trim().replace(/\s+(?:lado\s+)?(e|d|esquerd[oa]|direit[oa]|doreita)\s*$/i,"").trim();
 const sem=(a,f)=>a.reduce((x,r)=>x+(f(r)||0),0);
 const nf=n=>new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1}).format(n);
@@ -19,7 +19,7 @@ const TEMAS=[
   {id:"dor",nome:"Dor ou incômodo",rx:/\bdor\b|\bdores\b|doi\b|doeu|doendo|dolorid|incomod|pincamento|fisgad|travou|travad|lesao|lesion|machuc|inflam/},
   {id:"comida",nome:"Alimentação",rx:/nao comi|sem comer|comi mal|comi pouco|de jejum|em jejum|com fome|estou com fome|mal alimentad/},
   {id:"tempo",nome:"Pouco tempo",rx:/sem tempo|com pressa|correndo|atrasad|cheguei tarde|muito tarde/},
-  {id:"academia",nome:"Academia ruim ou cheia",rx:/academia ruim|academia sem|lotad|muito cheia|esperar liberar|horario de pico|\be pico\b|maquina ruim|ruim demais|era o maximo que tinha|era o que tinha/},
+  {id:"academia",nome:"Academia ruim ou cheia",rx:/academia ruim|academia sem|lotad|muito cheia|esperar liberar|horario de pico|\be pico\b|maquina ruim|maquina ocupada|ruim demais|era o maximo que tinha|era o que tinha/},
   {id:"bem",nome:"Treino bom",rx:/otimo|excelente|rendeu|muito bom|muito boa|me senti bem|forte hoje|fluiu|animad|bombou|show\b|perfeito/},
   {id:"fraqueza",nome:"Fraqueza ou mal-estar",rx:/fraquez|\bfrac[oa]\b|tontur|letargi|passei mal|mal estar|mal-estar|enjoo/},
   {id:"sonobom",nome:"Sono bom",rx:/dormi bem|dormi muito bem|bem dormid|sono bom|descansad/},
