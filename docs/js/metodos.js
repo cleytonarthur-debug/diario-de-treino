@@ -56,6 +56,8 @@ function resolver(m,f){
   return Object.assign({},b,f,{series:Math.ceil((b.series||2)*k),seriesPorPar:porPar,reps:f.reps||b.reps,tempo:f.tempo||b.tempo});
 }
 // Métodos criados pelo professor (ids começam com "m-"). Entram na mesma lista dos métodos do app.
+// Exercício de um lado só: vale o que o professor marcou; se não marcou, vale o nome conter "unilateral".
+const ehUnilateral=ex=>!!ex&&(ex.unilateral===undefined?/unilateral/i.test(ex.nome||""):!!ex.unilateral);
 const registrar=m=>{if(m&&m.id)lista.set(m.id,m)};
 const limparCustom=()=>[...lista.keys()].forEach(k=>{if(/^m-/.test(k))lista.delete(k)});
 // Série e repetições valem da fase; se a fase deixar vazio, valem as do próprio exercício.
@@ -81,5 +83,5 @@ const exercicio=(m,k)=>m&&m.exercicios[k]||null;
 const alternativas=(m,k)=>{const e=exercicio(m,k);return e?(e.alternativas||[]).map(a=>({key:a,ex:m.exercicios[a]})).filter(x=>x.ex&&x.ex.musculo===e.musculo):[]};
 const incremento=(m,tipo)=>(m.progressao&&m.progressao.incremento&&m.progressao.incremento[tipo])||"";
 
-return {imagem,load,planos,bibGrupo,bibNomes,bibDoGrupo,get,todos,fase,faseDaSemana,registrar,limparCustom,efetiva,resolver,seriesDoPar,meta,topo,treinoDoDia,cardio,zona2,exercicio,alternativas,incremento,parseBr};
+return {imagem,load,planos,bibGrupo,bibNomes,bibDoGrupo,get,todos,fase,faseDaSemana,ehUnilateral,registrar,limparCustom,efetiva,resolver,seriesDoPar,meta,topo,treinoDoDia,cardio,zona2,exercicio,alternativas,incremento,parseBr};
 })();

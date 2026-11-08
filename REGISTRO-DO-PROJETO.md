@@ -213,3 +213,9 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - **Onde fica guardado:** aba **Meus métodos** do Painel (uma linha por método, definição em JSON). O programa central limpa e limita o que recebe (`limparMetodo_`). Apagar recusa método ligado em aluno. O aluno recebe só a definição do método dele (`metodoDef` em `inicio`); o professor recebe todos (`metodosProf`). Ações: `mpSalvar`, `mpApagar` (só professor).
 - **Como o app usa:** método do professor tem `livre: true`: lista simples de exercícios (sem pares a/b), descanso por exercício (cronômetro usa o descanso do exercício), cabeçalho "Grupo · descanso N s". Série e repetições valem da fase; se a fase deixa vazio, valem as do exercício (`Metodos.efetiva`). O Método Par não mudou (testado).
 - Ids dos métodos do professor começam com `m-`. A aba é criada na primeira leitura.
+
+## Unilateral nos métodos do professor (08/11/2026, v2.33.0)
+- No cadastro do método, cada exercício tem a caixa **Unilateral: faz a esquerda e logo depois a direita**. Ela marca sozinha quando o nome tem a palavra "unilateral" e o professor pode mudar. Vale também para métodos já salvos sem a caixa (`Metodos.ehUnilateral`: sem marcação, vale o nome).
+- Para o aluno vira **um cartão só**, com as séries em sequência: Série 1 esquerdo, Série 1 direito, Série 2 esquerdo… (mesmo cartão do treino normal, `juntarUnilaterais`). Blocos de método do professor agora têm `par: 0` para poderem juntar; o cartão unido guarda descanso, grupo e tipo.
+- **Descanso:** depois da série da esquerda segue direto para a direita; o descanso do exercício vem depois da direita.
+- **Conferência:** mostra "por lado" e "esquerda e depois direita". Método Par não mudou (testado).

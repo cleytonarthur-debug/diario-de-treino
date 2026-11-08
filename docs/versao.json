@@ -1,7 +1,7 @@
 {
-  "versao": "2.32.0",
+  "versao": "2.33.0",
   "data": "08/11/2026",
   "notas": [
-    "Professor cria e inclui o próprio método, liga no aluno e confere como o aluno vai ver"
+    "Métodos do professor: exercício unilateral faz esquerda e logo a direita, em um cartão"
   ]
 }

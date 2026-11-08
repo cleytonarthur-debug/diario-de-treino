@@ -537,6 +537,7 @@ function limparMetodo_(d, completo) {
       const ex = { nome: nome, musculo: gk, tipo: ['maquina', 'cabo', 'halter', 'corpo'].indexOf(e.tipo) >= 0 ? e.tipo : 'maquina', series: num(e.series, 1, 10, 3), descanso: num(e.descanso, 10, 600, 60) };
       if (e.unidade === 's') { ex.unidade = 's'; ex.tempo = par(e.reps, 5, 600) || [20, 30]; }
       else ex.reps = par(e.reps, 1, 100) || [8, 12];
+      ex.unilateral = e.unilateral === true;
       m.exercicios[key] = ex;
       pares.push({ a: key });
     });
