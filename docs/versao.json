@@ -1,11 +1,7 @@
 {
-  "versao": "2.26.0",
+  "versao": "2.26.1",
   "data": "07/11/2026",
   "notas": [
-    "Fotos dos exercícios no treino.",
-    "Parecer geral na Evolução, por período e grupo, com previsão e desafios da semana.",
-    "Conversa com o coach na Evolução e conversas salvas na planilha.",
-    "Fotos da avaliação salvas no Drive do professor.",
-    "Boas-vindas do coach."
+    "Botão Parecer geral e previsão na página do aluno."
   ]
 }
