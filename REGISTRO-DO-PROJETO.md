@@ -192,3 +192,4 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 ## Teste de fotos femininas no Colab (08/11/2026)
 - `tools/colab/fotos-femininas.ipynb` troca o homem por uma mulher nas fotos do banco, usando a máquina grátis do Google Colab e a IA `ovedrive/qwen-image-edit-4bit` (Apache 2.0, uso comercial). A versão 2511 compacta é não comercial: não usar.
 - Salva em `diario-fotos-femininas` no Drive, com `registro.txt`, e continua de onde parou. Ainda não testado numa máquina Colab; nada entrou no app.
+- Decisão do Cleyton (08/11/2026): manter as fotos de homens para todos. Não há fonte grátis viável de modelos femininas; o arquivo do Colab foi retirado (está no histórico do git).
