@@ -70,7 +70,8 @@ function efetiva(f,ex){
   return o;
 }
 const seriesDoPar=(f,par)=>(f.seriesPorPar&&f.seriesPorPar[String(par)])||f.series;
-const meta=(f,ex)=>ex&&ex.unidade==="s"?f.tempo[0]+"-"+f.tempo[1]+" s":f.reps[0]+"-"+f.reps[1];
+const faixa=r=>r[0]===r[1]?String(r[0]):r[0]+"-"+r[1];
+const meta=(f,ex)=>ex&&ex.unidade==="s"?faixa(f.tempo)+" s":faixa(f.reps);
 const topo=(f,ex)=>ex&&ex.unidade==="s"?f.tempo[1]:f.reps[1];
 const treinoDoDia=(m,data)=>(m.dias||{})[String((data||new Date()).getDay())]||null;
 const cardio=(m,f,data)=>(f.cardio&&(f.cardio[String((data||new Date()).getDay())]||f.cardio.padrao))||"";

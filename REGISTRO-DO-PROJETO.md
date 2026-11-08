@@ -219,3 +219,9 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - Para o aluno vira **um cartão só**, com as séries em sequência: Série 1 esquerdo, Série 1 direito, Série 2 esquerdo… (mesmo cartão do treino normal, `juntarUnilaterais`). Blocos de método do professor agora têm `par: 0` para poderem juntar; o cartão unido guarda descanso, grupo e tipo.
 - **Descanso:** depois da série da esquerda segue direto para a direita; o descanso do exercício vem depois da direita.
 - **Conferência:** mostra "por lado" e "esquerda e depois direita". Método Par não mudou (testado).
+
+## Pirâmide, técnica e bi-set nos métodos do professor (08/11/2026, v2.34.0)
+- No cadastro de cada exercício (passo 3): **Pirâmide** (as repetições de cada série, ex.: 15, 12, 10, 8; vale no lugar de séries e repetições e cada série mostra a sua meta), **Técnica** (texto livre: Rest-Pause, pico de 2 s…) e **Bi-set** (alterna com o próximo exercício).
+- Para o aluno: bi-set mostra "Bi-set N · A + B · descanso", sem descanso entre os dois e com o descanso depois do par (o do primeiro exercício); a técnica e a pirâmide aparecem sob o cabeçalho do exercício. Exercício com pirâmide não mostra o aviso de subir carga por faixa de repetições. Repetições iguais mostram "10" em vez de "10-10".
+- Backend: `limparMetodo_` aceita `pir` (2 a 10 números), `tec` (até 120 caracteres) e `bi` (forma par com o seguinte). O editor carrega e salva sem perder nada (testado).
+- Os métodos de cada professor ficam na aba **Meus métodos** do Painel dele, não no código. Métodos pessoais não entram no repositório.

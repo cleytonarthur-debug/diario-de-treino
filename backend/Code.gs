@@ -528,9 +528,10 @@ function limparMetodo_(d, completo) {
   Object.keys(tr).slice(0, 6).sort().forEach(function (letra) {
     if (!/^[A-F]$/.test(letra)) return;
     const pares = [];
-    (Array.isArray(tr[letra].exercicios) ? tr[letra].exercicios : []).slice(0, 20).forEach(function (e) {
+    const lista = (Array.isArray(tr[letra].exercicios) ? tr[letra].exercicios : []).slice(0, 20);
+    const mk = function (e) {
       const nome = t(e && e.nome, 80);
-      if (!nome) return;
+      if (!nome) return null;
       cont++;
       const key = 'e' + cont, grupo = t(e.grupo, 30) || 'Sem grupo', gk = grupo.toLowerCase().replace(/[^a-z0-9]/g, '') || 'sg';
       m.musculos[gk] = { nome: grupo, grupo: grupo };
@@ -538,9 +539,24 @@ function limparMetodo_(d, completo) {
       if (e.unidade === 's') { ex.unidade = 's'; ex.tempo = par(e.reps, 5, 600) || [20, 30]; }
       else ex.reps = par(e.reps, 1, 100) || [8, 12];
       ex.unilateral = e.unilateral === true;
+      // Pirâmide: as repetições de cada série, na ordem (ex.: 15, 12, 10, 8). Vale no lugar de séries e repetições.
+      const pir = (Array.isArray(e.pir) ? e.pir : []).map(Number).filter(function (x) { return isFinite(x) && x >= 1 && x <= 100; }).map(Math.round).slice(0, 10);
+      if (pir.length >= 2) { ex.pir = pir; ex.series = pir.length; ex.reps = [Math.min.apply(null, pir), Math.max.apply(null, pir)]; }
+      const tec = t(e.tec, 120);
+      if (tec) ex.tec = tec;
       m.exercicios[key] = ex;
-      pares.push({ a: key });
-    });
+      return key;
+    };
+    // Bi-set: o exercício marcado forma par com o seguinte (a, depois b, sem descanso entre os dois).
+    for (let i = 0; i < lista.length; i++) {
+      const ka = mk(lista[i]);
+      if (!ka) continue;
+      if (lista[i].bi === true && i + 1 < lista.length) {
+        const kb = mk(lista[i + 1]);
+        if (kb) { pares.push({ a: ka, b: kb }); i++; continue; }
+      }
+      pares.push({ a: ka });
+    }
     if (pares.length) m.treinos[letra] = { nome: t(tr[letra].nome, 60) || 'Treino ' + letra, pares: pares };
   });
   m.fases = [];
