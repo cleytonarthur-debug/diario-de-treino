@@ -184,7 +184,7 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - O professor aplica em **Perfil → Nomes dos exercícios** (ação `padronizarNomes`): troca no Histórico, Modelos, Exercícios e Catálogo. O lado D/E continua no fim do nome.
 - Respostas às metas ganhou **Próxima pergunta**: a IA avalia e faz outra pergunta usando os comentários dos treinos. Sem IA, `proximaPergunta_` usa uma pergunta pronta.
 
-## Desenhos animados dos exercícios (08/11/2026, v2.28.0)
-- 103 desenhos próprios, com o músculo trabalhado em vermelho, em `docs/desenhos/` (cerca de 4 MB no total). Custo zero, gerados no Blender; como refazer em `tools/desenhos/LEIA-ME.md`.
-- `Metodos.imagem()` procura primeiro o desenho (`imagens.json`, chave `desenhos`) e, se não houver, usa as fotos. Cardio continua com as fotos; Polichinelo segue sem imagem.
-- Limites conhecidos: áreas dos músculos simplificadas, aparelhos genéricos; prancha lateral e stiff na máquina são os mais fracos.
+## Fotos com troca suave (08/11/2026, v2.29.0)
+- Os desenhos da v2.28.0 foram rejeitados pelo Cleyton ("incômodos de assistir") e retirados; estão no histórico do git (commit 83ff367).
+- Voltaram as fotos do free-exercise-db. A troca entre as duas posições agora é um esmaecimento de 3,6 s (só CSS, sem peso a mais). O banco tem só duas fotos por exercício, então não há movimento real entre elas.
+- Modelos por sexo: não feito. O banco quase só tem homens; mulheres só em exercícios fora da lista (119, 460, 461, 525, 805 na ordem do `exercises.json`). O app já tem `S.aluno.sexo`.
