@@ -1,7 +1,8 @@
 {
-  "versao": "2.36.4",
+  "versao": "2.37.0",
   "data": "09/11/2026",
   "notas": [
-    "Corrige o relógio de descanso parado em 0:00"
+    "Avaliação do Coach mais humana: a IA lê o relato e cita os exercícios",
+    "Comparação de volume só entre exercícios iguais"
   ]
 }

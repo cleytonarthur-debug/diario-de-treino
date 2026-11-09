@@ -408,7 +408,7 @@ function treino(rows,key){
       const ok=!!outra||sg==="em dia";quedaOk=ok;
       const doGrupo=[...new Set(sessoesSem.filter(s=>s.rows.some(r=>r.done&&r.grupo===gr)).map(s=>s.treino))];
       out.quedas.push({exercicio:ex.nome,quedaPct:d,feitoTambemEm:outra?outra.treino:null,grupoTambemEm:doGrupo,grupo:gr,grupoNaSemana:sg,veredito:ok?"ok":"faltou"});
-      out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+"."+(outra?" Você já fez esse exercício em "+esc(outra.treino)+" nesta semana, então está tudo bem.":sg==="em dia"?(doGrupo.length?" Você já treinou "+esc(gr)+" em "+esc(doGrupo[0])+" nesta semana, então está tudo bem.":" "+esc(gr)+" está em dia na semana, então não falta nada."):(cansado?" Recupere primeiro e só complete "+esc(gr)+" nesta semana se estiver descansado.":" Vale completar "+esc(gr)+" ainda nesta semana.")));
+      out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+"."+(outra?[" Esse exercício já apareceu em "+esc(outra.treino)+" nesta semana, sem pendência."," Você já fez esse exercício em "+esc(outra.treino)+" nesta semana, então não perdeu nada."][ex.k.length%2]:sg==="em dia"?(doGrupo.length?[" "+esc(gr)+" já foi trabalhado em "+esc(doGrupo[0])+" nesta semana, sem pendência."," Você já treinou "+esc(gr)+" em "+esc(doGrupo[0])+" nesta semana, então a semana segue em dia."][ex.k.length%2]:" "+esc(gr)+" está em dia na semana, então não falta nada."):(cansado?" Recupere primeiro e só complete "+esc(gr)+" nesta semana se estiver descansado.":" Vale completar "+esc(gr)+" ainda nesta semana.")));
     }
     // meta batida em todas as séries, sem ter ido ao limite em todas
     let vaiSubir=false;
@@ -444,20 +444,28 @@ function treino(rows,key){
   const iguaisTodos=todas.filter(s=>s.treino===ses.treino&&s.date<ses.date),iguaisGym=gym?iguaisTodos.filter(s=>strip(academiaDe(s.rows))===strip(gym)):[];
   const iguais=(iguaisGym.length?iguaisGym:iguaisTodos).slice(-4);
   const volHoje=volumeDe(feitas);
-  const media=iguais.length?iguais.reduce((a,s)=>a+volumeDe(s.rows.filter(r=>r.done&&!eCardio(r))),0)/iguais.length:0;
-  const dv=media?pct(volHoje,media):null;
+  // Compara só os exercícios que existem nos dois treinos. Treino com exercícios diferentes não entra na conta.
+  const chavesHoje=new Set(feitas.map(r=>base(r.ex)).filter(k=>!/aquec/.test(k)));
+  const feitasDe=s=>s.rows.filter(r=>r.done&&!eCardio(r));
+  const pares=iguais.map(s=>{const fs=feitasDe(s);const comum=new Set(fs.map(r=>base(r.ex)).filter(k=>chavesHoje.has(k)));return {s,comum,fs}}).filter(p=>p.comum.size>=Math.max(2,Math.ceil(chavesHoje.size*0.5)));
+  let somaH=0,somaA=0;
+  pares.forEach(p=>{somaH+=volumeDe(feitas.filter(r=>p.comum.has(base(r.ex))));somaA+=volumeDe(p.fs.filter(r=>p.comum.has(base(r.ex))))});
+  const dv=somaA?pct(somaH,somaA):null;
+  const poucoComparavel=iguais.length>0&&dv==null;
   out.volume=volHoje;out.series=feitas.length;out.volumeDif=dv;
-  // comparação com os últimos treinos iguais
-  const mediaDe=f=>{const a=iguais.map(f).filter(x=>x!=null&&x>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null};
-  const mSeries=mediaDe(s=>s.rows.filter(r=>r.done&&!eCardio(r)).length),mTempo=mediaDe(s=>duracaoDe(s.rows));
-  out.comp=iguais.length?{n:iguais.length,vol:volHoje/1000,volDif:dv,series:feitas.length,seriesDif:mSeries!=null?feitas.length-Math.round(mSeries):null,tempo:out.duracao,tempoDif:mTempo!=null&&out.duracao?out.duracao-Math.round(mTempo):null}:null;
+  // comparação com os últimos treinos iguais (séries e tempo só quando o treino é parecido)
+  const mediaDe=f=>{const a=pares.map(f).filter(x=>x!=null&&x>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null};
+  const mSeries=mediaDe(p=>p.fs.length),mTempo=mediaDe(p=>duracaoDe(p.s.rows));
+  out.comp=pares.length?{n:pares.length,vol:volHoje/1000,volDif:dv,series:feitas.length,seriesDif:mSeries!=null?feitas.length-Math.round(mSeries):null,tempo:out.duracao,tempoDif:mTempo!=null&&out.duracao?out.duracao-Math.round(mTempo):null,soIguais:true}:null;
   // o texto do parecer: o que aconteceu e o porquê
-  const refA=iguais.length===1?"o último "+ses.treino:"a média dos últimos "+iguais.length+" treinos iguais";
-  const refDe=iguais.length===1?"do último "+ses.treino:"da média dos últimos "+iguais.length+" treinos iguais";
+  const refA=pares.length===1?"o último "+ses.treino+" (nos exercícios que se repetem)":"a média dos últimos "+pares.length+" treinos iguais (nos exercícios que se repetem)";
+  const refDe=pares.length===1?"do último "+ses.treino+" (nos exercícios que se repetem)":"da média dos últimos "+pares.length+" treinos iguais (nos exercícios que se repetem)";
   const motivo=justifica.length?"Você registrou "+justifica.join(", ")+". ":animoIni==="ruim"?"Você chegou com pouco ânimo. ":"";
   const ordenado=difs.slice().sort((a,b)=>b.d-a.d);const maior=ordenado[0],menor=ordenado[ordenado.length-1];
   const avanco=maior&&maior.d>=3?" O maior avanço foi em "+maior.nome+" (+"+maior.d+"%).":"";
-  if(dv==null){out.titulo="Treino registrado";out.frase="foi a sua primeira vez nele";
+  if(dv==null&&poucoComparavel){out.titulo="Treino com exercícios novos";out.frase="vários exercícios eram novos, então não comparo o volume";
+    out.texto=motivo+feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Esse treino veio com muitos exercícios diferentes dos anteriores, então não comparo o volume total. Hoje ele vira a sua nova referência."}
+  else if(dv==null){out.titulo="Treino registrado";out.frase="foi a sua primeira vez nele";
     out.texto=motivo+feitas.length+(feitas.length===1?" série feita":" séries feitas")+". Este treino agora é a sua referência."}
   else if(dv>=5){out.titulo=dificil?"Treino forte, mesmo em um dia difícil":"Treino forte";
     out.frase=(dificil?"mesmo em um dia difícil, ":"")+"você subiu "+dv+"% no volume";
@@ -511,7 +519,7 @@ function treino(rows,key){
     const t=est.evAlvo&&est.evAlvo.texto;
     // No 4º treino a carga é o padrão: a próxima meta só vem depois dele.
     if(est.ev==="consolidou"){out.metasEx[ex.k]=t;delete out.metasTipo[ex.k];firmando.push({k:ex.k,nome:ex.nome,txt:"manter "+t+" (o seu novo padrão)",curto:t})}
-    if(est.ev==="bateu")out.bem.unshift("🥇 <b>Parabéns!</b> Você bateu a meta do coach em <b>"+esc(ex.nome)+"</b>: "+esc(t)+". Agora vamos firmar essa carga nos próximos "+FIRMAR+" treinos.");
+    if(est.ev==="bateu")out.bem.unshift("🥇 "+["<b>Parabéns!</b> Você bateu a meta do coach em ","<b>Meta cumprida!</b> Você entregou o que o coach pediu em ","<b>Boa!</b> Meta do coach batida em "][ex.k.length%3].replace(/ em $/,"")+" em <b>"+esc(ex.nome)+"</b>: "+esc(t)+". Agora vamos firmar essa carga nos próximos "+FIRMAR+" treinos.");
     else if(est.ev==="firmou")out.bem.unshift("<b>"+esc(ex.nome)+"</b>: firmando "+esc(t)+", treino "+est.n+" de "+FIRMAR+".");
     else if(est.ev==="consolidou")out.bem.unshift("🏅 <b>"+esc(ex.nome)+"</b>: "+esc(t)+" consolidados. Essa carga agora é o seu padrão.");
   });
@@ -543,6 +551,20 @@ function treino(rows,key){
   if(naoFeitas.length)out.proximo.push("<b>Séries que faltaram:</b> retome, se der.");
   if(!out.proximo.length)out.proximo.push("Repita o treino no mesmo nível.");
   if(!out.bem.length)out.bem.push("Você compareceu e fez o treino.");
+  // Fatos por exercício e relatos do dia, para a IA escrever sobre o que realmente aconteceu.
+  try{
+    out.exFatos=porExercicio(ses.rows.filter(r=>!eCardio(r))).filter(ex=>!/aquec/.test(ex.k)).slice(0,14).map(ex=>{
+      const dn=ex.rows.filter(r=>r.done);
+      const ant=antes.filter(r=>base(r.ex)===ex.k&&r.done);
+      const ud=ant.length?ant[ant.length-1].dateS:null;
+      const pv=ud?ant.filter(r=>r.dateS===ud):[];
+      const fm=r=>String(r.peso||"").trim()+" x "+String(r.feitas||"").trim()+(r.meta?" (meta "+String(r.meta).trim()+")":"");
+      const cm=coms.filter(c=>c.citados&&c.citados.includes(ex.k)).map(c=>c.texto.slice(0,160));
+      return {exercicio:ex.nome,series:dn.slice(0,8).map(fm),naoFeitas:ex.rows.length-dn.length,vezAnterior:ud?{data:ud.slice(0,5),series:pv.slice(0,8).map(fm)}:"primeira vez",relato:cm.slice(0,2),proximoPasso:out.metasEx[ex.k]||""};
+    });
+    const tags=[];ses.rows.forEach(r=>{const o=String(r.obs||"");let m;const rx=/\[(Pausa|Água|Agua|Ânimo início|Ânimo fim|Duração): *([^\]]+)\]/gi;while((m=rx.exec(o)))tags.push(m[1]+": "+m[2])});
+    out.relatosDoDia=[...new Set(tags)];
+  }catch(e){out.exFatos=[];out.relatosDoDia=[]}
   return out;
 }
 
@@ -690,7 +712,7 @@ function recadoPicker(rows,sug){
 function fatosIA(A){
   const tira=s=>String(s).replace(/<[^>]+>/g,"");
   const ai=A.animoInfo||{};
-  return {treino:A.treino,data:A.dateS,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",academiaDiferente:A.academiaDif||"",maquinasDiferentes:A.maquinaDif||[],maquinas:A.maquinasInfo||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
+  return {treino:A.treino,data:A.dateS,exerciciosDeHoje:A.exFatos||[],relatosDoDia:A.relatosDoDia||[],duracaoMin:A.duracao||null,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",academiaDiferente:A.academiaDif||"",maquinasDiferentes:A.maquinaDif||[],maquinas:A.maquinasInfo||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
     animo:{chegou:ai.ini||"",saiu:ai.fim||"",analise:ai.texto||""},comparacao:A.comp||null,
     destaques:A.bem.slice(0,4).map(tira),atencao:A.abaixo.slice(0,4).map(tira),comentarios:A.comentarios.map(tira),
     metas:A.proximo.map(tira),sequenciaDificil:A.sequencia||null};

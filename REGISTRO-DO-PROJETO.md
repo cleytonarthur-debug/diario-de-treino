@@ -247,3 +247,10 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 
 ## Correção: relógio de descanso parado em 0:00 (09/11/2026, v2.36.4)
 - **Relato:** aluna no Método Par via "Descanso 0:00" parado. **Causa:** ao marcar uma série com o ✓ em outro cartão, o relógio do cartão anterior não era removido, ficavam dois, e o app só atualizava o primeiro da tela. **Correção:** o ✓ remove o relógio antigo e a atualização anda todos os relógios. Reproduzido e testado no simulador.
+
+## Avaliação do Coach mais humana e baseada no relato (09/11/2026, v2.37.0)
+- **Pedido:** a avaliação estava genérica. Agora vale para todos os alunos e para o professor (programa central + app, mesma IA).
+- **A IA recebe os fatos de cada exercício** (`exerciciosDeHoje`: séries feitas, meta, vez anterior, relato do exercício e próximo passo) e os **relatos do dia** (`relatosDoDia`: pausa, água, ânimo, duração). O prompt (`IA_SISTEMA`) manda abrir reagindo ao que a pessoa viveu, citar 2 a 3 exercícios com números reais e terminar com o próximo passo concreto. Parecer de 70 a 120 palavras. Proibido português de Portugal e frases de efeito.
+- **Comparação de volume corrigida** (`coach.js`): só conta os exercícios que existem nos dois treinos (mínimo 2 e metade do treino). Treino com exercícios muito diferentes mostra "Treino com exercícios novos" em vez de um percentual enganoso (+142%).
+- Frases de regra repetidas (já feito na semana, meta batida) agora variam.
+- Pareceres já gravados não mudam; os novos usam o texto novo. Programa central: implantação nova (mesma URL).
