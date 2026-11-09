@@ -1,7 +1,7 @@
 {
-  "versao": "2.36.2",
+  "versao": "2.36.3",
   "data": "09/11/2026",
   "notas": [
-    "Método ligado: confirmação clara de que chegou ao aluno"
+    "Cartão do aluno mostra Não iniciado em vez de Ainda sem treino"
   ]
 }

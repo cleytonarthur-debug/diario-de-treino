@@ -241,3 +241,6 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 ## Método ligado: confirmação clara (09/11/2026, v2.36.2)
 - Ao ligar um método, a mensagem diz "✓ Método ligado para NOME: método. Confirmado na planilha." (vem da resposta do programa central, não só do que o app acha). No cartão Método de treino aparece a caixa verde "✓ Método ligado para NOME" com método, início e semana. Na página do aluno há a etiqueta verde "Método: nome".
 - Se a planilha tem um método ligado mas o app ainda não carregou os detalhes dele, aparece um aviso amarelo (em vez de parecer "nenhum método") e o app relê a lista sozinho uma vez.
+
+## Cartão do aluno: "Não iniciado" (09/11/2026, v2.36.3)
+- No cartão do aluno, quem ainda não registrou nenhum treino mostra **Não iniciado** (antes "Ainda sem treino", que parecia treino não montado).

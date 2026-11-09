@@ -2221,7 +2221,7 @@ function cardAluno(a){
   const r=resumoDe(a.id),pct=forcaPct(r,60),u=ultimoTreino(r),d=u?diasEntre(u.date):null;
   const parado=d!=null&&d>=10;
   const cor=!u?"--ink-3":parado?"--bad":pct==null?"--ink-3":pct>=1?"--action":pct<=-1?"--warn":"--ink-3";
-  const sub=!a.ativo?"Acesso pausado":a.status==="montar treino"?"Montar treino":a.status==="aguardando cadastro"?"Aguardando cadastro":!r?"Lendo…":!u?"Ainda sem treino":parado?d+" dias parado":(pct!=null?assinado(pct)+"% · ":"")+textoDias(d);
+  const sub=!a.ativo?"Acesso pausado":a.status==="montar treino"?"Montar treino":a.status==="aguardando cadastro"?"Aguardando cadastro":!r?"Lendo…":!u?"Não iniciado":parado?d+" dias parado":(pct!=null?assinado(pct)+"% · ":"")+textoDias(d);
   return '<button class="acard2'+(a.master?" master":"")+(a.ativo?"":" off")+'" data-id="'+esc(a.id)+'"><span class="a2-h"><b>'+esc(a.nome)+'</b>'+(a.master?'<span class="pill good">Aluno master</span>':"")+'</span>'+(relatorioDevido(a)?'<span class="pill warn">Relatório pronto</span>':"")+'<span class="a2-s">'+esc(sub)+'</span>'+linhaSvg(serieDe(a,"forca",60).v,cor)+'</button>';
 }
 function abrirAluno(id){
