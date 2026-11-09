@@ -1657,8 +1657,11 @@ function metodoCard(a){
   const nomeA=primeiroNome(a);
   const atual=a.metodo&&window.Metodos?Metodos.get(a.metodo):null;
   const F=atual?Metodos.fase(atual,a.metodoInicio,new Date()):null;
+  if(a.metodo&&!atual&&!S.metRelido){S.metRelido=true;setTimeout(()=>{if(Api.config())refreshInicio()},0)}
   return '<div class="card" style="margin-bottom:12px"><h3>Método de treino</h3>'+
-    (atual?'<p class="small" style="margin:6px 0">Ligado: <b>'+esc(atual.nome)+'</b> desde '+esc(a.metodoInicio)+' · '+esc(faseTexto(F))+'</p>':'<p class="muted small" style="margin:6px 0">Ligue um método e o app monta os treinos, as fases e a progressão sozinho.</p>')+
+    (atual?'<div class="met-ok"><b>✓ Método ligado para '+esc(nomeA)+'</b><br>'+esc(atual.nome)+' · começa em '+esc(a.metodoInicio)+' · '+esc(faseTexto(F))+'<br><span class="small">Confirmado na planilha. '+esc(nomeA)+' vê este método ao abrir o app.</span></div>':
+      a.metodo?'<div class="met-aviso"><b>Há um método ligado nesta pessoa, mas o app ainda não carregou os detalhes dele.</b><br><span class="small">Toque no botão de atualizar, no topo, e abra de novo. A planilha já tem o método.</span></div>':
+      '<p class="muted small" style="margin:6px 0">Nenhum método ligado. Ligue um método e o app monta os treinos, as fases e a progressão sozinho.</p>')+
     '<div class="form-grid"><label class="fld2">Método<select id="me-m"><option value="">Nenhum</option>'+ms.map(m=>'<option value="'+esc(m.id)+'"'+(a.metodo===m.id?" selected":"")+'>'+esc(m.nome)+' ('+esc(m.publico||"")+')</option>').join("")+'</select></label>'+
     '<label class="fld2">Começa em<input id="me-d" type="date" value="'+esc(brToIso(a.metodoInicio)||brToIso(fmtDate(proximaSegunda())))+'"></label></div>'+
     '<p class="muted small" id="me-res" style="margin:8px 0 0"></p>'+
@@ -1691,7 +1694,7 @@ function bindMetodoCard(){
     try{
       const r=await callA("aplicarMetodo",{metodo,inicio});
       S.aluno=Object.assign({},S.aluno,r.aluno);const i=S.alunos.findIndex(x=>x.id===r.aluno.id);if(i>=0)S.alunos[i]=r.aluno;
-      toast(metodo?"Método ligado. Já aparece no app do aluno.":"Método desligado.");profNotice();
+      toast(metodo?"✓ Método ligado para "+primeiroNome(r.aluno)+": "+((Metodos.get(metodo)||{}).nome||"método")+". Confirmado na planilha.":"Método desligado de "+primeiroNome(r.aluno)+".");profNotice();
       Api.call("inicio").then(d=>Api.cacheSet("inicio",d)).catch(()=>{});
       if(!S.models.size&&metodo){S.modEdit=null}render();
     }catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";b.disabled=false}
@@ -2341,7 +2344,7 @@ function renderAlunoPag(){
   const id=idade(a);const w=waConversa(a);const met=S.alunoMet||"forca";
   const tile=(ir,ic,nome)=>'<button class="home-tile" data-ir="'+ir+'">'+nome+'<span class="home-ic">'+Icone(ic,46)+'</span></button>';
   const s=serieDe(a,met,90);const tem=s.v.filter(x=>x!=null&&(met!=="vol"||x>0)).length>1;
-  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+chaveEvo()+'</div>'+recadoProfHtml(a)+
+  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(a.metodo&&Metodos.get(a.metodo)?'<span class="pill good">Método: '+esc(Metodos.get(a.metodo).nome)+'</span>':"")+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+chaveEvo()+'</div>'+recadoProfHtml(a)+
     (evoModo()==="setas"?evoSetasHtml():'<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
     (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>')+
     '<button class="home-alunos aux-tile" data-ir="evo">'+Icone("trending-up",28)+'<span><b>Parecer geral e previsão</b>Evolução, desafios e conversa com o coach</span>'+Icone("chevron-right",22)+'</button>'+'<button class="home-alunos aux-tile" data-ir="auxil">'+Icone("clipboard",28)+'<span><b>Auxiliar do Coach</b>'+(relatorioDevido(a)?"Relatório de 30 dias pronto":"Análise de 30 dias e conversa")+'</span>'+Icone("chevron-right",22)+'</button>'+'<div class="al-box">'+tile("alcal","calendar","Calendário")+(S.fin&&S.fin.ativo&&!a.master?tile("fin","coin","Financeiro"):"")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';

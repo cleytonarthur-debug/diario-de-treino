@@ -237,3 +237,7 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 
 ## Perfil do professor: Nomes dos exercícios no topo (09/11/2026, v2.36.1)
 - O cartão **Nomes dos exercícios** ficava no fim do Perfil, depois dos cartões novos, e sumia enquanto os dados da planilha não chegavam. Agora é o segundo cartão (depois de Meus métodos) e, sem os dados, mostra "Lendo os dados da planilha…". **Boas-vindas dos alunos** virou um cartão que abre e fecha.
+
+## Método ligado: confirmação clara (09/11/2026, v2.36.2)
+- Ao ligar um método, a mensagem diz "✓ Método ligado para NOME: método. Confirmado na planilha." (vem da resposta do programa central, não só do que o app acha). No cartão Método de treino aparece a caixa verde "✓ Método ligado para NOME" com método, início e semana. Na página do aluno há a etiqueta verde "Método: nome".
+- Se a planilha tem um método ligado mas o app ainda não carregou os detalhes dele, aparece um aviso amarelo (em vez de parecer "nenhum método") e o app relê a lista sozinho uma vez.

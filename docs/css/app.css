@@ -639,3 +639,8 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .rec-visto{color:var(--good)}.rec-nao{color:var(--warn)}
 .bvp-p{margin:0 0 10px;font-size:16px;line-height:1.4}
 .foto-box.bvp{max-height:88vh;overflow:auto}
+
+/* Método ligado: confirmação clara */
+.met-ok{background:var(--good-bg);color:var(--good);border-radius:10px;padding:10px 12px;margin:6px 0 10px;font-size:14px;line-height:1.4}
+.met-ok .small{opacity:.85}
+.met-aviso{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 12px;margin:6px 0 10px;font-size:14px;line-height:1.4}
