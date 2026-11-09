@@ -109,6 +109,7 @@ function ingestAll(d){
   ingestModels(d.modelos);Coach.setModelos(S.models);
   ingestAvals(d.avaliacoes);
   if(d.professor!==undefined)S.profWhats=d.professor||"";
+  if(S.role==="prof")S.recadoAl=d.recado||null;
   S.metasResp=d.metasResp||[];S.evoPar=d.evoPar||[];
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
@@ -157,6 +158,7 @@ function applyInicio(d,fresh){
     else if(S.alunoId){const a=S.alunos.find(x=>x.id===S.alunoId);if(a)S.aluno=Object.assign({},S.aluno,a)}
     if(d.catalogo)S.catalogo=d.catalogo;
     if(d.metodosProf)ingerirMetodos(d.metodosProf);
+    if(d.boasvindas!==undefined)S.textoBV=d.boasvindas;
     if(fresh){profNotice();carregarPainel()}
   }else if(d.aluno){
     const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
@@ -164,6 +166,9 @@ function applyInicio(d,fresh){
     if(d.professor!==undefined)S.profWhats=d.professor||"";
     if(d.plano!==undefined)S.plano=d.plano;
     if(d.metodoDef&&window.Metodos)Metodos.registrar(d.metodoDef);
+    if(d.recado!==undefined)S.recado=d.recado;
+    if(d.boasvindas!==undefined)S.textoBV=d.boasvindas;
+    if(d.profNome!==undefined)S.profNome=d.profNome;
     if(fresh&&!d.aluno.aceite)showAceite();
     else if(d.aluno.aceite&&d.aluno.cadastroPendente)showCadastro();
   }
@@ -1749,7 +1754,7 @@ async function doInstall(){if(!installEvt)return;installEvt.prompt();try{await i
 function renderPerfil(){
   const el=$("#perfil");const prof=S.role==="prof";
   let html="";
-  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>';
+  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>'+bvCartaoHtml();
   if(S.aluno){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="perfil-top"><span class="perfil-av">'+Icone("user-circle",32)+'</span><div><h2 style="text-transform:none">'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div></div><dl class="kv">'+
@@ -1767,6 +1772,7 @@ function renderPerfil(){
   html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: toque na <b>engrenagem</b>, no topo.</p>';
   el.innerHTML=html;
   if(prof&&S.aluno){ligarRelatorio();ligarNomes()}
+  ligarBV();
   const pmt=$("#p-metodos");if(pmt)pmt.onclick=()=>{S.metDe="perfil";S.metEdit=null;abrir("metodos")};
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);abrir("alunos")};
@@ -2038,8 +2044,19 @@ function ligarGeral(el,M){
 
 /* ---------- Boas-vindas: aparece uma vez, no primeiro acesso ---------- */
 function boasVindas(){
-  if(!S.aluno||!S.aluno.aceite||document.querySelector(".foto-box.bv"))return;
+  if(!S.aluno||!S.aluno.aceite||document.querySelector(".foto-box.bv,.foto-box.bvp"))return;
   const k="dt2-boasvindas-"+S.aluno.id;if(Api.store.load(k))return;
+  if(S.textoBV===undefined)return boasCoach(k); // programa central antigo: só a apresentação do coach
+  const nome=String((S.aluno&&S.aluno.nome)||"").split(" ")[0],f=/^f/i.test(String(S.aluno.sexo||""));
+  const texto=String(S.textoBV||BV_PADRAO).split("{nome}").join(nome);
+  const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Boas-vindas do professor");
+  ov.innerHTML='<div class="foto-box bvp"><p class="bv-tit">'+(f?"Bem-vinda":"Bem-vindo")+(nome?", "+esc(nome):"")+'! 👋</p>'+(S.profNome?'<p class="bv-slogan">Um recado do professor '+esc(S.profNome)+'</p>':"")+
+    texto.split(/\n{2,}/).map(p=>'<p class="bvp-p">'+esc(p).replace(/\n/g,"<br>")+'</p>').join("")+
+    '<button class="btn primary" style="width:100%">Começar</button><p class="muted small" style="text-align:center;margin:8px 0 0">Depois você vê como o coach do app funciona.</p></div>';
+  ov.querySelector("button").onclick=()=>{ov.remove();boasCoach(k)};document.body.appendChild(ov);
+}
+function boasCoach(k){
+  if(document.querySelector(".foto-box.bv"))return;
   const ov=document.createElement("div");ov.className="foto-ov";ov.setAttribute("role","dialog");ov.setAttribute("aria-label","Boas-vindas");
   const nome=String((S.aluno&&S.aluno.nome)||"").split(" ")[0];
   ov.innerHTML='<div class="foto-box bv"><p class="bv-tit">Olá'+(nome?", "+esc(nome):"")+'! Eu sou o seu coach. 💪</p><p class="bv-slogan">Não só aprendo com você: eu evoluo junto.</p>'+
@@ -2324,11 +2341,11 @@ function renderAlunoPag(){
   const id=idade(a);const w=waConversa(a);const met=S.alunoMet||"forca";
   const tile=(ir,ic,nome)=>'<button class="home-tile" data-ir="'+ir+'">'+nome+'<span class="home-ic">'+Icone(ic,46)+'</span></button>';
   const s=serieDe(a,met,90);const tem=s.v.filter(x=>x!=null&&(met!=="vol"||x>0)).length>1;
-  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+chaveEvo()+'</div>'+
+  el.innerHTML='<div class="al-top"><span class="muted small">'+[id!=null?id+" anos":"",a.objetivo,a.dias?a.dias+"x por semana":""].filter(Boolean).map(esc).join(" · ")+'</span>'+(w?'<a class="btn wa-p" href="'+esc(w)+'" target="_blank" rel="noopener">'+Icone("whatsapp",18)+'WhatsApp</a>':"")+chaveEvo()+'</div>'+recadoProfHtml(a)+
     (evoModo()==="setas"?evoSetasHtml():'<div class="card"><div class="chips-l" id="al-met">'+[["forca","Força"],["vol","Volume"],["peso","Peso"],["cintura","Medidas"]].map(m=>'<button class="chip'+(m[0]===met?" on":"")+'" data-m="'+m[0]+'">'+m[1]+'</button>').join("")+'</div>'+
     (tem?'<div class="al-g"><canvas id="ch-aluno"></canvas></div>':'<div class="empty" style="padding:26px 8px">'+(S.painel?"Ainda sem dados suficientes para este gráfico.":"Lendo os dados…")+'</div>')+'</div>')+
     '<button class="home-alunos aux-tile" data-ir="evo">'+Icone("trending-up",28)+'<span><b>Parecer geral e previsão</b>Evolução, desafios e conversa com o coach</span>'+Icone("chevron-right",22)+'</button>'+'<button class="home-alunos aux-tile" data-ir="auxil">'+Icone("clipboard",28)+'<span><b>Auxiliar do Coach</b>'+(relatorioDevido(a)?"Relatório de 30 dias pronto":"Análise de 30 dias e conversa")+'</span>'+Icone("chevron-right",22)+'</button>'+'<div class="al-box">'+tile("alcal","calendar","Calendário")+(S.fin&&S.fin.ativo&&!a.master?tile("fin","coin","Financeiro"):"")+tile("coach","speakerphone","Avaliação do Coach")+tile("aval","ruler-measure","Avaliação física")+tile("treinos","clipboard","Montar treinos")+tile("comparar","chart-line","Comparar")+tile("perfil","user-circle","Perfil")+'</div>';
-  ligarChaveEvo(el,renderAlunoPag);
+  ligarChaveEvo(el,renderAlunoPag);ligarRecadoProf(el);
   el.querySelectorAll("#al-met .chip").forEach(b=>b.onclick=()=>{S.alunoMet=b.dataset.m;renderAlunoPag()});
   el.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>irAluno(b.dataset.ir));
   if(tem&&evoModo()!=="setas"){const u={forca:"",vol:" t",peso:" kg",cintura:" cm"}[met];desenharLinhas("ch-aluno",[{label:primeiroNome(a),data:s.v,cor:css("--action")}],s.sem.map(fmtShort),v=>nf1.format(v)+u)}
@@ -2922,8 +2939,71 @@ function abrirMeuPlano(){
   ov.innerHTML='<div class="foto-box">'+h+'<button class="btn">Fechar</button></div>';
   ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};document.body.appendChild(ov);
 }
+/* ---------- Recado do professor e boas-vindas ---------- */
+const BV_PADRAO="Este é o seu espaço de treino. Aqui você registra cada treino, acompanha a sua evolução e fala comigo.\n\nAo terminar cada série, preencha as repetições e o peso, e escreva como foi o treino. Eu leio tudo e ajusto o seu plano.\n\nVamos juntos!";
+function recQuando(data){
+  const d=parseDate(String(data||"").slice(0,10));if(!d)return "";
+  const n=Math.round((diaZero()-d)/864e5);
+  return n<=0?"hoje":n===1?"ontem":String(data).slice(0,5);
+}
+function recadoBannerHtml(){
+  const r=S.recado;if(S.role!=="aluno"||!r||!r.texto||r.lido)return "";
+  const w=S.profWhats;
+  return '<div class="rec-ban"><h4>Recado do seu professor · '+esc(recQuando(r.data))+'</h4><p>'+esc(r.texto).replace(/\n/g,"<br>")+'</p><div class="row-btns"><button class="btn primary" id="rec-ok">Ok, vamos lá</button>'+
+    (w?'<a class="btn" href="https://wa.me/'+esc(w)+'?text='+encodeURIComponent("Oi, professor! Li o seu recado no app: ")+'" target="_blank" rel="noopener">Responder no WhatsApp</a>':"")+'</div></div>';
+}
+function ligarRecado(){
+  const b=$("#rec-ok");if(!b)return;
+  b.onclick=()=>{
+    if(S.recado)S.recado.lido="agora";
+    const c=b.closest(".rec-ban");if(c)c.remove();
+    Api.call("recLido").then(r=>{S.recado=r.recado}).catch(()=>{});
+  };
+}
+function recadoProfHtml(a){
+  const nome=primeiroNome(a),f=/^f/i.test(String(a.sexo||"")),r=S.recadoAl,w=waConversa(a);
+  return '<div class="card" id="rec-novo"><h3 style="margin:0 0 8px">Recado para '+(f?"a ":"o ")+esc(nome)+'</h3>'+
+    '<textarea id="rec-txt" class="rec-ta" maxlength="300" rows="3" placeholder="Escreva um recado curto. '+(f?"Ela":"Ele")+' vê ao abrir o app."></textarea>'+
+    '<p class="muted small" id="rec-cont" style="margin:4px 0 8px;text-align:right">0 de 300 letras</p>'+
+    '<p class="setup-msg" id="rec-msg" role="status"></p><button class="btn primary" id="rec-env" style="width:100%">Enviar recado</button></div>'+
+    (r&&r.texto?'<div class="card"><h3 style="margin:0 0 8px">Último recado</h3><div class="rec-ult">'+esc(r.texto).replace(/\n/g,"<br>")+'<small>Enviado em '+esc(String(r.data).slice(0,5))+' · '+(r.lido?'<b class="rec-visto">'+(f?"Ela":"Ele")+' já viu ('+esc(r.lido)+')</b>':'<b class="rec-nao">Ainda não viu</b>')+'</small></div>'+
+      '<div class="row-btns" style="margin-top:10px">'+(w?'<a class="btn" href="'+esc(w+"?text="+encodeURIComponent("Oi, "+nome+"! Deixei um recado para você no app do treino."))+'" target="_blank" rel="noopener">Avisar pelo WhatsApp</a>':"")+'<button class="btn" id="rec-apaga">Apagar</button></div></div>':"");
+}
+function ligarRecadoProf(el){
+  const t=el.querySelector("#rec-txt");if(!t)return;
+  const cont=el.querySelector("#rec-cont");
+  t.oninput=()=>{cont.textContent=t.value.length+" de 300 letras"};
+  const env=el.querySelector("#rec-env"),msg=el.querySelector("#rec-msg");
+  env.onclick=async()=>{
+    const v=t.value.trim();
+    if(v.length<2){msg.textContent="Escreva o recado.";msg.className="setup-msg bad";return}
+    env.disabled=true;msg.className="setup-msg";msg.textContent="Enviando…";
+    try{const r=await callA("recEnviar",{texto:v});S.recadoAl=r.recado;toast("Recado enviado. "+(/^f/i.test(String(S.aluno.sexo||""))?"Ela":"Ele")+" vê ao abrir o app.");renderAlunoPag()}
+    catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";env.disabled=false}
+  };
+  const ap=el.querySelector("#rec-apaga");
+  if(ap)ap.onclick=()=>armed(ap,"Toque de novo para apagar","Apagar",async()=>{
+    try{const r=await callA("recApagar");S.recadoAl=r.recado;toast("Recado apagado.");renderAlunoPag()}catch(e){toast(errText(e))}
+  });
+}
+function bvCartaoHtml(){
+  return '<div class="card" style="margin-bottom:14px"><h3>Boas-vindas dos alunos</h3><p class="muted small">Este texto aparece uma vez, no primeiro acesso de cada aluno. Escreva {nome} onde quiser o nome dele.</p>'+
+    '<textarea id="bv-txt" class="rec-ta" rows="7" maxlength="1200">'+esc(S.textoBV||BV_PADRAO)+'</textarea>'+
+    '<p class="setup-msg" id="bv-msg" role="status"></p><div class="row-btns"><button class="btn primary" id="bv-salva">Salvar</button><button class="btn" id="bv-pad">Voltar ao texto padrão</button></div></div>';
+}
+function ligarBV(){
+  const salva=$("#bv-salva");if(!salva)return;
+  const t=$("#bv-txt"),msg=$("#bv-msg");
+  $("#bv-pad").onclick=()=>{t.value=BV_PADRAO};
+  salva.onclick=async()=>{
+    salva.disabled=true;msg.className="setup-msg";msg.textContent="Salvando…";
+    try{const v=t.value.trim();const r=await Api.call("bvSalvar",{texto:v===BV_PADRAO.trim()?"":v});S.textoBV=r.boasvindas;msg.className="setup-msg good";msg.textContent="Salvo. Vale para quem ainda não fez o primeiro acesso.";salva.disabled=false}
+    catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";salva.disabled=false}
+  };
+}
 function renderInicio(){
   if(S.role==="aluno"&&S.aluno&&!S.aluno.cadastroPendente)setTimeout(boasVindas,400);
+  setTimeout(ligarRecado,0);
   const tile=(v,ic,nome)=>'<button class="home-tile" data-ir="'+v+'">'+nome+'<span class="home-ic">'+Icone(ic,58)+'</span></button>';
   if(S.role==="prof"){
     // A primeira tela é sempre do próprio professor: o Treinar nunca grava na planilha de outro aluno.
@@ -2942,7 +3022,7 @@ function renderInicio(){
     });
     return;
   }
-  $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-grid">'+
+  $("#inicio-tela").innerHTML='<div class="home-wrap">'+recadoBannerHtml()+'<div class="home-grid">'+
     '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
     tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+
     tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div>'+planoAlunoTile()+'</div>';

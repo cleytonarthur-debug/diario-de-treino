@@ -229,3 +229,8 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 ## Correção: Montar treinos preso em "Lendo a planilha do aluno…" (09/11/2026, v2.35.0)
 - **Causa:** `fetchDados` reaproveitava a leitura em andamento mesmo quando era de outra pessoa (por exemplo, a do próprio professor, ainda lenta). A planilha do aluno novo nunca era pedida e a tela de Montar treinos esperava 30 s e ficava parada sem aviso. Reproduzido no simulador com leitura lenta.
 - **Correção:** a leitura só é reaproveitada se for do mesmo aluno (`inflightId`). Montar treinos pede a leitura ao abrir; se ela falhar ou passar de 30 s, mostra "Não consegui ler a planilha deste aluno agora" com o botão **Tentar de novo**.
+
+## Recado do professor e boas-vindas (09/11/2026, v2.36.0)
+- **Recado:** na página de cada aluno, cartão "Recado para ..." (até 300 letras), "Último recado" com a data e se o aluno já viu, **Avisar pelo WhatsApp** e **Apagar**. O aluno vê o recado no topo da tela inicial; toca em **Ok, vamos lá** e ele some (fica marcado como visto). Tem **Responder no WhatsApp** quando o WhatsApp do professor está cadastrado. O app não manda aviso no celular.
+- **Onde fica:** aba **Recados** do Painel (Aluno ID, Data, Texto, Lido em; vale o último de cada aluno). Ações do professor: `recEnviar`, `recApagar`. Do aluno: `recLido`. O aluno recebe só o recado dele (`recado` em `inicio`); o professor lê o do aluno aberto (`recado` em `dados`).
+- **Boas-vindas:** texto do professor em **Perfil → Boas-vindas dos alunos** (`{nome}` vira o nome do aluno; vazio usa o texto padrão). Guardado na propriedade `TEXTO_BV` (ação `bvSalvar`). Aparece uma vez por aparelho e aluno, antes da apresentação do coach. Com programa central antigo, mostra só a apresentação do coach.

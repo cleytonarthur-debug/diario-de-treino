@@ -151,9 +151,9 @@ function doPost(e) {
     catch (x) { throw appErr_('bad_request', 'Pedido inválido.'); }
     if (ACOES_TESTE[b.action]) return json_(Object.assign({ ok: true, versao: VERSAO }, ACOES_TESTE[b.action](b)));
     const ctx = auth_(b);
-    if ((FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action])) {
+    if ((FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action] || REC_ACOES[b.action])) {
       precisaProf_(ctx);
-      return json_(Object.assign({ ok: true, versao: VERSAO }, (FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action])(b)));
+      return json_(Object.assign({ ok: true, versao: VERSAO }, (FIN_ACOES[b.action] || JEITO_ACOES[b.action] || MP_ACOES[b.action] || REC_ACOES[b.action])(b)));
     }
     const fn = ACOES[b.action];
     if (!fn) throw appErr_('bad_request', 'Ação desconhecida: ' + b.action);
@@ -166,8 +166,8 @@ function doPost(e) {
 const ACOES = {
   inicio: function (ctx) {
     const out = { papel: ctx.papel };
-    if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); out.metodosProf = metodosParaProf_(); }
-    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); out.plano = planoDoAluno_(ctx.aluno.id); out.metodoDef = defDoAluno_(ctx.aluno); }
+    if (ctx.papel === 'prof') { out.alunos = listarAlunos_().map(alunoParaProfessor_); out.catalogo = catalogo_(); out.metodosProf = metodosParaProf_(); out.boasvindas = bvTexto_(); }
+    else { out.aluno = perfil_(ctx.aluno); out.professor = whatsProfessor_(); out.plano = planoDoAluno_(ctx.aluno.id); out.metodoDef = defDoAluno_(ctx.aluno); out.recado = recadoDoAluno_(ctx.aluno.id); out.boasvindas = bvTexto_(); out.profNome = profNome_(); }
     return out;
   },
   dados: function (ctx) {
@@ -183,8 +183,15 @@ const ACOES = {
       avaliacoes: lerAvaliacoes_(ss),
       memoria: lerMemoria_(ss),
       metasResp: lerAba_(ss, ABA_RESP, HEAD_RESP.length).slice(-40),
-      evoPar: lerAba_(ss, ABA_EVO, HEAD_EVO.length).filter(function (r) { return ctx.papel === 'prof' || r[3] === 'aluno'; }).slice(-20)
+      evoPar: lerAba_(ss, ABA_EVO, HEAD_EVO.length).filter(function (r) { return ctx.papel === 'prof' || r[3] === 'aluno'; }).slice(-20),
+      recado: ctx.papel === 'prof' ? recadoDoAluno_(al.id) : undefined
     };
+  },
+  // O aluno toca em "Ok, vamos lá": o recado fica como lido.
+  recLido: function (ctx) {
+    if (ctx.papel !== 'aluno') throw appErr_('forbidden', 'Só o aluno marca o recado como lido.');
+    marcarRecadoLido_(ctx.aluno.id);
+    return { recado: recadoDoAluno_(ctx.aluno.id) };
   },
   // O próprio aluno completa o cadastro na primeira vez que abre o app.
   meuCadastro: function (ctx, b) {
@@ -478,7 +485,63 @@ const ACOES = {
   }
 };
 
-/* =============== métodos do professor (criados pelo app) =============== */
+/* =============== recados do professor e texto de boas-vindas =============== */
+/* Aba "Recados" do Painel: uma linha por recado (o último de cada aluno é o que ele vê). Só o professor escreve. */
+const ABA_REC = 'Recados';
+const HEAD_REC = ['Aluno ID', 'Data', 'Texto', 'Lido em'];
+function lerRec_() {
+  const sh = abaTexto_(ABA_REC, HEAD_REC), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, HEAD_REC.length).getDisplayValues().map(function (r, i) {
+    return { linha: i + 2, alunoId: r[0], data: r[1], texto: r[2], lido: r[3] };
+  }).filter(function (x) { return x.alunoId; });
+}
+function recadoDoAluno_(id) {
+  const l = lerRec_().filter(function (x) { return x.alunoId === String(id); });
+  const u = l[l.length - 1];
+  return u ? { texto: u.texto, data: u.data, lido: u.lido } : null;
+}
+function marcarRecadoLido_(id) {
+  const l = lerRec_().filter(function (x) { return x.alunoId === String(id); });
+  const u = l[l.length - 1];
+  if (!u || u.lido) return;
+  abaTexto_(ABA_REC, HEAD_REC).getRange(u.linha, 4).setValue(Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'));
+}
+function bvTexto_() { return PropertiesService.getScriptProperties().getProperty('TEXTO_BV') || ''; }
+function profNome_() {
+  const p = listarAlunos_().filter(eProfessor_)[0];
+  return p ? String(p.nome || '').replace(/\s*\(eu\)\s*$/i, '').trim().split(/\s+/)[0] : '';
+}
+const REC_ACOES = {
+  recEnviar: function (b) {
+    const al = listarAlunos_().filter(function (x) { return x.id === String(b.aluno); })[0];
+    if (!al) throw appErr_('not_found', 'Aluno não encontrado.');
+    const texto = String(b.texto || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 300);
+    if (texto.length < 2) throw appErr_('bad_request', 'Escreva o recado.');
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(25000)) throw appErr_('busy', 'Ocupado. Tente de novo.');
+    try {
+      const sh = abaTexto_(ABA_REC, HEAD_REC);
+      const agora = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+      sh.getRange(sh.getLastRow() + 1, 1, 1, HEAD_REC.length).setValues([[al.id, agora, texto, '']].map(function (r) { return r.map(String); }));
+    } finally { lock.releaseLock(); }
+    return { recado: recadoDoAluno_(al.id) };
+  },
+  recApagar: function (b) {
+    const id = String(b.aluno || '');
+    const l = lerRec_().filter(function (x) { return x.alunoId === id; });
+    const u = l[l.length - 1];
+    if (u) abaTexto_(ABA_REC, HEAD_REC).deleteRow(u.linha);
+    return { recado: recadoDoAluno_(id) };
+  },
+  bvSalvar: function (b) {
+    const t = String(b.texto || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ').trim().slice(0, 1200);
+    PropertiesService.getScriptProperties().setProperty('TEXTO_BV', t);
+    return { boasvindas: t };
+  }
+};
+
+/* =============== métodos do professor (criados pelo app) ===============
 /* Aba "Meus métodos" do Painel: uma linha por método, com a definição em JSON. Só o professor escreve.
    O aluno recebe apenas a definição do método que está ligado nele. */
 const ABA_MP = 'Meus métodos';

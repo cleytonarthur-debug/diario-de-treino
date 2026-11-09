@@ -1,7 +1,7 @@
 {
-  "versao": "2.35.0",
+  "versao": "2.36.0",
   "data": "09/11/2026",
   "notas": [
-    "Corrige Montar treinos preso na leitura da planilha da aluna nova"
+    "Recado do professor para cada aluno e texto de boas-vindas no primeiro acesso"
   ]
 }
