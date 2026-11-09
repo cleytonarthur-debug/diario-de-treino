@@ -258,3 +258,6 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 ## Botão temporário: reavaliar os últimos 3 treinos (09/11/2026, v2.37.1)
 - Em **Perfil → Reavaliar os últimos 3 treinos** (só professor): **Prévia** (só os treinos do professor, usa `soTeste`, não grava) e **Reavaliar todos** (toque duplo; `refazer:true`, troca o parecer salvo dos 3 últimos treinos de cada aluno ativo e do professor). Usa a IA do app (Cloudflare), sem gasto de tokens do Claude. O texto do resultado fica em `S.reavLog` porque a tela redesenha quando os dados de cada aluno chegam.
 - **Temporário:** será removido na v2.37.2. Os pareceres gravados ficam na aba de memória de cada planilha e não dependem do botão.
+
+## Botão de reavaliar removido (09/11/2026, v2.37.2)
+- O botão **Reavaliar os últimos 3 treinos** foi tirado do Perfil. Os pareceres gerados continuam gravados na planilha de cada pessoa. A IA nova segue valendo (está no programa central, v2.37.0).

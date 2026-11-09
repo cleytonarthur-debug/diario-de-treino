@@ -1,7 +1,7 @@
 {
-  "versao": "2.37.1",
+  "versao": "2.37.2",
   "data": "09/11/2026",
   "notas": [
-    "Botão para reavaliar os últimos 3 treinos com a IA"
+    "Botão de reavaliar removido; os pareceres novos continuam"
   ]
 }
