@@ -225,3 +225,7 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - Para o aluno: bi-set mostra "Bi-set N · A + B · descanso", sem descanso entre os dois e com o descanso depois do par (o do primeiro exercício); a técnica e a pirâmide aparecem sob o cabeçalho do exercício. Exercício com pirâmide não mostra o aviso de subir carga por faixa de repetições. Repetições iguais mostram "10" em vez de "10-10".
 - Backend: `limparMetodo_` aceita `pir` (2 a 10 números), `tec` (até 120 caracteres) e `bi` (forma par com o seguinte). O editor carrega e salva sem perder nada (testado).
 - Os métodos de cada professor ficam na aba **Meus métodos** do Painel dele, não no código. Métodos pessoais não entram no repositório.
+
+## Correção: Montar treinos preso em "Lendo a planilha do aluno…" (09/11/2026, v2.35.0)
+- **Causa:** `fetchDados` reaproveitava a leitura em andamento mesmo quando era de outra pessoa (por exemplo, a do próprio professor, ainda lenta). A planilha do aluno novo nunca era pedida e a tela de Montar treinos esperava 30 s e ficava parada sem aviso. Reproduzido no simulador com leitura lenta.
+- **Correção:** a leitura só é reaproveitada se for do mesmo aluno (`inflightId`). Montar treinos pede a leitura ao abrir; se ela falhar ou passar de 30 s, mostra "Não consegui ler a planilha deste aluno agora" com o botão **Tentar de novo**.

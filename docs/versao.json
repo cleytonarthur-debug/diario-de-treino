@@ -1,7 +1,7 @@
 {
-  "versao": "2.34.0",
-  "data": "08/11/2026",
+  "versao": "2.35.0",
+  "data": "09/11/2026",
   "notas": [
-    "Métodos do professor: pirâmide por série, técnica e bi-set"
+    "Corrige Montar treinos preso na leitura da planilha da aluna nova"
   ]
 }

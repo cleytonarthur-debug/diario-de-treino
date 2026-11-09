@@ -187,13 +187,14 @@ function loadDados(){
   else{setSync("busy","Lendo a planilha…");render()}
   return fetchDados();
 }
-let inflight=null;
+// Só reaproveita a leitura em andamento se for da mesma pessoa; a de outra pessoa não vale para esta.
+let inflight=null,inflightId=null;
 function fetchDados(){
   if(!S.alunoId)return Promise.resolve(false);
-  if(inflight)return inflight;
   const id=S.alunoId;
+  if(inflight&&inflightId===id)return inflight;
   if(!S.loaded)setSync("busy","Lendo a planilha…");
-  inflight=callA("dados").then(d=>{
+  const p=callA("dados").then(d=>{
     if(S.alunoId!==id)return false;
     Api.cacheSet("dados-"+id,d);ingestAll(d);
     S.loaded=true;S.error=null;S.loadedAt=new Date();
@@ -208,8 +209,8 @@ function fetchDados(){
     setSync("err",e.code==="offline"?"Sem internet":S.loaded?"Dados de "+(S.loadedAt?hhmm(S.loadedAt):"antes"):"Sem dados");
     banner("<p>"+esc(errText(e))+(S.loaded&&e.code!=="offline"?" Os dados mostrados são da última leitura.":"")+"</p>",!S.loaded);
     render();return false;
-  }).finally(()=>{inflight=null});
-  return inflight;
+  }).finally(()=>{if(inflight===p){inflight=null;inflightId=null}});
+  inflight=p;inflightId=id;return p;
 }
 function netBanner(){banner("<p>"+esc(errText({code:"offline"}))+"</p>")}
 window.addEventListener("offline",()=>{setSync("err","Sem internet");netBanner();updateBar()});
@@ -1561,7 +1562,17 @@ function openModelEditor(alunoId){
   S.modEdit="carregando";setView("lancar");
   const go=()=>{S.modEdit=[...S.models.entries()].map(([nome,itens])=>({nome,itens:itens.map(it=>({ex:it.ex,series:it.series,metas:it.metas.filter(Boolean).join("; "),peso:it.pesos.filter(Boolean).join("; ")}))}));
     if(!S.modEdit.length&&!(S.aluno&&S.aluno.metodo))S.modEdit=[{nome:"Treino A",itens:[novoItem()]}];render()};
-  if(S.loaded)go();else{const t=setInterval(()=>{if(S.loaded){clearInterval(t);go()}},300);setTimeout(()=>clearInterval(t),30000)}
+  if(S.loaded)go();
+  else{
+    fetchDados();
+    const t=setInterval(()=>{
+      if(S.modEdit!=="carregando"){clearInterval(t);return}
+      if(S.loaded){clearInterval(t);go()}
+      else if(S.error&&!inflight){clearInterval(t);S.modEdit="falhou";render()}
+    },300);
+    // Se a leitura não chegar, mostra o aviso com o botão de tentar de novo, em vez de ficar parado.
+    setTimeout(()=>{clearInterval(t);if(!S.loaded&&S.modEdit==="carregando"){S.modEdit="falhou";render()}},30000);
+  }
 }
 const novoItem=()=>({ex:"",series:3,metas:"12",peso:"",novo:true});
 const itemGrupo=it=>it.grupo||S.exMap.get(strip(it.ex))||(String(it.ex||"").trim()?guessGroup(it.ex):"Sem grupo");
@@ -1574,6 +1585,10 @@ function itensDaSessao(ses){
 }
 function renderModelEditor(el){
   if(S.modEdit==="carregando"){el.innerHTML='<div class="empty">Lendo a planilha do aluno…</div>';return}
+  if(S.modEdit==="falhou"){
+    el.innerHTML='<div class="empty">Não consegui ler a planilha deste aluno agora.<br><button class="btn primary" id="mt-retry" style="margin-top:10px">Tentar de novo</button></div>';
+    $("#mt-retry").onclick=()=>openModelEditor(S.alunoId);return;
+  }
   const M=S.modEdit;const a=S.aluno||{};
   const sessOpts=sessions().filter(x=>x.rows.length).slice(-40).reverse().map(x=>'<option value="'+esc(x.key)+'">'+esc(fmtShort(x.date)+" · "+x.treino+" ("+(n=>n+(n===1?" exercício":" exercícios"))(new Set(x.rows.map(r=>r.ex)).size)+")")+'</option>').join("");
   const seen=new Set();const names=(S.catalogo||[]).map(r=>r[0]).concat(S.exList||[],S.rows.map(r=>r.ex),window.Metodos?Metodos.bibNomes():[]).filter(n=>{const k=strip(n);if(!k||seen.has(k))return false;seen.add(k);return true}).sort((x,y)=>x.localeCompare(y,"pt-BR"));
