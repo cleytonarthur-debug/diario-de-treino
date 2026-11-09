@@ -1758,7 +1758,7 @@ async function doInstall(){if(!installEvt)return;installEvt.prompt();try{await i
 function renderPerfil(){
   const el=$("#perfil");const prof=S.role==="prof";
   let html="";
-  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>'+(S.aluno?nomesHtml():"")+bvCartaoHtml();
+  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>'+(S.aluno?nomesHtml():"")+bvCartaoHtml()+reavCartaoHtml();
   if(S.aluno){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="perfil-top"><span class="perfil-av">'+Icone("user-circle",32)+'</span><div><h2 style="text-transform:none">'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div></div><dl class="kv">'+
@@ -1776,7 +1776,7 @@ function renderPerfil(){
   html+='<p class="note" style="text-align:center">Instalar o app, atualizar e sair deste aparelho: toque na <b>engrenagem</b>, no topo.</p>';
   el.innerHTML=html;
   if(prof&&S.aluno){ligarRelatorio();ligarNomes()}
-  ligarBV();
+  ligarBV();ligarReav();
   const pmt=$("#p-metodos");if(pmt)pmt.onclick=()=>{S.metDe="perfil";S.metEdit=null;abrir("metodos")};
   const pm=$("#p-montar");if(pm)pm.onclick=()=>openModelEditor(null);
   const pe=$("#p-edit");if(pe)pe.onclick=()=>{S.alunoForm=Object.assign({},S.aluno);abrir("alunos")};
@@ -3004,6 +3004,53 @@ function ligarBV(){
     try{const v=t.value.trim();const r=await Api.call("bvSalvar",{texto:v===BV_PADRAO.trim()?"":v});S.textoBV=r.boasvindas;msg.className="setup-msg good";msg.textContent="Salvo. Vale para quem ainda não fez o primeiro acesso.";salva.disabled=false}
     catch(e){msg.textContent=errText(e);msg.className="setup-msg bad";salva.disabled=false}
   };
+}
+/* Reavaliar os últimos 3 treinos com a IA do app (Cloudflare). Só o professor. Prévia não grava; "todos" troca o parecer salvo. */
+function reavCartaoHtml(){
+  const dis=S.reavRodando?" disabled":"";
+  return '<details class="card" style="margin-bottom:14px"'+(S.reavLog?" open":"")+'><summary style="cursor:pointer;font-weight:700">Reavaliar os últimos 3 treinos</summary>'+
+    '<p class="muted small"><b>Prévia:</b> só os seus treinos, mostra na tela e não grava nada. <b>Reavaliar todos:</b> troca o parecer salvo dos 3 últimos treinos de cada aluno e dos seus. Leva alguns minutos: deixe esta tela aberta.</p>'+
+    '<div class="row-btns"><button class="btn" id="rea-prev"'+dis+'>Prévia (não grava)</button><button class="btn primary" id="rea-go"'+dis+'>Reavaliar todos</button></div><div id="rea-out" role="status">'+(S.reavLog||"")+'</div></details>';
+}
+function ligarReav(){
+  const p=$("#rea-prev"),b=$("#rea-go");if(!b||!p)return;
+  p.onclick=()=>reavaliar(false);
+  b.onclick=()=>armed(b,"Toque de novo: os pareceres atuais serão trocados","Reavaliar todos",()=>reavaliar(true));
+}
+async function reavaliar(todos){
+  if(S.reavRodando)return;
+  S.reavRodando=true;S.reavLog="";
+  const voltar=S.alunoId,m=masterId();
+  const ids=todos?S.alunos.filter(a=>a.ativo!==false).map(a=>a.id):(m?[m]:[]);
+  // O texto fica em S.reavLog porque a tela é redesenhada quando os dados de cada aluno chegam.
+  const log=h=>{S.reavLog+=h;const o=$("#rea-out");if(o)o.innerHTML=S.reavLog};
+  const marca=()=>{["#rea-prev","#rea-go"].forEach(s=>{const x=$(s);if(x)x.disabled=!!S.reavRodando})};
+  marca();log("");let ok=0,falhou=0;
+  try{
+    if(!ids.length)log('<p class="muted small">Não achei o seu cadastro de professor.</p>');
+    for(const id of ids){
+      selectAluno(id,true);
+      const nome=(S.alunos.find(a=>a.id===id)||{}).nome||"Aluno";
+      log('<h3 style="margin:14px 0 4px">'+esc(nome)+'</h3>');
+      if(!(await fetchDados())||S.alunoId!==id){log('<p class="muted small">Não consegui ler a planilha.</p>');falhou++;continue}
+      const ses=Coach.sessoes(S.rows).filter(s=>s.rows.some(r=>r.done)).slice(-3);
+      if(!ses.length){log('<p class="muted small">Ainda sem treinos.</p>');continue}
+      for(const s of ses){
+        const A=Coach.treino(S.rows,s.key);if(!A)continue;
+        const rot=esc(A.dateS.slice(0,5)+" · "+A.treino);
+        try{
+          const r=await callA("coachIA",{key:s.key,data:A.dateS,treino:A.treino,refazer:true,soTeste:!todos,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(x=>({pergunta:x[4],resposta:x[5]}))})});
+          if(r&&r.item){ok++;log('<div class="rec" style="margin:6px 0"><b>'+rot+' · '+esc(r.item.titulo)+'</b><br>'+esc(r.item.parecer)+(r.item.recado?'<br><i>Próximo treino: '+esc(r.item.recado)+'</i>':"")+'</div>')}
+          else{falhou++;log('<p class="muted small">'+rot+': a IA não gerou ('+esc((r&&r.motivo)||"sem resposta")+').</p>')}
+        }catch(e){falhou++;log('<p class="muted small">'+rot+': '+esc(errText(e))+'</p>')}
+      }
+    }
+  }finally{
+    S.reavRodando=false;
+    if(voltar&&S.alunoId!==voltar)selectAluno(voltar,true);
+    log('<p style="margin-top:12px"><b>Pronto: '+ok+(todos?' reavaliados e gravados':' na prévia (nada foi gravado)')+(falhou?', '+falhou+' sem resposta':"")+'.</b></p>');
+    marca();
+  }
 }
 function renderInicio(){
   if(S.role==="aluno"&&S.aluno&&!S.aluno.cadastroPendente)setTimeout(boasVindas,400);
