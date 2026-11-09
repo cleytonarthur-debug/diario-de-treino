@@ -261,3 +261,11 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 
 ## Botão de reavaliar removido (09/11/2026, v2.37.2)
 - O botão **Reavaliar os últimos 3 treinos** foi tirado do Perfil. Os pareceres gerados continuam gravados na planilha de cada pessoa. A IA nova segue valendo (está no programa central, v2.37.0).
+
+## IA do coach mais atenta: evolução, dias, academia (09/11/2026, v2.37.3)
+- **Evolução:** por exercício a IA recebe as últimas 3 vezes (melhor série) e o recorde de sempre, e deve dizer se a pessoa está subindo, estável ou voltou atrás.
+- **Dado fora do padrão:** se o número de hoje fica abaixo de metade do da última vez, sem comentário da pessoa, `numeroForaDoPadrao` vale verdadeiro, o próximo passo não repete o número e a IA pede para conferir o lançamento (caso do Supino 10 kg × 4 da Sthefany em 02/11).
+- **Dia ruim / bom:** `tipoDeDia` (ruim se há sono, cansaço, pouco ânimo ou ânimo ruim; bom com ânimo bom e treino forte). Ruim: acolher, sem cobrar. Bom: aproveitar, sem inventar subida.
+- **Academia:** `academiaPadrao` (a mais usada) e `academiaHoje`; comenta só quando foi em outra.
+- **Frases proibidas** ("é importante", "lembre-se", "continue assim", "manter esse nível", formas de Portugal) agora são travadas no programa central (`IA_PROIBIDAS`): se a IA usar uma, ou um número que não está nos fatos, ela tenta de novo uma vez com o motivo.
+- A IA também deve reagir a dúvida, pedido, dor ou reclamação escrita pela pessoa.

@@ -1257,6 +1257,13 @@ const IA_SISTEMA = [
   'ACADEMIA OU MÁQUINA DIFERENTE: se FATOS.academiaDiferente vier preenchido, os pesos mudaram por causa do lugar. Não trate como queda nem como problema, não cobre carga e não compare números. Diga, com as suas palavras, algo como "percebi que os pesos mudaram, provavelmente é a academia, e no próximo treino eu confirmo". Em FATOS.maquinasDiferentes, faça o mesmo só para aqueles exercícios.',
   'MÁQUINA (OBRIGATÓRIO): FATOS.maquinas diz, por exercício, a marca da máquina usada hoje, a da vez anterior e o salto de carga (de quantos em quantos kg a máquina sobe). Máquinas de marcas diferentes (ex.: Cimerian e Vtom) têm pesos diferentes: 40 kg numa não é 40 kg na outra. Só compare carga dentro da MESMA máquina; quando a máquina mudou, diga que a carga de hoje vira a referência dessa máquina. Ao sugerir carga para o próximo treino, use só valores que a máquina permite: se o salto é 5 kg, nunca sugira subir 2 kg; o próximo degrau é a carga atual + o salto. Quando o salto é grande para a pessoa, sugira primeiro mais repetições na mesma carga e só depois subir o degrau.',
   '',
+  'EVOLUÇÃO (CONFRONTE SEMPRE): para cada exercício que citar, olhe ultimasVezes, vezAnterior e recordeAnterior. Diga se a pessoa está subindo, estável ou voltou atrás, e se passou do recorde. Use só os números que estão lá. Primeira vez no exercício: diga que hoje vira a referência.',
+  'DADO FORA DO PADRÃO: se numeroForaDoPadrao for verdadeiro, o número de hoje está muito abaixo do que a pessoa costuma fazer e ela não explicou. Não use esse número como meta nem o repita no recado. Diga com jeito que o número parece fora do padrão e peça para ela conferir se lançou certo.',
+  'DIA RUIM (FATOS.tipoDeDia = "ruim"): acolha primeiro, reconheça que ela veio mesmo assim, não cobre carga nem volume, e peça para manter ou recuperar. Se houver dor, reduzir a carga e avisar o professor.',
+  'DIA BOM (FATOS.tipoDeDia = "bom"): aproveite. Reconheça o ânimo, celebre recorde ou meta batida e, onde proximoPasso já sobe a carga, diga que o corpo respondeu e é hora de aproveitar. Não invente subida onde proximoPasso não sobe.',
+  'ACADEMIA: FATOS.academiaPadrao é onde a pessoa mais treina. Se academiaHoje for outra (hojeNela falso), comente em uma frase que os pesos podem ser diferentes lá. Se FATOS.dicaAcademia existir, use. Se for a padrão, não comente academia.',
+  'Reaja a CADA coisa que a pessoa escreveu que mereça resposta: dúvida, dor, pedido de troca, reclamação do tempo ou de máquina. Responda como professor atento ou diga o que vai levar ao professor.',
+  '',
   'COMO REAGIR:',
   '- Treinos iniciais (FATOS.inicial preenchido): seja bem animado e acolhedor. Diga qual treino foi (primeiro, segundo ou terceiro), quantas séries a pessoa fez, a porcentagem entregue, que o início serve para se acostumar com a sua metodologia, e que vocês vão longe. Não peça mais carga nem mais volume.',
   '- Treino excelente, com volume acima do normal ou recorde: elogie de verdade e jogue a pessoa lá em cima.',
@@ -1280,6 +1287,8 @@ const IA_SISTEMA = [
   '"recado" (até 35 palavras, para ler no início do próximo treino igual: o que fazer nele, com a carga do proximoPasso quando houver);',
   '"resumo" (até 80 palavras: atualize a MEMÓRIA ANTERIOR com o que importa a longo prazo, como padrões de ânimo, dores, evolução e metas; sem nomes de pessoas).'
 ].join('\n');
+
+const IA_PROIBIDAS = /é importante|lembre-se|continue assim|manter esse nível|a constância|cada treino conta|incluíste|fizeste|ficaste/i;
 
 // Todo número do texto precisa existir nos fatos. Se a IA inventar, fica o parecer por regras.
 function numerosOk_(texto, base) {
@@ -1317,11 +1326,28 @@ function parecerIA_(al, b) {
   const memoria = !b.soTeste && anteriores.length ? String(anteriores[anteriores.length - 1][5] || '') : '';
   const fatos = JSON.stringify(b.fatos || {}).slice(0, 13000);
   let saida;
-  try {
-    const resp = chamarIA_(mensagensIA_(memoria, fatos));
+  const baseNum = fatos + ' ' + memoria;
+  const gerar = function (extra) {
+    const msgs = mensagensIA_(memoria, fatos);
+    if (extra) msgs[1].content += extra;
+    const resp = chamarIA_(msgs);
     const o = typeof resp === 'object' && resp ? resp : JSON.parse(String(resp).match(/\{[\s\S]*\}/)[0]);
-    saida = { titulo: String(o.titulo || '').trim().slice(0, 90), parecer: String(o.parecer || '').trim().slice(0, 1000),
+    return { titulo: String(o.titulo || '').trim().slice(0, 90), parecer: String(o.parecer || '').trim().slice(0, 1000),
       recado: String(o.recado || '').trim().slice(0, 300), resumo: String(o.resumo || '').trim().slice(0, 900) };
+  };
+  // Texto com frase pronta proibida ou número que não existe nos fatos: uma segunda tentativa, com o motivo.
+  const defeito = function (s) {
+    if (IA_PROIBIDAS.test(s.parecer + ' ' + s.recado)) return 'Você usou uma frase pronta proibida (como "é importante", "lembre-se", "continue assim", "manter esse nível"). Reescreva falando de coisas específicas deste treino.';
+    if (!numerosOk_(s.titulo + ' ' + s.parecer + ' ' + s.recado, baseNum)) return 'Você usou um número que não está nos FATOS. Use apenas números que aparecem nos FATOS.';
+    return '';
+  };
+  try {
+    saida = gerar('');
+    const d1 = defeito(saida);
+    if (d1) {
+      try { const s2 = gerar('\n\nATENÇÃO, REESCREVA: ' + d1); if (!defeito(s2) || (!IA_PROIBIDAS.test(s2.parecer + ' ' + s2.recado) && IA_PROIBIDAS.test(saida.parecer + ' ' + saida.recado))) saida = s2; }
+      catch (e2) { console.error(e2); }
+    }
   } catch (e) {
     console.error(e);
     return { item: null, motivo: 'falhou' };

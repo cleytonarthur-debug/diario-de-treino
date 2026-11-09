@@ -560,8 +560,21 @@ function treino(rows,key){
       const pv=ud?ant.filter(r=>r.dateS===ud):[];
       const fm=r=>String(r.peso||"").trim()+" x "+String(r.feitas||"").trim()+(r.meta?" (meta "+String(r.meta).trim()+")":"");
       const cm=coms.filter(c=>c.citados&&c.citados.includes(ex.k)).map(c=>c.texto.slice(0,160));
-      return {exercicio:ex.nome,series:dn.slice(0,8).map(fm),naoFeitas:ex.rows.length-dn.length,vezAnterior:ud?{data:ud.slice(0,5),series:pv.slice(0,8).map(fm)}:"primeira vez",relato:cm.slice(0,2),proximoPasso:out.metasEx[ex.k]||""};
+      // Evolução: melhor série das últimas 3 vezes e recorde de sempre. Dado muito abaixo do padrão, sem explicação, é sinalizado.
+      const topSet=rs=>{const t=rs.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];return t?String(t.peso||"").trim()+" x "+String(t.feitas||"").trim():""};
+      const datas=[...new Set(ant.map(r=>r.dateS))].slice(-3);
+      const ultimas=datas.map(d=>({data:d.slice(0,5),melhorSerie:topSet(ant.filter(r=>r.dateS===d))}));
+      const rec=ant.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];
+      const topHoje=dn.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];
+      const prevTop=pv.length?Math.max(...pv.map(r=>r.e1||0)):0;
+      const fora=!!(topHoje&&prevTop&&(topHoje.e1||0)>0&&(topHoje.e1||0)<prevTop*0.5&&!cm.length);
+      return {exercicio:ex.nome,series:dn.slice(0,8).map(fm),naoFeitas:ex.rows.length-dn.length,vezAnterior:ud?{data:ud.slice(0,5),series:pv.slice(0,8).map(fm)}:"primeira vez",ultimasVezes:ultimas,recordeAnterior:rec?{data:rec.dateS.slice(0,5),serie:String(rec.peso||"").trim()+" x "+String(rec.feitas||"").trim()}:null,numeroForaDoPadrao:fora,relato:cm.slice(0,2),proximoPasso:fora?"":(out.metasEx[ex.k]||"")};
     });
+    // Academia que a pessoa mais usa e que tipo de dia foi este.
+    const contaG={};todas.forEach(s=>{const g=academiaDe(s.rows);if(g)contaG[g]=(contaG[g]||0)+1});
+    const padraoG=Object.keys(contaG).sort((a,b)=>contaG[b]-contaG[a])[0]||"";
+    out.academiaPadrao=padraoG?{nome:padraoG,treinosNela:contaG[padraoG],hojeNela:!gym||strip(gym)===strip(padraoG)}:null;
+    out.tipoDeDia=dificil?"ruim":(animoIni==="bom"&&!justifica.length&&(!out.abaixo.length||dv==null||dv>=5)?"bom":"normal");
     const tags=[];ses.rows.forEach(r=>{const o=String(r.obs||"");let m;const rx=/\[(Pausa|Água|Agua|Ânimo início|Ânimo fim|Duração): *([^\]]+)\]/gi;while((m=rx.exec(o)))tags.push(m[1]+": "+m[2])});
     out.relatosDoDia=[...new Set(tags)];
   }catch(e){out.exFatos=[];out.relatosDoDia=[]}
@@ -712,7 +725,7 @@ function recadoPicker(rows,sug){
 function fatosIA(A){
   const tira=s=>String(s).replace(/<[^>]+>/g,"");
   const ai=A.animoInfo||{};
-  return {treino:A.treino,data:A.dateS,exerciciosDeHoje:A.exFatos||[],relatosDoDia:A.relatosDoDia||[],duracaoMin:A.duracao||null,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",academiaDiferente:A.academiaDif||"",maquinasDiferentes:A.maquinaDif||[],maquinas:A.maquinasInfo||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
+  return {treino:A.treino,data:A.dateS,exerciciosDeHoje:A.exFatos||[],relatosDoDia:A.relatosDoDia||[],duracaoMin:A.duracao||null,tipoDeDia:A.tipoDeDia||"normal",academiaHoje:A.academia||"",academiaPadrao:A.academiaPadrao||null,gruposDoTreino:A.gruposTreino||[],comentariosDoTreino:A.comentariosTreino||[],relacaoComOTreino:A.nexoTreino||"",academiaDiferente:A.academiaDif||"",maquinasDiferentes:A.maquinaDif||[],maquinas:A.maquinasInfo||[],pedidosDeRevisao:A.pedidos||[],inicial:A.inicial||null,metasLongoPrazo:(A.metasLongo||[]).map(tira),avaliacaoPorRegras:A.titulo+". "+A.texto,fecho:A.fecho,dicaAcademia:A.academiaDica||"",comparacaoAcademias:A.academias?A.academias.comparacao:null,quedas:A.inicial?[]:A.quedas,semana:A.inicial?null:A.contexto.semana,mes:A.inicial?null:A.contexto.mes,
     animo:{chegou:ai.ini||"",saiu:ai.fim||"",analise:ai.texto||""},comparacao:A.comp||null,
     destaques:A.bem.slice(0,4).map(tira),atencao:A.abaixo.slice(0,4).map(tira),comentarios:A.comentarios.map(tira),
     metas:A.proximo.map(tira),sequenciaDificil:A.sequencia||null};

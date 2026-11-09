@@ -1,7 +1,8 @@
 {
-  "versao": "2.37.2",
+  "versao": "2.37.3",
   "data": "09/11/2026",
   "notas": [
-    "Botão de reavaliar removido; os pareceres novos continuam"
+    "IA do coach mais atenta: evolução, dias ruins e bons, academia padrão",
+    "Trava de frases prontas e de números inventados"
   ]
 }
