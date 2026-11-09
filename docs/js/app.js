@@ -1754,7 +1754,7 @@ async function doInstall(){if(!installEvt)return;installEvt.prompt();try{await i
 function renderPerfil(){
   const el=$("#perfil");const prof=S.role==="prof";
   let html="";
-  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>'+bvCartaoHtml();
+  if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Meus métodos</h3><p class="muted small">Crie o seu método de treino, com treinos, fases e progressão, e ligue nos alunos.</p><div class="row-btns"><button class="btn primary" id="p-metodos">Abrir meus métodos</button></div></div>'+(S.aluno?nomesHtml():"")+bvCartaoHtml();
   if(S.aluno){
     const a=S.aluno;const id=idade(a);
     html+='<div class="card" style="margin-bottom:14px"><div class="perfil-top"><span class="perfil-av">'+Icone("user-circle",32)+'</span><div><h2 style="text-transform:none">'+esc(a.nome)+'</h2>'+(prof&&a.ativo===false?'<span class="pill bad">acesso pausado</span>':"")+'</div></div><dl class="kv">'+
@@ -1763,7 +1763,7 @@ function renderPerfil(){
        ...(prof?[["WhatsApp",a.telefone],["E-mail",a.email],["Desde",a.criado]]:[])].filter(x=>x[1]).map(x=>'<dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd>').join("")+'</dl>'+
       (prof?'<div class="row-btns" style="margin-top:14px"><button class="btn" id="p-edit">Editar dados</button>'+(a.planilhaUrl?'<a class="btn" href="'+esc(a.planilhaUrl)+'" target="_blank" rel="noopener">Abrir planilha</a>':"")+'</div>':"")+
       '</div>';
-    if(prof)html+=relatorioHtml()+nomesHtml();
+    if(prof)html+=relatorioHtml();
     if(prof)html+=shareBox(a)+'<div class="card" style="margin-bottom:14px"><h3>Segurança</h3><p class="muted small">Se o link vazar ou o aluno trocar de celular, gere um novo. O link antigo para de funcionar.</p><div class="row-btns"><button class="btn" id="p-newlink">Gerar novo link</button></div></div>';
     if(prof)html+='<div class="card" style="margin-bottom:14px"><h3>Treinos deste aluno</h3><p class="muted small">'+statusPill(a)+' Monte e edite os treinos aqui pelo app (ficam na aba Modelos da planilha do aluno).</p><div class="row-btns"><button class="btn primary" id="p-montar">✎ Montar treinos</button></div></div>';
   }else if(prof){
@@ -1876,7 +1876,7 @@ function propostasNomes(){
   return [...m].map(([de,p])=>({de,para:p.nome,maq:p.maquina})).sort((a,b)=>a.para.localeCompare(b.para)||a.de.localeCompare(b.de));
 }
 function nomesHtml(){
-  if(!S.loaded)return "";const L=propostasNomes();
+  if(!S.loaded)return '<div class="card" style="margin-bottom:14px"><h3>Nomes dos exercícios</h3><p class="muted small">Lendo os dados da planilha… Se demorar, toque no botão de atualizar, no topo.</p></div>';const L=propostasNomes();
   if(!L.length)return '<div class="card" style="margin-bottom:14px"><h3>Nomes dos exercícios</h3><p class="muted small">Todos os nomes já estão no padrão.</p></div>';
   return '<div class="card" style="margin-bottom:14px"><h3>Nomes dos exercícios</h3><p class="small">'+L.length+' nomes podem ficar no padrão. A marca da máquina sai do nome e vai para o campo Máquina, e o coach passa a comparar a carga só na mesma máquina.</p>'+
     (S.nomesAberto?'<ul class="nomes-l">'+L.map((x,i)=>'<li><label><input type="checkbox" data-nm="'+i+'" checked><span><span class="muted">'+esc(x.de)+'</span><br>→ <b>'+esc(x.para)+'</b>'+(x.maq?' · máquina <b>'+esc(x.maq)+'</b>':"")+'</span></label></li>').join("")+'</ul><button class="btn primary" id="nm-ok">Aplicar os marcados</button>':'<button class="btn" id="nm-ver">Ver a lista, caso a caso</button>')+'</div>';
@@ -2987,9 +2987,9 @@ function ligarRecadoProf(el){
   });
 }
 function bvCartaoHtml(){
-  return '<div class="card" style="margin-bottom:14px"><h3>Boas-vindas dos alunos</h3><p class="muted small">Este texto aparece uma vez, no primeiro acesso de cada aluno. Escreva {nome} onde quiser o nome dele.</p>'+
+  return '<details class="card" style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:700">Boas-vindas dos alunos</summary><p class="muted small">Este texto aparece uma vez, no primeiro acesso de cada aluno. Escreva {nome} onde quiser o nome dele.</p>'+
     '<textarea id="bv-txt" class="rec-ta" rows="7" maxlength="1200">'+esc(S.textoBV||BV_PADRAO)+'</textarea>'+
-    '<p class="setup-msg" id="bv-msg" role="status"></p><div class="row-btns"><button class="btn primary" id="bv-salva">Salvar</button><button class="btn" id="bv-pad">Voltar ao texto padrão</button></div></div>';
+    '<p class="setup-msg" id="bv-msg" role="status"></p><div class="row-btns"><button class="btn primary" id="bv-salva">Salvar</button><button class="btn" id="bv-pad">Voltar ao texto padrão</button></div></details>';
 }
 function ligarBV(){
   const salva=$("#bv-salva");if(!salva)return;

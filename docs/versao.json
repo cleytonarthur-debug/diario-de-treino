@@ -1,7 +1,7 @@
 {
-  "versao": "2.36.0",
+  "versao": "2.36.1",
   "data": "09/11/2026",
   "notas": [
-    "Recado do professor para cada aluno e texto de boas-vindas no primeiro acesso"
+    "Perfil: Nomes dos exercícios fica no topo e não some enquanto os dados carregam"
   ]
 }
