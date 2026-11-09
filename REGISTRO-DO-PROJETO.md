@@ -269,3 +269,14 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 - **Academia:** `academiaPadrao` (a mais usada) e `academiaHoje`; comenta só quando foi em outra.
 - **Frases proibidas** ("é importante", "lembre-se", "continue assim", "manter esse nível", formas de Portugal) agora são travadas no programa central (`IA_PROIBIDAS`): se a IA usar uma, ou um número que não está nos fatos, ela tenta de novo uma vez com o motivo.
 - A IA também deve reagir a dúvida, pedido, dor ou reclamação escrita pela pessoa.
+
+## Conceito da IA do coach (fixo, não perder) (09/11/2026)
+Este é o jeito da Avaliação do Coach e vale para o professor e todos os alunos. Qualquer mudança em `IA_SISTEMA`, `fatosIA` (coach.js) ou `parecerIA_` (Code.gs) deve preservar isto, e só muda o tom se o professor pedir.
+- **Onde roda:** programa central, Cloudflare Workers AI (grátis). Nunca gasta o Claude do professor.
+- **Voz:** português do Brasil, "você", primeira pessoa do professor, direto e humano. Proibido português de Portugal e frases prontas (`IA_PROIBIDAS`: "é importante", "lembre-se", "continue assim", "manter esse nível", "a constância"…). Se usar, refaz uma vez com o motivo.
+- **Provar que leu:** abre reagindo ao que a pessoa viveu e escreveu (relatos, pausa, água, dor, troca de exercício); cita 2 a 3 exercícios com números reais; termina com o próximo passo concreto (`proximoPasso`, calculado pelas regras: a IA não inventa meta). Responde a dúvida, pedido ou reclamação, ou diz que vai ao professor.
+- **Evolução:** confronta com `ultimasVezes`, `vezAnterior` e `recordeAnterior`.
+- **Dia ruim** (`tipoDeDia`): acolhe, não cobra, mantém ou recupera; dor = reduzir carga e avisar o professor. **Dia bom:** aproveita e celebra, sobe só onde as regras mandam.
+- **Academia:** conhece a padrão (`academiaPadrao`); só comenta quando foi em outra.
+- **Segurança:** só números dos fatos; número muito abaixo do histórico sem explicação (`numeroForaDoPadrao`) não vira meta e pede para conferir o lançamento; comparação de volume só entre exercícios iguais; texto recusado cai no parecer por regras.
+- **Fatos enviados à IA:** `exerciciosDeHoje`, `relatosDoDia`, `tipoDeDia`, `academiaHoje`, `academiaPadrao`, comentários, metas, semana, mês, ânimo, máquinas.
