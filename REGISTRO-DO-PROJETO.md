@@ -244,3 +244,6 @@ Play Store, cobrança de quem não for autorizado (acesso master), divulgação,
 
 ## Cartão do aluno: "Não iniciado" (09/11/2026, v2.36.3)
 - No cartão do aluno, quem ainda não registrou nenhum treino mostra **Não iniciado** (antes "Ainda sem treino", que parecia treino não montado).
+
+## Correção: relógio de descanso parado em 0:00 (09/11/2026, v2.36.4)
+- **Relato:** aluna no Método Par via "Descanso 0:00" parado. **Causa:** ao marcar uma série com o ✓ em outro cartão, o relógio do cartão anterior não era removido, ficavam dois, e o app só atualizava o primeiro da tela. **Correção:** o ✓ remove o relógio antigo e a atualização anda todos os relógios. Reproduzido e testado no simulador.

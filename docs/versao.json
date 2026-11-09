@@ -1,7 +1,7 @@
 {
-  "versao": "2.36.3",
+  "versao": "2.36.4",
   "data": "09/11/2026",
   "notas": [
-    "Cartão do aluno mostra Não iniciado em vez de Ainda sem treino"
+    "Corrige o relógio de descanso parado em 0:00"
   ]
 }

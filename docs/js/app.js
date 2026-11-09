@@ -806,6 +806,7 @@ function bindLancar(){
           s.ok=true;s.skip=false;
           if(!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si)}
           S.draft.ultSerie=bi+"_"+si;
+          document.querySelectorAll("#lancar .tim").forEach(x=>x.remove());
         }
         saveDraft();rerenderCard(bi);updateBar();const nc=$('.ex[data-b="'+bi+'"]');if(nc)exercicioPronto(nc,b);
       };
@@ -949,7 +950,7 @@ setInterval(()=>{
   if(!S.draft||S.view!=="lancar")return;
   const mins=minutosTreino(S.draft);const st=$("#sb-time");if(st)st.textContent="⏱ "+fmtMin(mins)+" de treino";
   const c=$("#clock");if(c)c.textContent="treino há "+fmtMin(mins);
-  const tl=$("#lancar .tim-live");if(tl&&S.draft.lastTick){const q=Math.floor((Date.now()-((S.draft.rest&&S.draft.rest.at)||S.draft.lastTick))/1000);tl.textContent=Math.floor(q/60)+":"+pad(q%60)}
+  if(S.draft.lastTick){const q=Math.floor((Date.now()-((S.draft.rest&&S.draft.rest.at)||S.draft.lastTick))/1000),txt=Math.floor(q/60)+":"+pad(q%60);document.querySelectorAll("#lancar .tim-live").forEach(el=>{el.textContent=txt})}
   checarPausa();
   const r=$("#sb-rest");if(!r)return;
   const R=S.draft.rest;
