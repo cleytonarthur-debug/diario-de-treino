@@ -38,11 +38,11 @@ function logout(){
 
 /* e.sent=true: o pedido pode ter chegado (resultado incerto). false: com certeza não chegou
    ou o servidor recusou (nada gravado). */
-async function call(action,body){
+async function call(action,body,tmo){
   const cfg=config();
   if(!cfg)throw fail("not_configured");
   if(!navigator.onLine)throw fail("offline");
-  const ctl=new AbortController();const timer=setTimeout(()=>ctl.abort(),TIMEOUT_MS);
+  const ctl=new AbortController();const timer=setTimeout(()=>ctl.abort(),tmo||TIMEOUT_MS);
   const payload=Object.assign({action},body||{});
   if(cfg.p)payload.p=cfg.p;else payload.t=cfg.t;
   let text="",status=0;

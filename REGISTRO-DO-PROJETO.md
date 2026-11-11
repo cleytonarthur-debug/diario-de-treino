@@ -280,3 +280,11 @@ Este é o jeito da Avaliação do Coach e vale para o professor e todos os aluno
 - **Academia:** conhece a padrão (`academiaPadrao`); só comenta quando foi em outra.
 - **Segurança:** só números dos fatos; número muito abaixo do histórico sem explicação (`numeroForaDoPadrao`) não vira meta e pede para conferir o lançamento; comparação de volume só entre exercícios iguais; texto recusado cai no parecer por regras.
 - **Fatos enviados à IA:** `exerciciosDeHoje`, `relatosDoDia`, `tipoDeDia`, `academiaHoje`, `academiaPadrao`, comentários, metas, semana, mês, ânimo, máquinas.
+
+## IA do coach em 3 etapas e correções do parecer de 10/11 (11/11/2026, v2.38.0)
+- **Defeitos vistos no parecer de 10/11:** "mesmo com a academia sendo a mesma" (regra mal aplicada), fecho genérico colado contradizendo o texto, séries listadas sem comparar com a evolução, modelo pequeno.
+- **Três etapas, modelos grátis de famílias diferentes** (programa central, `parecerIA_`): **analista** `IA_ANALISTA` (gpt-oss-120b, raciocínio) lê os fatos e decide o que importa; **redator** `IA_REDATOR` (Llama 3.3 70B) escreve com a voz do coach; **revisor** `IA_REVISOR` (gpt-oss-120b) confere uma checklist e devolve o texto corrigido se reprovar. Se um modelo falha, o seguinte assume (redator cai no Llama 4 Scout; sem analista ou revisor, segue sem eles). Tudo ainda passa por `defeito()` (cita 2 exercícios, sem frase proibida, sem número inventado, sem academia sem motivo) e uma segunda tentativa.
+- **Custo:** cerca de 400 neurons por parecer (limite grátis: 10.000 por dia, zera 21h de Brasília). Se acabar, o app mostra o parecer por regras. Modelos que exigem plano pago (Kimi, GLM 5, DeepSeek V4) ficaram de fora de propósito (custo zero).
+- **Academia:** só vai para a IA quando o treino foi fora da academia padrão (`academiaPadrao`, `academiaOndeTreinouHoje`).
+- **Refazer sozinho:** o resumo acumulado ganha `[v3] ` (`IA_VERSAO_PARECER`). Ao abrir a Avaliação do Coach, o app pede o parecer do último treino com `seAntigo:true`; se o salvo não tem a marca, é refeito uma vez. Trava `ia-rodando` de 150 s evita gastar a IA em duplicidade.
+- **App:** a chamada do parecer espera até 150 s (`Api.call` ganhou o tempo como 3º parâmetro) e a tela diz "pode levar cerca de 1 minuto".

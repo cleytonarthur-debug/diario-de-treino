@@ -137,7 +137,7 @@ function errText(e){
   }
 }
 // Chamada no contexto do aluno escolhido (o professor manda o id do aluno).
-function callA(action,body){return Api.call(action,Object.assign(S.role==="prof"?{aluno:S.alunoId}:{},body||{}))}
+function callA(action,body,tmo){return Api.call(action,Object.assign(S.role==="prof"?{aluno:S.alunoId}:{},body||{}),tmo)}
 
 async function refreshInicio(){
   try{
@@ -1825,14 +1825,16 @@ function resumoCoachDe(sel){
   return Coach.periodo(S.rows,ini,amanha,dias(ini,-n),"Últimos "+n+" dias","período anterior");
 }
 /* A IA reescreve o parecer em texto. Sem ela, ou se falhar, fica o parecer por regras. */
-const iaLendo=t=>'<div class="ia-lendo" role="status"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><div><b>'+esc(t||"O coach está lendo os comentários do treino.")+'</b><div class="muted small">Já volta com a resposta.</div></div></div>';
+const iaLendo=t=>'<div class="ia-lendo" role="status"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><div><b>'+esc(t||"O coach está lendo os comentários do treino.")+'</b><div class="muted small">Vários coaches estão revisando o seu treino. Pode levar cerca de 1 minuto.</div></div></div>';
 function pedirParecerIA(key){
-  if(!key||S.memoria.has(key)||S.iaTentou.has(key))return;
+  if(!key||S.iaTentou.has(key))return;
+  // Parecer já salvo: o programa central confere a versão e só refaz se for de uma IA antiga (sem mostrar "lendo").
+  const tem=S.memoria.has(key);
   const A=Coach.treino(S.rows,key);if(!A)return;
-  S.iaTentou.add(key);S.iaPend=S.iaPend||new Set();S.iaPend.add(key);
+  S.iaTentou.add(key);S.iaPend=S.iaPend||new Set();if(!tem)S.iaPend.add(key);
   const fim=()=>{S.iaPend.delete(key);if(S.view==="coach")renderCoach()};
   const id=S.alunoId;
-  callA("coachIA",{key,data:A.dateS,treino:A.treino,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(r=>({pergunta:r[4],resposta:r[5]}))})}).then(r=>{
+  callA("coachIA",{key,data:A.dateS,treino:A.treino,seAntigo:tem,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(r=>({pergunta:r[4],resposta:r[5]}))})},150000).then(r=>{
     if(S.alunoId!==id||!r||!r.item)return;
     S.memoria.set(key,r.item);
   }).catch(()=>{}).finally(fim);
