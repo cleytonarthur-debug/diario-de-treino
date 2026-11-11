@@ -1825,7 +1825,18 @@ function resumoCoachDe(sel){
   return Coach.periodo(S.rows,ini,amanha,dias(ini,-n),"Últimos "+n+" dias","período anterior");
 }
 /* A IA reescreve o parecer em texto. Sem ela, ou se falhar, fica o parecer por regras. */
-const iaLendo=t=>'<div class="ia-lendo" role="status"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><div><b>'+esc(t||"O coach está lendo os comentários do treino.")+'</b><div class="muted small">Vários coaches estão revisando o seu treino. Pode levar cerca de 1 minuto.</div></div></div>';
+// Frases que se alternam enquanto o coach lê (cada tela com "lendo" troca a linha de baixo a cada 6 segundos).
+const FRASES_COACH=["Enviei o seu treino para o coach. Ele já vai ler.","O coach está lendo cada série e o que você escreveu.","Já vai ter um parecer, só um pouquinho.","O coach está conferindo tudo antes de te responder.","Falta pouco: ele já te retorna."];
+let iaFraseI=0;
+setInterval(()=>{const els=document.querySelectorAll(".ia-frase");if(!els.length)return;iaFraseI=(iaFraseI+1)%FRASES_COACH.length;els.forEach(e=>{e.textContent=FRASES_COACH[iaFraseI]})},6000);
+const iaLendo=t=>'<div class="ia-lendo" role="status"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><div><b>'+esc(t||"O coach está lendo o seu treino.")+'</b><div class="muted small ia-frase">'+FRASES_COACH[iaFraseI]+'</div></div></div>';
+// Aviso quando a IA não pôde ler agora (limite grátis do dia, demora ou falha).
+const iaAvisoHtml=m=>{
+  const sem=m==="sem_neurons"||m==="limite_do_dia";
+  const t=sem?"Hoje o coach já usou todas as leituras do dia.":(m==="demorou"||m==="em_andamento")?"O coach ainda está escrevendo o seu parecer.":"O coach não conseguiu terminar a leitura agora.";
+  const d=sem?"Amanhã ele lê o seu treino com calma: é só abrir esta tela e o parecer completo aparece aqui. Por enquanto, vale o resumo automático abaixo.":(m==="demorou"||m==="em_andamento")?"Já vai chegar. Esta tela confere sozinha de novo em instantes.":"Abra esta tela de novo daqui a pouco: ele tenta outra vez. Por enquanto, vale o resumo automático abaixo.";
+  return '<div class="ia-lendo" role="status"><div><b>'+esc(t)+'</b><div class="muted small">'+esc(d)+'</div></div></div>';
+};
 function pedirParecerIA(key){
   if(!key||S.iaTentou.has(key))return;
   // Parecer já salvo: o programa central confere a versão e só refaz se for de uma IA antiga (sem mostrar "lendo").
@@ -1834,10 +1845,15 @@ function pedirParecerIA(key){
   S.iaTentou.add(key);S.iaPend=S.iaPend||new Set();if(!tem)S.iaPend.add(key);
   const fim=()=>{S.iaPend.delete(key);if(S.view==="coach")renderCoach()};
   const id=S.alunoId;
+  S.iaAviso=S.iaAviso||new Map();S.iaRep=S.iaRep||{};
+  // Demorou ou já está sendo escrito: confere de novo sozinho, até 4 vezes.
+  const reconferir=()=>{if(tem||(S.iaRep[key]||0)>=4)return;S.iaRep[key]=(S.iaRep[key]||0)+1;setTimeout(()=>{if(S.alunoId!==id||S.memoria.has(key))return;S.iaTentou.delete(key);pedirParecerIA(key)},20000)};
   callA("coachIA",{key,data:A.dateS,treino:A.treino,seAntigo:tem,fatos:Object.assign(Coach.fatosIA(A),{respostasDoAluno:(S.metasResp||[]).slice(-3).map(r=>({pergunta:r[4],resposta:r[5]}))})},150000).then(r=>{
-    if(S.alunoId!==id||!r||!r.item)return;
-    S.memoria.set(key,r.item);
-  }).catch(()=>{}).finally(fim);
+    if(S.alunoId!==id||!r)return;
+    if(r.item){S.memoria.set(key,r.item);S.iaAviso.delete(key);return}
+    if(tem)return;
+    if(r.motivo&&r.motivo!=="nao_liberada"&&r.motivo!=="sem_chave"){S.iaAviso.set(key,r.motivo);if(r.motivo==="em_andamento")reconferir()}
+  }).catch(e=>{if(!tem&&e&&e.code==="timeout"){S.iaAviso.set(key,"demorou");reconferir()}}).finally(fim);
 }
 /* Metas com pergunta. A resposta fica na planilha do aluno, e o coach avalia pelo objetivo e pelo jeito do professor. */
 const podeResponder=()=>S.role!=="prof"||!!(S.aluno&&S.aluno.master);
@@ -1943,7 +1959,7 @@ function renderCoach(){
   if(!naEvo&&ses.length&&S.coachSel===ses[0].key)pedirParecerIA(S.coachSel);
   const htmlTreino='<div class="ch-bloco"><h2>'+(S.coachSel===(ses[0]&&ses[0].key)?"Último treino":"Treino escolhido")+'</h2><button class="btn ghost small" id="ch-ir">Parecer geral na Evolução →</button></div><div class="card" style="margin-bottom:14px">'+
     '<div class="pick-ex"><select id="ch-ses" aria-label="Escolher treino">'+ses.slice(0,30).map(s=>'<option value="'+esc(s.key)+'"'+(s.key===S.coachSel?" selected":"")+'>'+esc(fmtShort(s.date)+" · "+s.treino)+'</option>').join("")+'</select></div>'+
-    (A&&S.iaPend&&S.iaPend.has(S.coachSel)?iaLendo():"")+(A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
+    (A&&S.iaPend&&S.iaPend.has(S.coachSel)?iaLendo():(A&&!MEM&&S.iaAviso&&S.iaAviso.get(S.coachSel)?iaAvisoHtml(S.iaAviso.get(S.coachSel)):""))+(A?'<p class="ch-tit">'+esc(MEM&&MEM.titulo||A.titulo)+'</p><p class="ch-texto">'+esc(MEM&&MEM.parecer||A.texto)+'</p>'+
       (A.sequenciaTexto?'<div class="ch-seq">'+esc(A.sequenciaTexto)+'</div>':"")+
       (A.academiaDica?'<div class="ch-seq">'+esc(A.academiaDica)+'</div>':"")+
       (S.role==="aluno"&&S.profWhats&&(A.sequencia||A.abaixo.length||A.comentarios.some(c=>/Dor ou incômodo/.test(c)))?'<a class="btn ch-prof" href="https://wa.me/'+esc(S.profWhats)+'?text='+encodeURIComponent("Professor, queria falar sobre o meu treino.")+'" target="_blank" rel="noopener">Falar com o professor</a>':"")+

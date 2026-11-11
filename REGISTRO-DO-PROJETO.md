@@ -288,3 +288,9 @@ Este é o jeito da Avaliação do Coach e vale para o professor e todos os aluno
 - **Academia:** só vai para a IA quando o treino foi fora da academia padrão (`academiaPadrao`, `academiaOndeTreinouHoje`).
 - **Refazer sozinho:** o resumo acumulado ganha `[v3] ` (`IA_VERSAO_PARECER`). Ao abrir a Avaliação do Coach, o app pede o parecer do último treino com `seAntigo:true`; se o salvo não tem a marca, é refeito uma vez. Trava `ia-rodando` de 150 s evita gastar a IA em duplicidade.
 - **App:** a chamada do parecer espera até 150 s (`Api.call` ganhou o tempo como 3º parâmetro) e a tela diz "pode levar cerca de 1 minuto".
+
+## Frases do coach e aviso de limite do dia (11/11/2026, v2.38.1)
+- **Enquanto o coach lê:** todas as telas com "lendo" trocam a linha de baixo a cada 6 s ("Enviei o seu treino para o coach…", "O coach está lendo cada série…", "Já vai ter um parecer, só um pouquinho", etc.). Vale para o professor e para os alunos.
+- **Limite grátis da Cloudflare acabou** (erro com "neuron/allocation/4006"): o programa central responde `motivo:'sem_neurons'`, guarda `ia-sem-neurons` por 30 min (para de tentar) e não conta como uso do dia. O app mostra "Hoje o coach já usou todas as leituras do dia. Amanhã ele lê o seu treino…" e mantém o resumo por regras. No dia seguinte (limite zera às 21h de Brasília), ao abrir a Avaliação do Coach o parecer é gerado, porque o app pede o parecer do último treino sempre que não há um salvo.
+- **Demora ou já em andamento:** aviso "O coach ainda está escrevendo" e o app confere de novo sozinho (até 4 vezes, a cada 20 s). Falha comum: "abra de novo daqui a pouco".
+- Falhas não consomem o limite de 6 por dia do aluno.

@@ -1351,6 +1351,7 @@ function parecerIA_(al, b) {
   const antigo = !!(ja && b.seAntigo && String(ja[5] || '').indexOf(IA_VERSAO_PARECER) !== 0);
   if (ja && !b.refazer && !antigo) return { item: paraApp(ja) };
   const cache = CacheService.getScriptCache();
+  if (!b.refazer && cache.get('ia-sem-neurons')) return { item: ja ? paraApp(ja) : null, motivo: 'sem_neurons' };
   const ck = 'ia:' + al.id + ':' + data;
   const usados = Number(cache.get(ck) || 0);
   if (usados >= IA_MAX_POR_DIA && !eProfessor_(al)) return { item: null, motivo: 'limite_do_dia' };
@@ -1431,6 +1432,10 @@ function parecerIA_(al, b) {
     }
   } catch (e) {
     console.error(e);
+    // Falhou: não conta como uso do dia e libera para tentar de novo.
+    cache.put(ck, String(usados), 86400); cache.remove(rk);
+    // Acabou o limite grátis do dia da Cloudflare (zera às 21h de Brasília): avisa o app e para de tentar por 30 minutos.
+    if (/neuron|allocation|4006|daily/i.test(String(e))) { cache.put('ia-sem-neurons', '1', 1800); return { item: ja ? paraApp(ja) : null, motivo: 'sem_neurons' }; }
     return { item: null, motivo: 'falhou' };
   }
   // garante a frase final sobre o próximo treino, no jeito do professor
