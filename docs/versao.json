@@ -1,8 +1,7 @@
 {
-  "versao": "2.38.1",
-  "data": "11/11/2026",
+  "versao": "2.38.2",
+  "data": "12/11/2026",
   "notas": [
-    "O coach mostra frases enquanto lê e avisa quando o limite do dia acaba",
-    "Parecer é gerado no dia seguinte, ao abrir a avaliação"
+    "Na tela Treinar, o treino da vez vem no topo da lista"
   ]
 }

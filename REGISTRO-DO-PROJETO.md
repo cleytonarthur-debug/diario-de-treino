@@ -294,3 +294,6 @@ Este é o jeito da Avaliação do Coach e vale para o professor e todos os aluno
 - **Limite grátis da Cloudflare acabou** (erro com "neuron/allocation/4006"): o programa central responde `motivo:'sem_neurons'`, guarda `ia-sem-neurons` por 30 min (para de tentar) e não conta como uso do dia. O app mostra "Hoje o coach já usou todas as leituras do dia. Amanhã ele lê o seu treino…" e mantém o resumo por regras. No dia seguinte (limite zera às 21h de Brasília), ao abrir a Avaliação do Coach o parecer é gerado, porque o app pede o parecer do último treino sempre que não há um salvo.
 - **Demora ou já em andamento:** aviso "O coach ainda está escrevendo" e o app confere de novo sozinho (até 4 vezes, a cada 20 s). Falha comum: "abra de novo daqui a pouco".
 - Falhas não consomem o limite de 6 por dia do aluno.
+
+## Treinar: o treino da vez vem no topo (12/11/2026, v2.38.2)
+- Na tela **Treinar → Qual treino hoje?**, a sugestão ("o da rotação parado há mais tempo") agora vem sempre em primeiro lugar. Os demais seguem na ordem de antes. Só o app mudou, sem mexer no programa central.

@@ -528,7 +528,9 @@ function renderLancar(){
         '<b>'+esc(t.name)+'</b><span class="muted small">'+info+'</span>'+
         '<span class="tag">'+grs.map(g=>'<i style="background:var('+GROUP_VAR[g]+')"></i>'+esc(g)).join(" ")+'</span></button>';
     };
-    const main=list.filter(t=>!t.other),others=list.filter(t=>t.other);
+    // O treino da vez (a sugestão) vem sempre no topo; os outros seguem na ordem de antes.
+    const main0=list.filter(t=>!t.other),others=list.filter(t=>t.other);
+    const main=main0.filter(t=>t.name===sug).concat(main0.filter(t=>t.name!==sug));
     const prof=S.role==="prof";
     const vazio=!main.length&&!others.length;
     el.innerHTML=balao(Coach.recadoPicker(S.rows,sug))+'<div class="session-head"><div><h2>Qual treino hoje?</h2><div class="muted small">'+DIAS[today.getDay()]+", "+fmtDate(today)+' · '+
