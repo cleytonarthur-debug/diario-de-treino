@@ -3158,10 +3158,10 @@ function treinosNaSemana(seg){
   S.rows.forEach(r=>{if(r.done&&!r.aq&&r.date>=seg&&r.date<fim)dias.add(r.dateS)});return dias.size;
 }
 let MGN=0;
-function medalhaSvg(n){
-  const id="mg"+(++MGN);
+function medalhaSvg(n,tam){
+  const id="mg"+(++MGN);tam=tam||72;
   const q=["M0 0 L0 -44 A44 44 0 0 1 44 0 Z","M0 0 L44 0 A44 44 0 0 1 0 44 Z","M0 0 L0 44 A44 44 0 0 1 -44 0 Z","M0 0 L-44 0 A44 44 0 0 1 0 -44 Z"];
-  return '<svg width="72" height="72" viewBox="-50 -50 100 100" aria-hidden="true"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c58f0d"/></linearGradient></defs>'+
+  return '<svg width="'+tam+'" height="'+tam+'" viewBox="-50 -50 100 100" aria-hidden="true"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c58f0d"/></linearGradient></defs>'+
     q.map((d,i)=>'<path d="'+d+'" fill="'+(i<n?"url(#"+id+")":"#2a2d35")+'" stroke="#0b0c0f" stroke-width="1.5"/>').join("")+
     '<circle r="44" fill="none" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="3"/><circle r="17" fill="#15171b" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="2"/><text y="7" text-anchor="middle" font-size="20">🏋️</text></svg>';
 }
@@ -3179,10 +3179,15 @@ function semanaCartaoHtml(){
   }
   const pecas=Math.min(4,douradas);
   const nomeMes=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][mes];
-  const bolas=Array.from({length:Math.max(meta,feitos)},(_,i)=>'<i class="'+(i<feitos?"on":"")+'"></i>').join("");
-  return '<div class="semana-card'+(ouro?" ouro":"")+'" data-ir="alcal" role="button" tabindex="0" aria-label="Meta da semana. Toque para abrir o calendário"><div class="sc-t"><b>'+(ouro?"🏆 Semana dourada!":"Meta da semana")+'</b><span>'+feitos+' de '+meta+(meta===1?" treino":" treinos")+'</span></div><div class="sc-b">'+bolas+'</div>'+
-    '<p class="sc-p">'+(ouro?"Você cumpriu a meta desta semana. Parabéns!":(meta-feitos===1?"Falta 1 treino para a sua semana ficar dourada.":"Faltam "+(meta-feitos)+" treinos para a sua semana ficar dourada."))+'</p>'+
-    '<div class="sc-m">'+medalhaSvg(pecas)+'<div><b>Medalha de '+nomeMes+'</b><span>'+pecas+' de 4 semanas douradas'+(pecas===4?" · completa!":"")+'</span></div></div></div>';
+  // Cartão compacto: medalha pequena, "semana X/N" com bolinhas e uma linha de legenda. Toque abre o calendário.
+  const bolas=Array.from({length:meta},(_,i)=>'<i class="'+(i<feitos?"on":"")+'"></i>').join("")+(feitos>meta?'<em>+'+(feitos-meta)+'</em>':"");
+  const falta=ouro?"Meta cumprida!":(meta-feitos===1?"Falta 1 treino":"Faltam "+(meta-feitos)+" treinos");
+  return '<div class="semana-card'+(ouro?" ouro":"")+'" data-ir="alcal" role="button" tabindex="0" aria-label="Meta da semana. Toque para abrir o calendário">'+
+    '<span class="sc-med">'+medalhaSvg(pecas,46)+'</span>'+
+    '<div class="sc-c"><div class="sc-t"><b>'+(ouro?"🏆 Semana dourada":"Esta semana")+'</b><span>'+Math.min(feitos,meta)+'/'+meta+' treinos</span></div>'+
+    '<div class="sc-b">'+bolas+'</div>'+
+    '<div class="sc-p">'+falta+' · Medalha de '+nomeMes+': '+pecas+'/4</div></div>'+
+    '<span class="sc-go" aria-hidden="true">›</span></div>';
 }
 function cicloCartaoHtml(){
   if(S.role!=="aluno")return "";

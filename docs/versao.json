@@ -1,8 +1,7 @@
 {
-  "versao": "2.40.1",
+  "versao": "2.40.2",
   "data": "15/11/2026",
   "notas": [
-    "Calendário com semanas douradas e medalha do mês, também na conta do professor",
-    "O aluno agora abre o calendário pelo cartão da semana"
+    "Cartão da semana dourada bem menor e mais claro na tela inicial"
   ]
 }

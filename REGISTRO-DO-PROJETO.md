@@ -323,3 +323,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - **Aluno** passa a abrir o calendário (toque no cartão da semana na tela inicial). **Professor** vê o cartão da semana e a medalha da própria conta na tela inicial e no calendário dele.
 - **Meta:** "dias por semana" do cadastro; sem esse dado, vale 4 (caso do professor, cujo cadastro está vazio).
 - Corrigido: a medalha usava um id de gradiente repetido e podia aparecer vazia (`medalhaSvg` agora gera ids únicos).
+
+## Cartão da semana mais compacto (15/11/2026, v2.40.2)
+- O cartão da semana dourada ocupava metade da tela inicial. Agora é uma faixa de uma linha de título: medalha pequena à esquerda, "Esta semana X/N treinos" (ou "🏆 Semana dourada"), bolinhas da meta, legenda curta ("Faltam 2 treinos · Medalha de Novembro: 2/4") e uma seta que abre o calendário. Treinos além da meta aparecem como "+N". Altura de ~245 px para ~77 px.
