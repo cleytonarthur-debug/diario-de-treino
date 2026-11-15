@@ -72,9 +72,11 @@ function ingest(values){
     const d=parseDate(r[0]);if(!d)return;
     const hor=String(r[3]||"");const skipped=/n[aã]o fiz/i.test(hor);
     const reps=skipped?null:parseReps(r[8],r[7]);const peso=parsePeso(r[9]);
+    // Série preparatória (antes chamada aquecimento): leve, fora de volume e força. Descompressão: no fim do exercício, carga leve, não vira meta.
+    const I=String(r[10]||"").trim(),pq=/^(aquecimento|prepar[aá]t[oó]ria)$/i.test(I),dcs=/^descompress[aã]o$/i.test(I);
     out.push({i,date:d,dateS:r[0],dia:r[1]||"",treino:String(r[2]||"").trim(),hora:hor,grupo:S.exMap.get(strip(r[5]))||r[4]||guessGroup(r[5]),ex:String(r[5]||"").trim(),
       serie:r[6]||"",meta:r[7]||"",feitas:r[8]||"",peso:r[9]||"",int:r[10]||"",rir:r[11]==null?"":String(r[11]),obs:r[12]||"",academia:String(r[13]||"").trim(),maq:String(r[14]||"").trim(),salto:String(r[15]||"").trim(),
-      reps,pesoN:peso,aq:/^aquecimento$/i.test(String(r[10]||"").trim()),vol:/^aquecimento$/i.test(String(r[10]||"").trim())?0:setVolume(reps,peso),e1:/^aquecimento$/i.test(String(r[10]||"").trim())?0:e1rm(reps,peso),done:!!reps});
+      reps,pesoN:peso,aq:pq,dc:dcs,vol:pq?0:setVolume(reps,peso),e1:(pq||dcs)?0:e1rm(reps,peso),done:!!reps});
   });
   S.rows=out;
 }
@@ -113,7 +115,10 @@ function ingestAll(d){
   S.metasResp=d.metasResp||[];S.evoPar=d.evoPar||[];
   S.memoria=new Map((d.memoria||[]).map(r=>[r[0]+"|"+r[1],{titulo:r[2]||"",parecer:r[3]||"",recado:r[4]||""}]));
   if(d.aluno)S.aluno=d.aluno;
+  ciclo();
 }
+// Início do método da pessoa: os 3 primeiros treinos do ciclo recebem o parecer motivacional de início.
+function ciclo(){try{const a=S.aluno;Coach.setCiclo(a&&a.metodo&&a.metodoInicio?parseDate(a.metodoInicio):null)}catch(e){}}
 
 /* ---------- conexão ---------- */
 function setSync(kind,text){$("#sync").innerHTML='<span class="dot '+kind+'"></span><span>'+esc(text)+'</span>';$("#sync").title=text;const s=$("#saudacao .sa-sync");if(s)s.textContent=text}
@@ -161,7 +166,7 @@ function applyInicio(d,fresh){
     if(d.boasvindas!==undefined)S.textoBV=d.boasvindas;
     if(fresh){profNotice();carregarPainel()}
   }else if(d.aluno){
-    const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;
+    const first=!S.alunoId;S.aluno=d.aluno;S.alunoId=d.aluno.id;ciclo();
     if(first){S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());loadDados()}
     if(d.professor!==undefined)S.profWhats=d.professor||"";
     if(d.plano!==undefined)S.plano=d.plano;
@@ -179,7 +184,7 @@ function applyInicio(d,fresh){
 function selectAluno(id,quiet){
   if(S.alunoId===id&&S.loaded){if(!quiet)setView("inicio");return}
   S.alunoId=id;store("dt2-aluno-sel",id);
-  S.aluno=S.alunos.find(a=>a.id===id)||null;
+  S.aluno=S.alunos.find(a=>a.id===id)||null;ciclo();
   S.rows=[];S.metasResp=[];S.evoPar=[];S.evoChat=null;S.fotosAv={};S.relParecer=null;S.memoria=new Map();S.loaded=false;S.avals=[];S.models=new Map();S.exMap=new Map();S.error=null;
   S.draft=store(DRAFT_KEY());S.pending=store(PENDING_KEY());S.confirm=false;S.fim=false;S.picker=false;S.avSel=null;S.avEdit=null;S.forcaEx=null;S.medida=null;S.modEdit=null;
   updateWho();
@@ -259,8 +264,8 @@ function suggestion(list){
 }
 function lastFor(exName){
   const k=exKey(exName);
-  for(let i=S.rows.length-1;i>=0;i--){const r=S.rows[i];if(exKey(r.ex)===k&&r.done&&!r.aq){
-    const sameDay=S.rows.filter(x=>x.dateS===r.dateS&&exKey(x.ex)===k&&!x.aq);return sameDay}}
+  for(let i=S.rows.length-1;i>=0;i--){const r=S.rows[i];if(exKey(r.ex)===k&&r.done&&!r.aq&&!r.dc){
+    const sameDay=S.rows.filter(x=>x.dateS===r.dateS&&exKey(x.ex)===k&&!x.aq&&!x.dc);return sameDay}}
   return null;
 }
 function lastExact(name){const all=lastFor(name)||[];const ex=all.filter(r=>strip(r.ex)===strip(name));return ex.length?ex:all}
@@ -307,15 +312,23 @@ function buildMetodoDraft(t){
       const fx=Metodos.efetiva(f,ex);
       const n=m.livre?(ex.pir?ex.pir.length:fx.series):Metodos.seriesDoPar(f,pi+1);
       if(m.livre)b.descanso=ex.descanso||60;
-      // Séries de aquecimento (só exercícios pesados de abertura): leves, fora do volume e da força.
+      // Preparatórias: no exercício pesado de abertura, as primeiras séries do próprio método são mais leves (60%, 80% da carga de trabalho)
+      // e preparam as articulações. As demais são as séries de trabalho.
       const cargaBase=prev.length?String(prev[prev.length-1].peso||"").trim():"";
-      (m.livre&&Array.isArray(ex.aq)?ex.aq:[]).forEach((a,ai)=>{
-        const s=makeSet(0,null);s.aq=true;s.aqn=ai+1;s.meta=a.reps+" reps leves";s.peso=aquecPeso(cargaBase,a.pct);b.sets.push(s);
-      });
+      const nPrep=m.livre?Math.min(+ex.prep||0,Math.max(0,n-1)):0;
       for(let i=0;i<n;i++){
-        const s=makeSet(i+1,prev[i]||null);s.meta=ex.pir?String(ex.pir[i]):Metodos.meta(fx,ex);s.rirMeta=f.rir.join("–");
+        const base=ex.pir?String(ex.pir[i]):Metodos.meta(fx,ex);
+        if(i<nPrep){
+          const s=makeSet(0,null);s.aq=true;s.aqn=i+1;s.meta=base+" reps · carga mais leve";s.peso=aquecPeso(cargaBase,[60,80,90][i]||90);b.sets.push(s);continue;
+        }
+        const w=i-nPrep;
+        const s=makeSet(w+1,prev[w]||null);s.meta=base;s.rirMeta=f.rir.join("–");
         if(!s.peso&&prev.length)s.peso=String(prev[prev.length-1].peso||"").trim();
         b.sets.push(s);
+      }
+      // Descompressão: série final com carga mais leve e muitas repetições, para descomprimir e bombear.
+      for(let i=0;m.livre&&i<(+ex.dc||0);i++){
+        const s=makeSet(0,null);s.dc=true;s.dcn=i+1;s.meta="~15 reps · carga leve";s.peso=aquecPeso(cargaBase,60);b.sets.push(s);
       }
       blocks.push(b);
     });
@@ -391,7 +404,7 @@ function ultimaAcademia(){const g=store("dt2-academia-"+keyA());if(g)return g;fo
 function ultimaNaAcademia(nome,gym){
   const k=strip(nome),g=strip(gym);
   for(let i=S.rows.length-1;i>=0;i--){const r=S.rows[i];
-    if(strip(r.ex)===k&&strip(r.academia)===g&&r.done&&!r.aq){let rs=S.rows.filter(x=>x.dateS===r.dateS&&strip(x.ex)===k&&!x.aq);
+    if(strip(r.ex)===k&&strip(r.academia)===g&&r.done&&!r.aq&&!r.dc){let rs=S.rows.filter(x=>x.dateS===r.dateS&&strip(x.ex)===k&&!x.aq&&!x.dc);
       const u=rs.map(x=>String(x.serie).trim()).lastIndexOf("1");if(u>0)rs=rs.slice(u);return rs}}
   return [];
 }
@@ -402,7 +415,7 @@ function aplicarAcademia(d){
   d.blocks.forEach(b=>{
     if(b.cardio)return;b.novaAcad=registra&&!conhece&&!!lastFor(b.name);
     b.sets.forEach((s,si0)=>{
-      if(s.aq)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;
+      if(s.aq||s.dc)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;
       const rs=ultimaNaAcademia(s.exNome||b.name,d.academia);if(!rs.length)return;
       b.novaAcad=false;
       const r=rs[s.lado?s.n-1:si]||rs[rs.length-1];
@@ -428,7 +441,7 @@ function aplicarMetaCoach(d){
     if(!b.metaC||!b.sets.length)return;
     ajustarMetaAoSalto(b);
     [...new Set(b.sets.map(s=>s.lado||""))].forEach(l=>{
-      const s=b.sets.filter(x=>(x.lado||"")===l).pop();s.metaC=true;
+      const s=b.sets.filter(x=>(x.lado||"")===l&&!x.aq&&!x.dc).pop();if(!s)return;s.metaC=true;
       if(b.metaC.peso!=null&&!String(s.reps).trim())s.peso=String(b.metaC.peso).replace(".",",")+"kg"+(/cada lado/i.test(b.metaC.texto)?" cl":"");
     });
   });
@@ -437,7 +450,7 @@ function aplicarMetaCoach(d){
 const SALTOS=["1","2","2,5","5","10"];
 const fmtSalto=v=>String(v==null?"":v).replace(".",",").trim();
 function nomesMaquinas(){const v=new Map();S.rows.forEach(r=>{if(r.maq)v.set(strip(r.maq),r.maq)});return [...v.values()].reverse()}
-function rowsDoEx(b){const k=exKey(b.name);return S.rows.filter(r=>r.done&&!r.aq&&exKey(r.ex)===k)}
+function rowsDoEx(b){const k=exKey(b.name);return S.rows.filter(r=>r.done&&!r.aq&&!r.dc&&exKey(r.ex)===k)}
 function saltoSalvo(b,maq){const rs=rowsDoEx(b).filter(r=>r.salto&&strip(r.maq)===strip(maq));return rs.length?fmtSalto(rs[rs.length-1].salto):""}
 function ultimaNaMaquina(b,maq){const rs=rowsDoEx(b);for(let i=rs.length-1;i>=0;i--)if(strip(rs[i].maq)===strip(maq)){const d=rs[i].dateS;return rs.filter(x=>x.dateS===d&&strip(x.maq)===strip(maq))}return []}
 function aplicarMaquina(d){
@@ -449,7 +462,7 @@ function maquinaNasSeries(b){
   b.novaMaq=false;b.maqAntes="";b.sets.forEach(s=>{if(s.last)delete s.last.outraMaq});if(!b.maq)return;
   const com=rowsDoEx(b).filter(r=>r.maq),mesma=ultimaNaMaquina(b,b.maq);
   if(!mesma.length){if(com.length){b.novaMaq=true;b.maqAntes=com[com.length-1].maq;b.sets.forEach(s=>{if(s.last)s.last.outraMaq=b.maqAntes})}return}
-  b.sets.forEach((s,si0)=>{if(s.aq)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;const nome=s.exNome||b.name;let l=mesma.filter(r=>strip(r.ex)===strip(nome));if(!l.length)l=mesma;
+  b.sets.forEach((s,si0)=>{if(s.aq||s.dc)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;const nome=s.exNome||b.name;let l=mesma.filter(r=>strip(r.ex)===strip(nome));if(!l.length)l=mesma;
     const r=l[s.lado?s.n-1:si]||l[l.length-1];if(!r)return;
     s.last={feitas:String(r.feitas||""),peso:String(r.peso||""),reps:r.reps,pesoN:r.pesoN,vol:r.vol,skipped:!r.done};
     if(!String(s.reps).trim())s.peso=String(r.peso||"").trim()||s.peso});
@@ -595,7 +608,7 @@ function metodoTopo(d){
   const m=metodoDoDraft(d);if(!m)return "";
   const z=Metodos.zona2(m,idade(S.aluno));
   return '<div class="card mtopo"><div class="card-h"><h2>'+esc(m.nome)+'</h2><p>Semana '+d.metodo.semana+' de '+d.metodo.total+' · '+esc(d.metodo.fase)+' · deixe '+esc((d.metodo.rir||[]).join("–"))+' reps sobrando</p></div>'+
-    '<p class="small"><b>Aquecimento:</b> '+(m.aquecimento||[]).map(esc).join(" + ")+'.</p>'+
+    ((m.aquecimento||[]).length?'<p class="small"><b>Aquecimento geral:</b> '+(m.aquecimento||[]).map(esc).join(" + ")+'.</p>':"")+
     (m.livre?'<p class="small"><b>Como fazer:</b> faça as séries de cada exercício, descansando o tempo indicado, e só então passe ao próximo.</p>':'<p class="small"><b>Como fazer:</b> série do <b>a</b> → descanso '+m.descanso.entreAeB.join("–")+' s → série do <b>b</b> → descanso '+m.descanso.entrePares.join("–")+' s. Repita até fechar as séries do par e só então vá ao próximo.</p>')+
     (z?'<p class="small"><b>Zona 2:</b> '+z.lo+'–'+z.hi+' bpm (FC máx. ≈ '+z.max+'). '+esc(z.descricao||"")+'</p>':"")+'</div>';
 }
@@ -755,14 +768,73 @@ function checarPausa(){
     saveDraft();box.remove();if(motivo)toast("Anotei. O coach não conta isso como queda.");
   });
 }
+/* Exercícios com série preparatória: cada tipo de série tem sua cor e sua frase. A série de trabalho da vez ganha destaque e um incentivo. */
+const FR_PREP="Preparatória: carga leve, só para preparar as articulações. Não é pra forçar.";
+const FR_DESC=["Descompressão: solta a carga, controla o movimento e respira.","Descompressão: leve e fluida, sem pressa. Sinta o músculo trabalhando."];
+const FR_TRAB=["Agora é pra valer! Quero ver força nessa série.","Preparou? Então agora é pra pôr força!","Chegou a hora: foco, controle e vai com tudo.","Agora quero ver! Carga de verdade e execução limpa.","Segura a técnica e empurra com vontade. É agora!"];
+// A série da vez é a primeira pendente do treino, na ordem dos exercícios. Vale para qualquer método (inclusive treino livre e fullbody).
+function vezGlobal(){
+  const d=S.draft;if(!d)return null;
+  const feita=x=>!!String(x.reps).trim()||!!x.skip;
+  for(let bi=0;bi<d.blocks.length;bi++){const B=d.blocks[bi];if(B.cardio)continue;
+    const si=B.sets.findIndex(x=>!feita(x));if(si>=0)return {bi,si}}
+  return null;
+}
+function fraseSerie(B,s,si,bi){
+  if(!B)return {cls:"",txt:""};
+  const feita=x=>!!String(x.reps).trim()||!!x.skip;
+  if(s.aq)return {cls:" s-prep",txt:feita(s)?"":FR_PREP};
+  if(s.dc)return {cls:" s-desc",txt:feita(s)?"":FR_DESC[si%FR_DESC.length]};
+  const v=vezGlobal(),vez=!!v&&v.bi===bi&&v.si===si&&!B.cardio;
+  return {cls:(B.sets.some(x=>x.aq)?" s-work":"")+(vez?" s-vez":""),txt:vez?FR_TRAB[(bi*5+si*7+B.sets.length)%FR_TRAB.length]:""};
+}
+// Atualiza as cores e frases de todos os cartões sem redesenhar (para não tirar o foco de quem está digitando).
+function pintarTodas(){
+  const d=S.draft;if(!d)return;
+  document.querySelectorAll("#lancar .ex").forEach(card=>{
+    const bi=+card.dataset.b,b=d.blocks[bi];if(!b||b.cardio)return;
+    card.querySelectorAll(".set").forEach(row=>{
+      const si=+row.dataset.s,s=b.sets[si];if(!s)return;const f=fraseSerie(b,s,si,bi);
+      ["s-prep","s-work","s-vez","s-desc"].forEach(c=>row.classList.remove(c));
+      f.cls.trim().split(" ").filter(Boolean).forEach(c=>row.classList.add(c));
+      let el=row.querySelector(".set-frase");
+      if(f.txt){if(!el){el=document.createElement("div");el.className="set-frase";const inf=row.querySelector(".set-info");if(inf)inf.after(el)}el.textContent=f.txt}else if(el)el.remove();
+    });
+  });
+}
+/* Comemoração ao salvar o treino: troféus de execução do que foi proposto. Só aparecem os troféus que fazem sentido para o treino. */
+function festaTreino(d){
+  const bl=d.blocks.filter(b=>!b.cardio&&b.sets.length);if(!bl.length)return;
+  const feita=x=>!!String(x.reps).trim();
+  const todas=bl.flatMap(b=>b.sets),pend=todas.filter(x=>!feita(x)).length;
+  const preps=todas.filter(x=>x.aq),dess=todas.filter(x=>x.dc),trab=todas.filter(x=>!x.aq&&!x.dc);
+  const metaOk=x=>{const m=String(x.meta||"").match(/\d+/),r=parseInt(x.reps);return m&&r>=+m[0]};
+  const exOkN=bl.filter(b=>b.sets.every(feita)).length;
+  const T=[{ic:"🏆",t:"Treino completo",d:pend?"Faltaram "+pend+(pend===1?" série":" séries"):"Você fez tudo o que foi proposto",ok:pend===0}];
+  if(preps.length)T.push({ic:"🔥",t:"Preparou como manda",d:"Todas as séries preparatórias feitas",ok:preps.every(feita)});
+  if(trab.length)T.push({ic:"💪",t:"Força nas séries de trabalho",d:"Todas na meta de repetições",ok:trab.every(x=>feita(x)&&metaOk(x))});
+  if(dess.length)T.push({ic:"🌊",t:"Fechou com descompressão",d:"Descomprimiu depois do pesado",ok:dess.every(feita)});
+  T.push({ic:"🥇",t:"Exercícios completos",d:exOkN+" de "+bl.length+" com todas as séries",ok:exOkN===bl.length});
+  const n=T.filter(x=>x.ok).length;
+  let c="";for(let i=0;i<26;i++)c+='<span class="conf" aria-hidden="true" style="left:'+Math.round(Math.random()*96)+'%;animation-duration:'+(2.6+Math.random()*2.4).toFixed(1)+'s;animation-delay:'+(Math.random()*1.6).toFixed(1)+'s">'+["🎉","⭐","🏆","✨","💪","🥇"][i%6]+'</span>';
+  const el=document.createElement("div");el.className="festa";el.setAttribute("role","dialog");el.setAttribute("aria-label","Treino concluído");
+  el.innerHTML=c+'<div class="caixa"><div class="grande" aria-hidden="true">'+(pend===0?"🏆":"👏")+'</div><h2>'+(pend===0?"Parabéns! Você cumpriu o que foi proposto.":"Treino registrado. Quase tudo feito!")+'</h2><p>'+n+' de '+T.length+' troféus de execução conquistados.</p><ul class="troL">'+T.map(x=>'<li class="'+(x.ok?"":"no")+'"><span class="ic" aria-hidden="true">'+(x.ok?x.ic:"🔒")+'</span><span><b>'+esc(x.t)+'</b><small>'+esc(x.d)+'</small></span></li>').join("")+'</ul><button class="btn primary" id="festa-ok">Ver a avaliação do coach</button></div>';
+  document.body.appendChild(el);$("#festa-ok").onclick=()=>el.remove();
+}
+// Quando a última preparatória é concluída, avisa que a próxima é série de trabalho.
+function avisoPreparatorias(b,s){
+  if(!s||!s.aq)return;const feita=x=>!!String(x.reps).trim();
+  if(b.sets.filter(x=>x.aq).every(feita)&&b.sets.some(x=>!x.aq&&!x.dc))toast("Preparatórias feitas. Agora é série de trabalho: quero ver força!");
+}
 function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
   const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.aq?"Aquecimento "+s.aqn:"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+
+  const fz=fraseSerie(S.draft.blocks[bi],s,si,bi);
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
-      (s.aq?"":'<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>')+
+      (s.aq||s.dc?"":'<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>')+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
     '</div>'+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
@@ -801,7 +873,8 @@ function bindLancar(){
             row.classList.toggle("done",!!inp.value.trim());
             s.okAuto=false;s.ok=!!inp.value.trim();
             const c=row.querySelector('[data-act="check"]');c.classList.toggle("on",s.ok);c.setAttribute("aria-pressed",String(s.ok));
-            if(s.ok)marcarDescanso(bi,si);
+            if(s.ok){marcarDescanso(bi,si);avisoPreparatorias(b,s)}
+            pintarTodas();
             exercicioPronto(card,b);
           }
           if(f==="time")s.time=inp.value||null;
@@ -822,6 +895,7 @@ function bindLancar(){
           if(!s.time){s.time=hhmm(new Date());S.draft.lastTick=Date.now();startRest(bi,si)}
           S.draft.ultSerie=bi+"_"+si;
           document.querySelectorAll("#lancar .tim").forEach(x=>x.remove());
+          avisoPreparatorias(b,s);
         }
         saveDraft();rerenderCard(bi);updateBar();const nc=$('.ex[data-b="'+bi+'"]');if(nc)exercicioPronto(nc,b);
       };
@@ -892,7 +966,7 @@ function swapExercise(b,name){
 }
 /* Cronômetro de descanso do método: depois do (a) 45–60 s, depois do (b) 60–90 s. */
 // Nome da série na frase "depois: …": o aquecimento não conta na numeração das séries válidas.
-const rotSerie=(b,i)=>{const s=b.sets[i];return s&&s.aq?"aquecimento "+s.aqn:"série "+(i+1-b.sets.slice(0,i).filter(x=>x.aq).length)};
+const rotSerie=(b,i)=>{const s=b.sets[i];return s&&s.aq?"preparatória "+s.aqn:s&&s.dc?"descompressão":"série "+(i+1-b.sets.slice(0,i).filter(x=>x.aq).length)};
 function startRest(bi,si){
   const d=S.draft;const m=metodoDoDraft(d);const b=d.blocks[bi];
   if(!m){d.rest=null;return}
@@ -905,6 +979,7 @@ function startRest(bi,si){
     if(b.uni&&b.sets[si]&&b.sets[si].lado==="E"){d.rest=null;return}
     const ba=b.bi&&b.lado==="b"?d.blocks.find(x=>x.bi===b.bi&&x.lado==="a"):null;
     const dsc=(b.sets[si]&&b.sets[si].aq)?30:(+(ba?ba.descanso:b.descanso)||60);
+    // (descompressão usa o descanso normal do exercício)
     const cur=(ba&&pend(ba)>=0)?ba:pend(b)>=0?b:d.blocks.find(x=>!x.cardio&&pend(x)>=0)||d.blocks.find(x=>x.cardio&&pend(x)>=0)||null;
     const ci=pend(cur);
     d.rest={min:dsc,max:dsc,at:Date.now(),buzz:0,prox:cur?(cur.name+(cur.uni?" ("+(cur.sets[ci].lado==="E"?"esquerda":"direita")+")":"")+" · "+(cur.uni?"série "+(Math.floor(ci/2)+1):rotSerie(cur,ci))):"fim do treino"};return;
@@ -925,7 +1000,7 @@ function swapToKey(b,key){
   b.sets.forEach(s=>{if(!String(s.reps).trim())s.meta=Metodos.meta(Metodos.efetiva(f,ex),ex)});
   if(b.origKey===b.exKey)delete b.origKey;
 }
-function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;const t=document.createElement("div");t.innerHTML=exCard(S.draft.blocks[bi],bi);old.replaceWith(t.firstChild);bindLancar()}
+function rerenderCard(bi){const old=$('.ex[data-b="'+bi+'"]');if(!old)return;const t=document.createElement("div");t.innerHTML=exCard(S.draft.blocks[bi],bi);old.replaceWith(t.firstChild);bindLancar();pintarTodas()}
 // Resumo da última vez que a pessoa fez o exercício.
 function ultimaVez(name){
   const rs=lastExact(name).filter(r=>r.done);if(!rs.length)return null;
@@ -1058,7 +1133,7 @@ async function save(){
       const tagC=s.metaC&&b.metaC&&b.metaC.modo==="meta"?"[Meta coach: "+b.metaC.texto+"]":"";
       const obs=[tagM,tagA,tagD,tagC,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
-      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.aq?"Aq"+s.aqn:s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":(s.aq?"Aquecimento":intensityFromRir(s.rir)),s.skip||s.aq||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||"",b.maq||"",b.maq&&b.salto?String(b.salto):""]);
+      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.aq?"Pr"+s.aqn:s.dc?"D"+s.dcn:s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":(s.aq?"Preparatória":s.dc?"Descompressão":intensityFromRir(s.rir)),s.skip||s.aq||s.dc||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||"",b.maq||"",b.maq&&b.salto?String(b.salto):""]);
     });
   });
   if(!rows.length)return;
@@ -1072,6 +1147,7 @@ async function save(){
     const w=(res&&res.written)||rows.length;
     toast(res&&res.duplicate?"Essas séries já estavam salvas na planilha":"Treino salvo: "+w+(w===1?" série":" séries")+" na planilha");
     fogos();S.painelAt=0;
+    try{festaTreino(d)}catch(e){}
     banner("");S.coachSel=d.date+"|"+d.treino;S.coachEsperando=true;setView("coach");window.scrollTo({top:0});
     fetchDados().finally(()=>{S.coachEsperando=false;if(S.view==="coach")renderCoach();pedirParecerIA(S.coachSel)});
   }catch(e){
@@ -2617,7 +2693,7 @@ function metParaTela(m,copia){
     t[k]={nome:tr.nome,ex:(tr.pares||[]).flatMap(p=>p.b?[[p.a,true],[p.b,false]]:[[p.a,false]]).map(([key,bi])=>{
       const e=(m.exercicios||{})[key]||{},seg=e.unidade==="s";
       const r=seg?(e.tempo||(m.fases[0]&&m.fases[0].tempo)||[20,30]):(e.reps||(m.fases[0]&&m.fases[0].reps)||[8,12]);
-      return {nome:e.nome||"",grupo:((m.musculos||{})[e.musculo]||{}).grupo||"",tipo:e.tipo||"",series:e.series||(m.fases[0]&&m.fases[0].series)||3,lo:r[0],hi:r[1],seg,uni:Metodos.ehUnilateral(e),uniManual:e.unilateral!==undefined,bi,pir:(e.pir||[]).join(", "),tec:e.tec||"",aq:e.aq||null,descanso:e.descanso||60}})};
+      return {nome:e.nome||"",grupo:((m.musculos||{})[e.musculo]||{}).grupo||"",tipo:e.tipo||"",series:e.series||(m.fases[0]&&m.fases[0].series)||3,lo:r[0],hi:r[1],seg,uni:Metodos.ehUnilateral(e),uniManual:e.unilateral!==undefined,bi,pir:(e.pir||[]).join(", "),tec:e.tec||"",prep:e.prep||0,dc:e.dc||0,descanso:e.descanso||60}})};
   });
   const inc=(m.progressao&&m.progressao.incremento)||{};
   const dias={};Object.entries(m.dias||{}).forEach(([d,l])=>dias[d]=l);
@@ -2637,7 +2713,7 @@ function metDaTela(E){
     const t=E.treinos[l];if(!t)return;
     const ex=t.ex.filter(e=>String(e.nome).trim());
     if(!ex.length&&!usadas.has(l))return;
-    treinos[l]={nome:t.nome||"Treino "+l,exercicios:ex.map(e=>({nome:String(e.nome).trim(),grupo:e.grupo||(window.Metodos&&Metodos.bibGrupo(e.nome))||guessGroup(e.nome),tipo:e.tipo||tipoDe(e.nome),unidade:e.seg?"s":"",unilateral:!!e.uni,bi:!!e.bi,pir:parsePir(e.pir),tec:String(e.tec||"").trim(),aq:e.aq||undefined,series:+e.series||3,reps:[+e.lo||8,+e.hi||+e.lo||12],descanso:+e.descanso||60}))};
+    treinos[l]={nome:t.nome||"Treino "+l,exercicios:ex.map(e=>({nome:String(e.nome).trim(),grupo:e.grupo||(window.Metodos&&Metodos.bibGrupo(e.nome))||guessGroup(e.nome),tipo:e.tipo||tipoDe(e.nome),unidade:e.seg?"s":"",unilateral:!!e.uni,bi:!!e.bi,pir:parsePir(e.pir),tec:String(e.tec||"").trim(),prep:e.prep||undefined,dc:e.dc||undefined,series:+e.series||3,reps:[+e.lo||8,+e.hi||+e.lo||12],descanso:+e.descanso||60}))};
   });
   return {id:E.id,nome:E.nome,publico:E.publico,objetivo:E.objetivo,descricao:E.descricao,dias:E.dias,diaLivre:E.diaLivre,treinos,
     aquecimento:String(E.aquec||"").split("\n").map(x=>x.trim()).filter(Boolean),intro:E.intro||"",
@@ -2836,7 +2912,7 @@ function abrirConferencia(m,al,onLigar){
       const ex=Metodos.exercicio(m,p[l]);if(!ex)return;
       const fx=Metodos.efetiva(f,ex);const n=m.livre?(ex.pir?ex.pir.length:fx.series):Metodos.seriesDoPar(f,pi+1);
       const uni=m.livre&&Metodos.ehUnilateral(ex),bi=m.livre&&p.b;
-      linhas.push({nome:ex.nome,q:ex.pir?ex.pir.join(" · ")+" reps":n+" × "+Metodos.meta(fx,ex)+(uni?" por lado":""),sub:m.livre?((((m.musculos||{})[ex.musculo])||{}).grupo||"")+(ex.descanso?" · descanso "+ex.descanso+" s":"")+(bi?(l==="a"?" · bi-set com o próximo":" · bi-set"):"")+(uni?" · esquerda e depois direita":"")+(ex.pir?" · pirâmide crescente":"")+(ex.tec?" · "+ex.tec:"")+((ex.aq||[]).length?" · aquecimento: "+ex.aq.map(a=>a.reps+" reps a "+a.pct+"%").join(" e ")+" (não conta no volume)":""):"Par "+(pi+1)+(l==="a"?" (a)":" (b)")});
+      linhas.push({nome:ex.nome,q:ex.pir?ex.pir.join(" · ")+" reps":n+" × "+Metodos.meta(fx,ex)+(uni?" por lado":""),sub:m.livre?((((m.musculos||{})[ex.musculo])||{}).grupo||"")+(ex.descanso?" · descanso "+ex.descanso+" s":"")+(bi?(l==="a"?" · bi-set com o próximo":" · bi-set"):"")+(uni?" · esquerda e depois direita":"")+(ex.pir?" · pirâmide crescente":"")+(ex.tec?" · "+ex.tec:"")+(ex.prep?" · "+ex.prep+" preparatórias":"")+(ex.dc?" · "+ex.dc+" descompressão":""):"Par "+(pi+1)+(l==="a"?" (a)":" (b)")});
     }));
     const semTxt=DIAS_SEM.map(([d,n])=>'<div class="'+(m.dias[d]===letra?"h":"")+'">'+n+'<br>'+(m.dias[d]||"—")+'</div>').join("");
     const cardio=(f.cardio&&(f.cardio.padrao||""))||"";
@@ -3052,6 +3128,37 @@ function introParaHtml(txt){
   });
   return out.map(x=>Array.isArray(x)?'<ul class="ciclo-ul">'+x.map(i=>"<li>"+i+"</li>").join("")+"</ul>":"<p>"+x+"</p>").join("");
 }
+/* Meta da semana e medalha do mês: a semana fica dourada quando a pessoa cumpre a meta de treinos (dias por semana do cadastro).
+   Cada semana dourada vale 1/4 da medalha do mês. A semana pertence ao mês da sua quinta-feira. */
+function metaDeTreinos(){const m=String((S.aluno&&S.aluno.dias)||"").match(/[1-7]/);return m?+m[0]:0}
+function segundaDe(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w);return x}
+function treinosNaSemana(seg){
+  const fim=new Date(seg.getFullYear(),seg.getMonth(),seg.getDate()+7);const dias=new Set();
+  S.rows.forEach(r=>{if(r.done&&!r.aq&&r.date>=seg&&r.date<fim)dias.add(r.dateS)});return dias.size;
+}
+function medalhaSvg(n){
+  const q=["M0 0 L0 -44 A44 44 0 0 1 44 0 Z","M0 0 L44 0 A44 44 0 0 1 0 44 Z","M0 0 L0 44 A44 44 0 0 1 -44 0 Z","M0 0 L-44 0 A44 44 0 0 1 0 -44 Z"];
+  return '<svg width="72" height="72" viewBox="-50 -50 100 100" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c58f0d"/></linearGradient></defs>'+
+    q.map((d,i)=>'<path d="'+d+'" fill="'+(i<n?"url(#mg)":"#2a2d35")+'" stroke="#0b0c0f" stroke-width="1.5"/>').join("")+
+    '<circle r="44" fill="none" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="3"/><circle r="17" fill="#15171b" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="2"/><text y="7" text-anchor="middle" font-size="20">🏋️</text></svg>';
+}
+function semanaCartaoHtml(){
+  if(S.role!=="aluno"||!S.loaded)return "";
+  const meta=metaDeTreinos();if(!meta||!S.rows.some(r=>r.done))return "";
+  const hoje=new Date(),seg=segundaDe(hoje),feitos=treinosNaSemana(seg),ouro=feitos>=meta;
+  // semanas do mês atual (pela quinta-feira de cada semana) que bateram a meta
+  const mes=hoje.getMonth(),ano=hoje.getFullYear();let douradas=0,total=0;
+  for(let s=segundaDe(new Date(ano,mes,1));s<=new Date(ano,mes+1,0);s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
+    const qui=new Date(s.getFullYear(),s.getMonth(),s.getDate()+3);if(qui.getMonth()!==mes)continue;
+    total++;if(treinosNaSemana(s)>=meta)douradas++;
+  }
+  const pecas=Math.min(4,douradas);
+  const nomeMes=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][mes];
+  const bolas=Array.from({length:Math.max(meta,feitos)},(_,i)=>'<i class="'+(i<feitos?"on":"")+'"></i>').join("");
+  return '<div class="semana-card'+(ouro?" ouro":"")+'" role="region" aria-label="Meta da semana"><div class="sc-t"><b>'+(ouro?"🏆 Semana dourada!":"Meta da semana")+'</b><span>'+feitos+' de '+meta+(meta===1?" treino":" treinos")+'</span></div><div class="sc-b">'+bolas+'</div>'+
+    '<p class="sc-p">'+(ouro?"Você cumpriu a meta desta semana. Parabéns!":(meta-feitos===1?"Falta 1 treino para a sua semana ficar dourada.":"Faltam "+(meta-feitos)+" treinos para a sua semana ficar dourada."))+'</p>'+
+    '<div class="sc-m">'+medalhaSvg(pecas)+'<div><b>Medalha de '+nomeMes+'</b><span>'+pecas+' de 4 semanas douradas'+(pecas===4?" · completa!":"")+'</span></div></div></div>';
+}
 function cicloCartaoHtml(){
   if(S.role!=="aluno")return "";
   const mt=metodoAluno();if(!mt||!mt.m.intro||store(cicloKey()))return "";
@@ -3078,7 +3185,7 @@ function renderInicio(){
     });
     return;
   }
-  $("#inicio-tela").innerHTML='<div class="home-wrap">'+recadoBannerHtml()+cicloCartaoHtml()+'<div class="home-grid">'+
+  $("#inicio-tela").innerHTML='<div class="home-wrap">'+recadoBannerHtml()+cicloCartaoHtml()+semanaCartaoHtml()+'<div class="home-grid">'+
     '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
     tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+
     tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div>'+planoAlunoTile()+'</div>';

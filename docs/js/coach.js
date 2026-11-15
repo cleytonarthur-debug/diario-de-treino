@@ -365,7 +365,12 @@ function treino(rows,key){
   const ctxTempo=contexto(rows,ses);out.contexto=ctxTempo;
   const volSem=ctxTempo.semana.avaliacaoVolume;const segue=[],primeiros=[];
   // os 3 primeiros treinos da pessoa têm texto próprio, mais animado
-  const nSes=todas.filter(s=>s.rows.some(r=>r.done)).indexOf(ses)+1;const inicial=nSes>=1&&nSes<=3;
+  const sesFeitas=todas.filter(s=>s.rows.some(r=>r.done));
+  const nSes=sesFeitas.indexOf(ses)+1;
+  // Os 3 primeiros treinos de cada ciclo novo de método também recebem o parecer motivacional de início.
+  const nCiclo=CICLO&&ses.date>=CICLO?sesFeitas.filter(s=>s.date>=CICLO).indexOf(ses)+1:0;
+  const doCiclo=nCiclo>=1&&nCiclo<=3&&!(nSes>=1&&nSes<=3);
+  const inicial=(nSes>=1&&nSes<=3)||doCiclo;const nIni=doCiclo?nCiclo:nSes;
   const inicioSem=new Date(ses.date.getFullYear(),ses.date.getMonth(),ses.date.getDate()-6);
   const sessoesSem=todas.filter(s=>s!==ses&&s.date>=inicioSem&&s.date<=ses.date);
   const outraAcad=acadDif(todas,ses);const comsCedo=comentariosDe(ses.rows);const maquinas=[];
@@ -492,14 +497,14 @@ function treino(rows,key){
   }
   out.numeroTreino=nSes;out.metasQ=metasLongo(todas,ses,ctxTempo,inicial);out.metasLongo=out.metasQ.map(m=>m.txt);out.nexoTreino=nexoDoTreino(todas,ses);
   if(inicial){
-    const ordem=["primeiro","segundo","terceiro"][nSes-1];
+    const ordem=["primeiro","segundo","terceiro"][nIni-1]+(doCiclo?" do novo ciclo":"");
     const doModelo=MODELOS&&MODELOS.get&&MODELOS.get(ses.treino)?MODELOS.get(ses.treino).reduce((a,it)=>a+(+it.series||0),0):0;
     const pedidas=Math.max(feitas.length+naoFeitas.length,doModelo);const pctF=pedidas?Math.min(100,Math.round(feitas.length/pedidas*100)):100;
-    out.inicial={numero:nSes,seriesFeitas:feitas.length,seriesPedidas:pedidas,pctEntregue:pctF};
-    out.titulo=nSes===1?"Primeiro treino feito, parabéns!":nSes===2?"Segundo treino feito, é assim!":"Terceiro treino, já pegando o ritmo!";
+    out.inicial={numero:nIni,doCiclo,seriesFeitas:feitas.length,seriesPedidas:pedidas,pctEntregue:pctF};
+    out.titulo=(doCiclo?["Primeiro treino do ciclo, parabéns!","Segundo treino do ciclo, é assim!","Terceiro do ciclo, já no ritmo!"]:["Primeiro treino feito, parabéns!","Segundo treino feito, é assim!","Terceiro treino, já pegando o ritmo!"])[nIni-1];
     out.frase="foi o seu "+ordem+" treino e você entregou "+pctF+"% do que foi pedido";
     out.texto=motivo+"Esse foi o seu "+ordem+" treino e você conseguiu "+feitas.length+(feitas.length===1?" série":" séries")+". "+(pctF>=60?"Parabéns, entregou "+pctF+"% do que foi pedido.":"Você entregou "+pctF+"% do que foi pedido, e no começo isso é normal.")+
-      (nSes===1?" Esse início é para você se acostumar com a minha metodologia, mas estou vendo que vamos longe. Nos próximos treinos, teremos parâmetros legais para trabalhar.":nSes===2?" Já estou começando a conhecer o seu ritmo. Continue assim, porque vamos longe.":" Agora já temos uma boa base. A partir daqui, começo a acompanhar a sua evolução de perto.");
+      (nIni===1?" Esse início é para você se acostumar com a minha metodologia, mas estou vendo que vamos longe. Nos próximos treinos, teremos parâmetros legais para trabalhar.":nIni===2?" Já estou começando a conhecer o seu ritmo. Continue assim, porque vamos longe.":" Agora já temos uma boa base. A partir daqui, começo a acompanhar a sua evolução de perto.");
     out.fecho="";out.academiaDica="";
     out.bem=primeiros.sort((a,b)=>b.e1-a.e1).slice(0,4).map((x,i)=>"<b>"+esc(x.nome)+":</b> primeiro recorde"+(x.carga?", "+esc(x.carga):"")+". Boa carga."+(i===0?" No próximo treino, tente manter, porque aumentar agora não é a ideia.":"")).concat(out.bem);
   }
@@ -750,7 +755,10 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-const API={projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+// Início do ciclo do método do aluno (data), para o parecer motivacional dos 3 primeiros treinos do ciclo.
+let CICLO=null;
+function setCiclo(d){CICLO=d instanceof Date&&!isNaN(d)?d:null}
+const API={setCiclo,projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
 // Séries de aquecimento (r.aq) nunca entram em volume, força, séries, recordes ou comparações: saem de toda análise.
 Object.keys(API).forEach(k=>{const f=API[k];if(typeof f!=="function")return;
   API[k]=function(rows){const a=arguments;if(Array.isArray(rows)&&rows.length&&rows.some(r=>r&&r.aq)){const c=Array.prototype.slice.call(a);c[0]=rows.filter(r=>!r.aq);return f.apply(this,c)}return f.apply(this,a)}});

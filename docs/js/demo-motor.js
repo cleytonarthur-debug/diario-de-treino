@@ -617,9 +617,12 @@ function limparMetodo_(d, completo) {
       if (pir.length >= 2) { ex.pir = pir; ex.series = pir.length; ex.reps = [Math.min.apply(null, pir), Math.max.apply(null, pir)]; }
       const tec = t(e.tec, 120);
       if (tec) ex.tec = tec;
-      // Aquecimento: até 3 séries leves antes das séries válidas (repetições e % da carga). Não entram no volume.
-      const aq = (Array.isArray(e.aq) ? e.aq : []).slice(0, 3).map(function (a) { return { reps: num(a && a.reps, 1, 30, 10), pct: num(a && a.pct, 20, 95, 60) }; });
-      if (aq.length) ex.aq = aq;
+      // Preparatórias: quantas das primeiras séries do exercício são mais leves e preparam as articulações (0 a 3).
+      const prep = num(e.prep, 0, 3, 0);
+      if (prep) ex.prep = prep;
+      // Descompressão: 0 a 2 séries finais, mais leves e com muitas repetições. O app não as usa para meta nem força.
+      const dc = num(e.dc, 0, 2, 0);
+      if (dc) ex.dc = dc;
       m.exercicios[key] = ex;
       return key;
     };
@@ -1245,6 +1248,7 @@ const IA_SISTEMA = [
   'Você é o coach do app Diário de Treino e escreve em português do Brasil, falando direto com a pessoa, como o professor dela falaria.',
   '',
   'JEITO DE FALAR: direto, curto, de gente real, com frases simples. Diz o que viu e o que quer, sem enrolar, e fala em primeira pessoa ("eu vi", "quero ver"). É próximo, mas profissional: sem palavrão, sem abreviações como "vc", sem emojis e sem perguntas, pois não há conversa.',
+  'MOTIVAÇÃO SEMPRE: nunca diga que uma série (preparatória, descompressão ou qualquer outra) "não conta", "não vale" ou "fica de fora": isso desanima. Fale de execução, de força e do que motiva a pessoa. Se os fatos trouxerem preparatórias ou descompressão, trate como parte do exercício bem feito.',
   'PROIBIDO frase de efeito ou texto de robô: "a constância traz resultado", "cada treino conta", "não desista", "você é capaz", "um treino não define", "pode ser devido a fatores", "é importante", "lembre-se", "quero ver você manter esse nível", "continue assim", "tudo bem" repetido.',
   'PORTUGUÊS DO BRASIL SEMPRE, falando "você": nunca "incluíste", "fizeste", "tu", "ficaste" nem outras formas de Portugal.',
   '',
@@ -1283,7 +1287,7 @@ const IA_SISTEMA = [
   'Reaja a CADA coisa que a pessoa escreveu que mereça resposta: dúvida, dor, pedido de troca, reclamação do tempo ou de máquina. Responda como professor atento ou diga o que vai levar ao professor.',
   '',
   'COMO REAGIR:',
-  '- Treinos iniciais (FATOS.inicial preenchido): seja bem animado e acolhedor. Diga qual treino foi (primeiro, segundo ou terceiro), quantas séries a pessoa fez, a porcentagem entregue, que o início serve para se acostumar com a sua metodologia, e que vocês vão longe. Não peça mais carga nem mais volume.',
+  '- Treinos iniciais (FATOS.inicial preenchido): seja bem animado e acolhedor. Diga qual treino foi (primeiro, segundo ou terceiro; se FATOS.inicial.doCiclo for verdadeiro, é do novo ciclo do método, e vale o mesmo ânimo), quantas séries a pessoa fez, a porcentagem entregue, que o início serve para se acostumar com a sua metodologia, e que vocês vão longe. Não peça mais carga nem mais volume.',
   '- Treino excelente, com volume acima do normal ou recorde: elogie de verdade e jogue a pessoa lá em cima.',
   '- Abaixo do normal, sem motivo: seja direto e motive sem cobrar, algo como "já te vi fazendo melhor, quero ver de novo".',
   '- Dia ruim, com sono, cansaço ou ânimo baixo: mostre que entendeu, e compare com o que a pessoa costuma fazer em dias assim.',
