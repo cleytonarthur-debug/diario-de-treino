@@ -326,3 +326,8 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## Cartão da semana mais compacto (15/11/2026, v2.40.2)
 - O cartão da semana dourada ocupava metade da tela inicial. Agora é uma faixa de uma linha de título: medalha pequena à esquerda, "Esta semana X/N treinos" (ou "🏆 Semana dourada"), bolinhas da meta, legenda curta ("Faltam 2 treinos · Medalha de Novembro: 2/4") e uma seta que abre o calendário. Treinos além da meta aparecem como "+N". Altura de ~245 px para ~77 px.
+
+## Uma cor para cada semana completa (15/11/2026, v2.40.3)
+- Pedido: as semanas do mês não podem ser todas douradas. Agora cada semana completa tem a sua cor, na ordem em que foi completada no mês: 1ª verde, 2ª azul, 3ª roxa, 4ª laranja (5ª rosa, se o mês tiver cinco). Vale no cartão da tela inicial (cor da semana atual), no calendário (linha da semana colorida, dias treinados em branco) e na medalha (cada quarto com a cor da sua semana).
+- O dourado ficou só para o mês fechado: com as 4 semanas completas o anel da medalha vira dourado e aparece 🏅. Os textos trocaram "semana dourada" por "semana completa".
+- Funções novas: `semanasCompletasDoMes`, `CORES_SEM`; `medalhaSvg` recebe a lista de cores.

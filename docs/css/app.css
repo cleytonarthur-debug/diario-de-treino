@@ -565,9 +565,15 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .cal-g .vz{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-3)}
 .cal-g button.on{appearance:none;border:0;background:var(--action);color:var(--action-ink);font-weight:700;cursor:pointer}
 .cal-g .bl{background:transparent}
-.cal-g .ouro{background:linear-gradient(135deg,#c58f0d,#ffe08a);color:#3b2a00;border:1px solid #f5c542}
-.cal-g button.on.ouro{background:#fff3c4;color:#6b4a06;font-weight:800;border:1px solid #c58f0d}
-.cal-g .bl.ouro{border-width:1px 0}
+/* semanas completas: uma cor por semana, na ordem em que foram completadas no mês */
+.cal-g .s1{background:linear-gradient(135deg,#86efac,#22c55e);border:1px solid #16a34a}
+.cal-g .s2{background:linear-gradient(135deg,#93c5fd,#3b82f6);border:1px solid #2563eb}
+.cal-g .s3{background:linear-gradient(135deg,#d8b4fe,#a855f7);border:1px solid #9333ea}
+.cal-g .s4{background:linear-gradient(135deg,#fdba74,#f97316);border:1px solid #ea580c}
+.cal-g .s5{background:linear-gradient(135deg,#f9a8d4,#ec4899);border:1px solid #db2777}
+.cal-g .s1,.cal-g .s2,.cal-g .s3,.cal-g .s4,.cal-g .s5{color:#0b0c0f}
+.cal-g button.on.s1,.cal-g button.on.s2,.cal-g button.on.s3,.cal-g button.on.s4,.cal-g button.on.s5{background:#fff;color:#0b0c0f;font-weight:800}
+.cal-g .bl.s1,.cal-g .bl.s2,.cal-g .bl.s3,.cal-g .bl.s4,.cal-g .bl.s5{border-width:1px 0}
 .semana-card[data-ir]{cursor:pointer}
 
 /* ---- auxiliar do coach ---- */
@@ -656,9 +662,10 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .semana-card .sc-b em{font-style:normal;font-size:12px;color:var(--ink-2);font-weight:700}
 .semana-card .sc-p{margin:0;color:var(--ink-2);font-size:12px;line-height:1.25}
 .semana-card .sc-go{flex:none;font-size:22px;color:var(--ink-3)}
-.semana-card.ouro{background:linear-gradient(135deg,#6b4a06 0%,#d9a516 45%,#ffe08a 60%,#c58f0d 100%);border-color:#f5c542;box-shadow:0 0 12px rgba(245,197,66,.35);color:#3b2a00}
-.semana-card.ouro .sc-t span,.semana-card.ouro .sc-p,.semana-card.ouro .sc-b em,.semana-card.ouro .sc-go{color:#4a3500}
-.semana-card.ouro .sc-b i{border-color:#6b4a06}.semana-card.ouro .sc-b i.on{background:#fff3c4;border-color:#6b4a06}
+/* semana completa: usa a cor da semana (--c1 e --c2 vêm do app) */
+.semana-card.ouro{background:linear-gradient(135deg,var(--c1,#ffe08a),var(--c2,#c58f0d));border-color:var(--c2,#c58f0d);color:#0b0c0f}
+.semana-card.ouro .sc-t span,.semana-card.ouro .sc-p,.semana-card.ouro .sc-b em,.semana-card.ouro .sc-go{color:#14171c}
+.semana-card.ouro .sc-b i{border-color:#14171c}.semana-card.ouro .sc-b i.on{background:#fff;border-color:#14171c}
 .festa{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:60;display:grid;place-items:center;padding:16px;overflow:hidden}
 .festa .caixa{background:var(--surface);color:var(--ink);border-radius:18px;padding:20px;max-width:440px;width:100%;max-height:90vh;overflow:auto;text-align:center;position:relative;z-index:2}
 .festa .grande{font-size:64px;line-height:1;animation:festa-pop .7s ease-out}
