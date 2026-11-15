@@ -750,5 +750,9 @@ function saida(ini,fim){
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
-return {projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+const API={projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+// Séries de aquecimento (r.aq) nunca entram em volume, força, séries, recordes ou comparações: saem de toda análise.
+Object.keys(API).forEach(k=>{const f=API[k];if(typeof f!=="function")return;
+  API[k]=function(rows){const a=arguments;if(Array.isArray(rows)&&rows.length&&rows.some(r=>r&&r.aq)){const c=Array.prototype.slice.call(a);c[0]=rows.filter(r=>!r.aq);return f.apply(this,c)}return f.apply(this,a)}});
+return API;
 })();

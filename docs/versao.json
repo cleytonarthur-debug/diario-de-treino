@@ -1,7 +1,8 @@
 {
-  "versao": "2.38.2",
-  "data": "12/11/2026",
+  "versao": "2.39.0",
+  "data": "15/11/2026",
   "notas": [
-    "Na tela Treinar, o treino da vez vem no topo da lista"
+    "Séries de aquecimento fora do volume nos compostos pesados",
+    "Cartão de boas-vindas do ciclo para o aluno"
   ]
 }

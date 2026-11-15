@@ -593,6 +593,8 @@ function limparMetodo_(d, completo) {
   m.diasTexto = [1, 2, 3, 4, 5, 6, 0].filter(function (k) { return m.dias[String(k)]; }).map(function (k) { return DIAS_NOME_[k] + ' = ' + m.dias[String(k)]; }).join(' · ');
   m.diaLivre = t(d.diaLivre, 120) || 'Dia livre: descanso ou caminhada leve.';
   m.aquecimento = (Array.isArray(d.aquecimento) ? d.aquecimento : []).slice(0, 6).map(function (x) { return t(x, 100); }).filter(Boolean);
+  // Texto de boas-vindas do ciclo: aparece como cartão na tela inicial do aluno que usa o método (mantém as quebras de linha).
+  m.intro = String(d.intro == null ? '' : d.intro).replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ').trim().slice(0, 1800);
   m.exercicios = {}; m.treinos = {}; m.musculos = {};
   let cont = 0;
   const tr = d.treinos || {};
@@ -615,6 +617,9 @@ function limparMetodo_(d, completo) {
       if (pir.length >= 2) { ex.pir = pir; ex.series = pir.length; ex.reps = [Math.min.apply(null, pir), Math.max.apply(null, pir)]; }
       const tec = t(e.tec, 120);
       if (tec) ex.tec = tec;
+      // Aquecimento: até 3 séries leves antes das séries válidas (repetições e % da carga). Não entram no volume.
+      const aq = (Array.isArray(e.aq) ? e.aq : []).slice(0, 3).map(function (a) { return { reps: num(a && a.reps, 1, 30, 10), pct: num(a && a.pct, 20, 95, 60) }; });
+      if (aq.length) ex.aq = aq;
       m.exercicios[key] = ex;
       return key;
     };

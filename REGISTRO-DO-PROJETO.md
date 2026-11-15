@@ -297,3 +297,12 @@ Este é o jeito da Avaliação do Coach e vale para o professor e todos os aluno
 
 ## Treinar: o treino da vez vem no topo (12/11/2026, v2.38.2)
 - Na tela **Treinar → Qual treino hoje?**, a sugestão ("o da rotação parado há mais tempo") agora vem sempre em primeiro lugar. Os demais seguem na ordem de antes. Só o app mudou, sem mexer no programa central.
+
+## Aquecimento fora do volume e boas-vindas do ciclo (15/11/2026, v2.39.0)
+- **Série de aquecimento** (campo `aq` do exercício: lista de `{reps, pct}`, até 3): os compostos pesados dos 3 dias de inferiores dos 5 métodos do professor levam 2 séries leves antes das válidas no exercício de abertura (12 reps a 50% e 6 a 75% da carga de trabalho) e 1 série (8 reps a 60%) nos outros compostos pesados do dia (Leg press 45°/horizontal, elevação pélvica, hack, stiff no Smith, agachamento no Smith). Isolados e superiores não têm aquecimento.
+- **Como é gravado:** coluna Série = `Aq1`, `Aq2`; coluna Intensidade = `Aquecimento`; sem "sobrou". No app a série aparece como "Aquecimento 1", com a carga sugerida pela última série de trabalho (`aquecPeso`), descanso de 30 s e sem o campo "Sobrou".
+- **Fica fora de tudo:** ao ler a planilha, linhas com Intensidade `Aquecimento` ganham `aq:true`, volume e força zero e saem de `sessions()`, de `lastFor`/`rowsDoEx` e de toda a análise do coach (`Coach.*` filtra `r.aq` na entrada). O contador de "séries feitas" também não conta aquecimento. Testado: o volume do treino não muda com as séries de aquecimento.
+- **Boas-vindas do ciclo** (campo `intro` do método, até 1800 caracteres): cartão na tela inicial do aluno que usa o método, com negrito e lista, até ele tocar em "Entendi, vamos lá" (guardado no aparelho por aluno e método). O texto dos 5 métodos é o pedido pelo professor.
+- **Pirâmide descendente** na panturrilha sentado de quarta do Glute Machine Overload (8, 10, 12, 15 repetições, carga caindo), como no pedido.
+- **Alunos vigentes:** a definição do método é lida da aba Meus métodos a cada abertura; Suelen usa o Glute Machine Overload (início 09/11) e já recebe as mudanças sem migrar dados. Sthefany usa o Método Par, que não é um dos 5. Os históricos antigos não mudam.
+- **Planilha atualizada** (aba Meus métodos, coluna Definição) com conferência de tamanho: 6605, 6423, 6396, 6381 e 6423 caracteres. Programa central: `limparMetodo_` aceita `aq` e `intro`; o editor do app preserva os dois.
