@@ -316,3 +316,10 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - **IA:** os 3 primeiros treinos de cada ciclo novo de método também recebem o parecer motivacional de início (`Coach.setCiclo`, início vem de `metodoInicio`); o prompt proíbe dizer que série "não conta".
 - **Planilha dos métodos** (aba Meus métodos): definições regravadas com `prep`/`dc` e o texto de boas-vindas novo (sem "aquecimento"); tamanhos conferidos: 6458, 6276, 6249, 6207 e 6276. `limparMetodo_` aceita `prep` (0 a 3) e `dc` (0 a 2) e o editor do app preserva os dois.
 - Interativos privados usados para validar: simulador dos métodos (volume por músculo alvo e auxiliar) e treino de teste da aluna.
+
+## Calendário dourado também para o professor e para o aluno (15/11/2026, v2.40.1)
+- **Problema:** o cartão da semana dourada só aparecia na tela inicial de aluno, e o calendário não mostrava as semanas douradas nem a medalha.
+- **Calendário** (`renderAlunoCal`): agora começa na segunda; a linha da semana fica dourada quando a meta foi cumprida (os dias treinados ficam em dourado claro) e abaixo aparece a medalha do mês com 1/4 por semana dourada. A semana pertence ao mês da sua quinta-feira, e só essas linhas ficam douradas, para a conta bater com a medalha. A lista de treinos vem do que já está carregado da própria pessoa (`sessoesCal`).
+- **Aluno** passa a abrir o calendário (toque no cartão da semana na tela inicial). **Professor** vê o cartão da semana e a medalha da própria conta na tela inicial e no calendário dele.
+- **Meta:** "dias por semana" do cadastro; sem esse dado, vale 4 (caso do professor, cujo cadastro está vazio).
+- Corrigido: a medalha usava um id de gradiente repetido e podia aparecer vazia (`medalhaSvg` agora gera ids únicos).

@@ -564,6 +564,11 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .cal-g .hd{font-weight:600;color:var(--ink-3);height:20px}
 .cal-g .vz{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-3)}
 .cal-g button.on{appearance:none;border:0;background:var(--action);color:var(--action-ink);font-weight:700;cursor:pointer}
+.cal-g .bl{background:transparent}
+.cal-g .ouro{background:linear-gradient(135deg,#c58f0d,#ffe08a);color:#3b2a00;border:1px solid #f5c542}
+.cal-g button.on.ouro{background:#fff3c4;color:#6b4a06;font-weight:800;border:1px solid #c58f0d}
+.cal-g .bl.ouro{border-width:1px 0}
+.semana-card[data-ir]{cursor:pointer}
 
 /* ---- auxiliar do coach ---- */
 .aux-tile{margin:9px 0 0}

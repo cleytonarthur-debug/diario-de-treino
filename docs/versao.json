@@ -1,9 +1,8 @@
 {
-  "versao": "2.40.0",
+  "versao": "2.40.1",
   "data": "15/11/2026",
   "notas": [
-    "Preparatórias e descompressão nos métodos, com destaque e frases de incentivo em todo treino",
-    "Troféus de execução ao concluir o treino e semana dourada com medalha do mês",
-    "Coach motivacional nos 3 primeiros treinos de cada ciclo"
+    "Calendário com semanas douradas e medalha do mês, também na conta do professor",
+    "O aluno agora abre o calendário pelo cartão da semana"
   ]
 }

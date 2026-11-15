@@ -2471,21 +2471,42 @@ function irAluno(ir){
   if(ir==="comparar"){const m=masterId();S.comp=Object.assign(S.comp||{met:"forca",dias:90,modo:"grafico"},{ids:[S.alunoId].concat(m&&m!==S.alunoId?[m]:[])});S.alunosAba="comparar";S.calDia=null;S.ctxAluno=false;abrir("alunos");return}
   abrir(ir);
 }
+// Treinos da pessoa para o calendário: do que já está carregado (a própria pessoa) ou do resumo do painel (outros alunos).
+function sessoesCal(a){
+  if(S.alunoId===a.id&&S.loaded&&S.rows.length)return sessions().map(s=>({date:s.date,dateS:s.dateS,treino:s.treino,series:s.rows.filter(x=>x.done).length,vol:s.rows.reduce((t,x)=>t+(x.vol||0),0)}));
+  const r=resumoDe(a.id);return r?r.s:null;
+}
+function semDiasR(sess,seg){const fim=new Date(seg.getFullYear(),seg.getMonth(),seg.getDate()+7);return new Set(sess.filter(s=>s.date>=seg&&s.date<fim).map(s=>s.dateS)).size}
+function douradasDoMes(sess,meta,ano,mes){
+  let ouro=0;
+  for(let s=segundaDe(new Date(ano,mes,1));s<=new Date(ano,mes+1,0);s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
+    const qui=new Date(s.getFullYear(),s.getMonth(),s.getDate()+3);if(qui.getMonth()!==mes)continue;if(semDiasR(sess,s)>=meta)ouro++;
+  }
+  return ouro;
+}
 function renderAlunoCal(){
   const el=$("#alcal-c")||$("#v-alcal");const a=S.aluno;if(!a){el.innerHTML="";return}
-  const r=resumoDe(a.id);const h=diaZero();const ult=ultimoTreino(r);const base=ult?ult.date:h;const m=S.alMes||new Date(base.getFullYear(),base.getMonth(),1);
+  const lista=sessoesCal(a);const h=diaZero();const ult=lista&&lista.length?lista[lista.length-1]:null;const base=ult?ult.date:h;const m=S.alMes||new Date(base.getFullYear(),base.getMonth(),1);
   const fim=new Date(m.getFullYear(),m.getMonth()+1,0),n=fim.getDate();
-  const doMes=r?r.s.filter(s=>s.date>=m&&s.date<=fim):[];const set=new Map(doMes.map(s=>[s.date.getDate(),s]));
-  let g=["D","S","T","Q","Q","S","S"].map(d=>'<span class="hd">'+d+'</span>').join("");
-  for(let i=0;i<m.getDay();i++)g+="<span></span>";
-  for(let d=1;d<=n;d++)g+=set.has(d)?'<button class="on" data-d="'+d+'">'+d+'</button>':'<span class="vz">'+d+'</span>';
+  const doMes=lista?lista.filter(s=>s.date>=m&&s.date<=fim):[];const set=new Map(doMes.map(s=>[s.date.getDate(),s]));
+  // Semana de segunda a domingo. A semana vira dourada quando a pessoa cumpre a meta de treinos (dias por semana; sem cadastro, 4).
+  const meta=metaDeTreinos()||4,off=(m.getDay()+6)%7,nw=Math.ceil((off+n)/7),ouro=[];
+  // A semana pertence ao mês da sua quinta-feira; só essas semanas ficam douradas aqui, para a conta bater com a medalha.
+  for(let w=0;w<nw;w++){const seg=new Date(m.getFullYear(),m.getMonth(),1-off+w*7),qui=new Date(seg.getFullYear(),seg.getMonth(),seg.getDate()+3);
+    ouro[w]=!!lista&&qui.getMonth()===m.getMonth()&&semDiasR(lista,seg)>=meta}
+  let g=["S","T","Q","Q","S","S","D"].map(d=>'<span class="hd">'+d+'</span>').join("");
+  for(let i=0;i<off;i++)g+='<span class="bl'+(ouro[0]?" ouro":"")+'"></span>';
+  for(let d=1;d<=n;d++){const oc=ouro[Math.floor((off+d-1)/7)]?" ouro":"";g+=set.has(d)?'<button class="on'+oc+'" data-d="'+d+'">'+d+'</button>':'<span class="vz'+oc+'">'+d+'</span>'}
+  for(let i=0;i<nw*7-off-n;i++)g+='<span class="bl'+(ouro[nw-1]?" ouro":"")+'"></span>';
+  const pecas=lista?Math.min(4,douradasDoMes(lista,meta,m.getFullYear(),m.getMonth())):0;
+  const medalhaCard='<div class="card sc-m" style="display:flex;gap:12px;align-items:center;margin-top:10px">'+medalhaSvg(pecas)+'<div><b>Medalha de '+m.toLocaleDateString("pt-BR",{month:"long"})+'</b><br><span class="muted small">'+pecas+' de 4 semanas douradas'+(pecas===4?" · completa!":"")+' · meta de '+meta+(meta===1?" treino":" treinos")+' por semana</span></div></div>';
   let gap=0,ant=null;doMes.forEach(s=>{if(ant)gap=Math.max(gap,diasEntre(ant,s.date));ant=s.date});
   const corridos=Math.max(1,m.getMonth()===h.getMonth()&&m.getFullYear()===h.getFullYear()?h.getDate():n);
   const sel=S.alDia&&set.get(S.alDia)||doMes[doMes.length-1];
   const nome=m.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
-  el.innerHTML='<div class="card"><div class="cal-h"><button class="btn ghost" id="cm-a" aria-label="Mês anterior">‹</button><b style="text-transform:capitalize">'+esc(nome)+'</b><button class="btn ghost" id="cm-p" aria-label="Próximo mês">›</button></div><div class="cal-g">'+g+'</div></div>'+
+  el.innerHTML='<div class="card"><div class="cal-h"><button class="btn ghost" id="cm-a" aria-label="Mês anterior">‹</button><b style="text-transform:capitalize">'+esc(nome)+'</b><button class="btn ghost" id="cm-p" aria-label="Próximo mês">›</button></div><div class="cal-g">'+g+'</div></div>'+medalhaCard+
     '<div class="calc" style="margin:10px 0"><div class="kpi"><span class="l">Treinos no mês</span><span class="v">'+doMes.length+'</span></div><div class="kpi"><span class="l">Por semana</span><span class="v">'+nf1.format(doMes.length/(corridos/7))+'</span></div><div class="kpi"><span class="l">Maior intervalo</span><span class="v">'+gap+'<small>dias</small></span></div></div>'+
-    (sel?'<div class="card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span></div>':'<p class="muted small">'+(r?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
+    (sel?'<div class="card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span></div>':'<p class="muted small">'+(lista?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
   $("#cm-a").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()-1,1);S.alDia=null;renderAlunoCal()};
   $("#cm-p").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()+1,1);S.alDia=null;renderAlunoCal()};
   el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal()});
@@ -2942,7 +2963,7 @@ const VIEWS=["metodos","fin","inicio","alunos","aluno","alcal","auxil","lancar",
 const TITULOS={metodos:"Meus métodos",fin:"Financeiro",auxil:"Auxiliar do Coach",alcal:"Calendário",alunos:"Alunos",lancar:"Treinar",coach:"Avaliação do Coach",evo:"Evolução",aval:"Avaliação física",perfil:"Perfil",config:"Configurações"};
 function setView(v){
   if(!VIEWS.includes(v))v="inicio";
-  if(["alunos","aluno","alcal","auxil","metodos"].includes(v)&&S.role!=="prof")v="inicio";
+  if(["alunos","aluno","auxil","metodos"].includes(v)&&S.role!=="prof")v="inicio";
   if(v==="inicio")S.ctxAluno=false;
   S.view=v;
   VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});
@@ -3130,20 +3151,24 @@ function introParaHtml(txt){
 }
 /* Meta da semana e medalha do mês: a semana fica dourada quando a pessoa cumpre a meta de treinos (dias por semana do cadastro).
    Cada semana dourada vale 1/4 da medalha do mês. A semana pertence ao mês da sua quinta-feira. */
-function metaDeTreinos(){const m=String((S.aluno&&S.aluno.dias)||"").match(/[1-7]/);return m?+m[0]:0}
+function metaDeTreinos(){const m=String((S.aluno&&S.aluno.dias)||"").match(/[1-7]/);return m?+m[0]:4}
 function segundaDe(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w);return x}
 function treinosNaSemana(seg){
   const fim=new Date(seg.getFullYear(),seg.getMonth(),seg.getDate()+7);const dias=new Set();
   S.rows.forEach(r=>{if(r.done&&!r.aq&&r.date>=seg&&r.date<fim)dias.add(r.dateS)});return dias.size;
 }
+let MGN=0;
 function medalhaSvg(n){
+  const id="mg"+(++MGN);
   const q=["M0 0 L0 -44 A44 44 0 0 1 44 0 Z","M0 0 L44 0 A44 44 0 0 1 0 44 Z","M0 0 L0 44 A44 44 0 0 1 -44 0 Z","M0 0 L-44 0 A44 44 0 0 1 0 -44 Z"];
-  return '<svg width="72" height="72" viewBox="-50 -50 100 100" aria-hidden="true"><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c58f0d"/></linearGradient></defs>'+
-    q.map((d,i)=>'<path d="'+d+'" fill="'+(i<n?"url(#mg)":"#2a2d35")+'" stroke="#0b0c0f" stroke-width="1.5"/>').join("")+
+  return '<svg width="72" height="72" viewBox="-50 -50 100 100" aria-hidden="true"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c58f0d"/></linearGradient></defs>'+
+    q.map((d,i)=>'<path d="'+d+'" fill="'+(i<n?"url(#"+id+")":"#2a2d35")+'" stroke="#0b0c0f" stroke-width="1.5"/>').join("")+
     '<circle r="44" fill="none" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="3"/><circle r="17" fill="#15171b" stroke="'+(n?"#f5c542":"#3a3e46")+'" stroke-width="2"/><text y="7" text-anchor="middle" font-size="20">🏋️</text></svg>';
 }
 function semanaCartaoHtml(){
-  if(S.role!=="aluno"||!S.loaded)return "";
+  // Aluno vê o próprio cartão; o professor vê o dele (a conta dele como aluno).
+  const proprio=S.role==="aluno"||(S.role==="prof"&&!!S.alunoId&&S.alunoId===masterId());
+  if(!proprio||!S.loaded)return "";
   const meta=metaDeTreinos();if(!meta||!S.rows.some(r=>r.done))return "";
   const hoje=new Date(),seg=segundaDe(hoje),feitos=treinosNaSemana(seg),ouro=feitos>=meta;
   // semanas do mês atual (pela quinta-feira de cada semana) que bateram a meta
@@ -3155,7 +3180,7 @@ function semanaCartaoHtml(){
   const pecas=Math.min(4,douradas);
   const nomeMes=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][mes];
   const bolas=Array.from({length:Math.max(meta,feitos)},(_,i)=>'<i class="'+(i<feitos?"on":"")+'"></i>').join("");
-  return '<div class="semana-card'+(ouro?" ouro":"")+'" role="region" aria-label="Meta da semana"><div class="sc-t"><b>'+(ouro?"🏆 Semana dourada!":"Meta da semana")+'</b><span>'+feitos+' de '+meta+(meta===1?" treino":" treinos")+'</span></div><div class="sc-b">'+bolas+'</div>'+
+  return '<div class="semana-card'+(ouro?" ouro":"")+'" data-ir="alcal" role="button" tabindex="0" aria-label="Meta da semana. Toque para abrir o calendário"><div class="sc-t"><b>'+(ouro?"🏆 Semana dourada!":"Meta da semana")+'</b><span>'+feitos+' de '+meta+(meta===1?" treino":" treinos")+'</span></div><div class="sc-b">'+bolas+'</div>'+
     '<p class="sc-p">'+(ouro?"Você cumpriu a meta desta semana. Parabéns!":(meta-feitos===1?"Falta 1 treino para a sua semana ficar dourada.":"Faltam "+(meta-feitos)+" treinos para a sua semana ficar dourada."))+'</p>'+
     '<div class="sc-m">'+medalhaSvg(pecas)+'<div><b>Medalha de '+nomeMes+'</b><span>'+pecas+' de 4 semanas douradas'+(pecas===4?" · completa!":"")+'</span></div></div></div>';
 }
@@ -3173,7 +3198,7 @@ function renderInicio(){
     const m=masterId();if(m&&S.alunoId!==m)selectAluno(m,true);
     carregarPainel();carregarFin();
     const ativos=S.alunos.filter(a=>a.ativo&&!a.master).length,at=S.alunos.filter(pedeAtencao).length,rel=S.alunos.filter(relatorioDevido).length;
-    $("#inicio-tela").innerHTML='<div class="home-wrap"><div class="home-prof">'+
+    $("#inicio-tela").innerHTML='<div class="home-wrap">'+semanaCartaoHtml()+'<div class="home-prof">'+
       '<button class="home-hero" data-ir="lancar"><span class="home-halter">'+Icone("barbell",136)+'</span><span><b>Treinar</b><span>'+esc(textoTreinar())+'</span></span></button>'+
       '<div class="home-col">'+tile("coach","speakerphone","Avaliação do Coach")+tile("evo","trending-up","Evolução")+tile("aval","ruler-measure","Avaliação física")+tile("perfil","user-circle","Perfil")+'</div></div>'+
       '<button class="home-alunos" data-ir="alunos">'+Icone("users",28)+'<span><b>Alunos</b>'+ativos+(ativos===1?" ativo":" ativos")+(at?" · "+at+(at===1?" pede atenção":" pedem atenção"):"")+(rel?" · "+rel+(rel===1?" relatório pronto":" relatórios prontos"):"")+'</span>'+Icone("chevron-right",22)+'</button>'+finTile()+'</div>';
