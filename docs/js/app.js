@@ -370,7 +370,7 @@ function buildDraft(treino){
         // No texto das repetições, "P:" marca preparatória (progressão até a carga de trabalho) e "D:" marca descompressão.
         const tm=tipoMeta(pickN(it.metas,i));
         const s=makeSet(0,prev[i]||null);
-        if(tm.t==="prep"){s.aq=true;s.aqn=++nPrep}else if(tm.t==="desc"){s.dc=true;s.dcn=++nDc}else s.n=++nW;
+        if(tm.t==="prep"){s.aq=true;s.aqn=++nPrep;s.oc=true}else if(tm.t==="desc"){s.dc=true;s.dcn=++nDc;s.oc=true}else{s.n=++nW;s.oc=nPrep>0||it.metas.some(m=>tipoMeta(m).t!=="work")}
         if(tm.meta)s.meta=tm.meta;
         if(!s.peso)s.peso=pickN(it.pesos,i)||(prev.length?String(prev[prev.length-1].peso||"").trim():"");
         b.sets.push(s);
@@ -806,10 +806,11 @@ function vezGlobal(){
 function fraseSerie(B,s,si,bi){
   if(!B)return {cls:"",txt:""};
   const feita=x=>!!String(x.reps).trim()||!!x.skip;
+  if(s.oc&&(s.aq||s.dc))return {cls:"",txt:""};
   if(s.aq)return {cls:" s-prep",txt:feita(s)?"":FR_PREP};
   if(s.dc)return {cls:" s-desc",txt:feita(s)?"":FR_DESC[si%FR_DESC.length]};
   const v=vezGlobal(),vez=!!v&&v.bi===bi&&v.si===si&&!B.cardio;
-  return {cls:(B.sets.some(x=>x.aq)?" s-work":"")+(vez?" s-vez":""),txt:vez?FR_TRAB[(bi*5+si*7+B.sets.length)%FR_TRAB.length]:""};
+  return {cls:(B.sets.some(x=>x.aq)&&!s.oc?" s-work":"")+(vez?" s-vez":""),txt:vez?FR_TRAB[(bi*5+si*7+B.sets.length)%FR_TRAB.length]:""};
 }
 // Atualiza as cores e frases de todos os cartões sem redesenhar (para não tirar o foco de quem está digitando).
 function pintarTodas(){
@@ -846,14 +847,14 @@ function festaTreino(d){
 }
 // Quando a última preparatória é concluída, avisa que a próxima é série de trabalho.
 function avisoPreparatorias(b,s){
-  if(!s||!s.aq)return;const feita=x=>!!String(x.reps).trim();
+  if(!s||!s.aq||s.oc)return;const feita=x=>!!String(x.reps).trim();
   if(b.sets.filter(x=>x.aq).every(feita)&&b.sets.some(x=>!x.aq&&!x.dc))toast("Preparatórias feitas. Agora é série de trabalho: quero ver força!");
 }
 function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
   const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
   const fz=fraseSerie(S.draft.blocks[bi],s,si,bi);
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+

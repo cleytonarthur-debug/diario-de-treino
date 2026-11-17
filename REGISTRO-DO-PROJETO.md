@@ -336,3 +336,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Em modelos de treino, série com prefixo P: vira Preparatória e D: vira Descompressão (ex.: P:20; P:15; P:10; 12; 12; 10; D:12).
 - Frase motivacional e destaque da vez só aparecem nas séries de trabalho válidas (e frases próprias nas preparatórias/descompressão).
 - Preparatórias e descompressão não entram nas comparações de carga.
+
+## 2.40.5 - Séries P:/D: invisíveis para o aluno
+- Nos modelos, as séries P:/D: aparecem como Série 1, 2, 3... sem rótulo e sem cor; a frase motivacional só aparece na série de trabalho da vez.
