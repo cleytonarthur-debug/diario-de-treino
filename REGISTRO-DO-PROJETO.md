@@ -331,3 +331,8 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Pedido: as semanas do mês não podem ser todas douradas. Agora cada semana completa tem a sua cor, na ordem em que foi completada no mês: 1ª verde, 2ª azul, 3ª roxa, 4ª laranja (5ª rosa, se o mês tiver cinco). Vale no cartão da tela inicial (cor da semana atual), no calendário (linha da semana colorida, dias treinados em branco) e na medalha (cada quarto com a cor da sua semana).
 - O dourado ficou só para o mês fechado: com as 4 semanas completas o anel da medalha vira dourado e aparece 🏅. Os textos trocaram "semana dourada" por "semana completa".
 - Funções novas: `semanasCompletasDoMes`, `CORES_SEM`; `medalhaSvg` recebe a lista de cores.
+
+## 2.40.4 - Treino de perna em estilo progressão
+- Em modelos de treino, série com prefixo P: vira Preparatória e D: vira Descompressão (ex.: P:20; P:15; P:10; 12; 12; 10; D:12).
+- Frase motivacional e destaque da vez só aparecem nas séries de trabalho válidas (e frases próprias nas preparatórias/descompressão).
+- Preparatórias e descompressão não entram nas comparações de carga.

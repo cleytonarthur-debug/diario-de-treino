@@ -268,6 +268,21 @@ function lastFor(exName){
     const sameDay=S.rows.filter(x=>x.dateS===r.dateS&&exKey(x.ex)===k&&!x.aq&&!x.dc);return sameDay}}
   return null;
 }
+// Última vez com todas as séries, inclusive preparatórias e descompressão (para treinos montados com tipos por série).
+function lastForAll(exName){
+  const k=exKey(exName);
+  for(let i=S.rows.length-1;i>=0;i--){const r=S.rows[i];if(exKey(r.ex)===k&&r.done){return S.rows.filter(x=>x.dateS===r.dateS&&exKey(x.ex)===k)}}
+  return null;
+}
+function lastExactAll(name){const all=lastForAll(name)||[];const ex=all.filter(r=>strip(r.ex)===strip(name));return ex.length?ex:all}
+// "P:20" = preparatória, "D:12" = descompressão; sem prefixo é série de trabalho.
+function tipoMeta(txt){const m=String(txt==null?"":txt).match(/^\s*([pd])\s*:\s*(.*)$/i);if(!m)return {t:"",meta:String(txt==null?"":txt).trim()};return {t:m[1].toLowerCase()==="p"?"prep":"desc",meta:m[2].trim()}}
+// Posição da série na última vez: se a última vez já foi gravada com tipos (preparatória/descompressão), conta só as séries de trabalho;
+// se foi gravada antes dos tipos, vale a posição geral (a estrutura do treino é a mesma).
+function idxHist(b,si0,rs){
+  const tipada=!!rs.length&&S.rows.some(x=>x.dateS===rs[0].dateS&&exKey(x.ex)===exKey(rs[0].ex)&&(x.aq||x.dc));
+  return tipada?si0-b.sets.slice(0,si0).filter(x=>x.aq).length:si0;
+}
 function lastExact(name){const all=lastFor(name)||[];const ex=all.filter(r=>strip(r.ex)===strip(name));return ex.length?ex:all}
 const pickN=(arr,i)=>arr.length?(arr[Math.min(i,arr.length-1)]||""):"";
 const newId=()=>Math.random().toString(36).slice(2);
@@ -316,13 +331,15 @@ function buildMetodoDraft(t){
       // e preparam as articulações. As demais são as séries de trabalho.
       const cargaBase=prev.length?String(prev[prev.length-1].peso||"").trim():"";
       const nPrep=m.livre?Math.min(+ex.prep||0,Math.max(0,n-1)):0;
+      // última vez já gravada com tipos: conta só as séries de trabalho; antes disso vale a posição geral
+      const histTip=!!prev.length&&S.rows.some(x=>x.dateS===prev[0].dateS&&exKey(x.ex)===exKey(prev[0].ex)&&(x.aq||x.dc));
       for(let i=0;i<n;i++){
         const base=ex.pir?String(ex.pir[i]):Metodos.meta(fx,ex);
         if(i<nPrep){
           const s=makeSet(0,null);s.aq=true;s.aqn=i+1;s.meta=base+" reps · carga mais leve";s.peso=aquecPeso(cargaBase,[60,80,90][i]||90);b.sets.push(s);continue;
         }
         const w=i-nPrep;
-        const s=makeSet(w+1,prev[w]||null);s.meta=base;s.rirMeta=f.rir.join("–");
+        const s=makeSet(w+1,prev[histTip?w:i]||null);s.meta=base;s.rirMeta=f.rir.join("–");
         if(!s.peso&&prev.length)s.peso=String(prev[prev.length-1].peso||"").trim();
         b.sets.push(s);
       }
@@ -344,12 +361,17 @@ function buildDraft(treino){
   const blocks=[];
   if(t&&t.model){
     t.model.forEach(it=>{
-      const prev=lastExact(it.ex);
+      // Todas as linhas da última vez (inclusive preparatórias e descompressão): o treino tem sempre a mesma estrutura, então série a série.
+      const prev=lastExactAll(it.ex);
       const grupo=S.exMap.get(strip(it.ex))||(prev[0]&&prev[0].grupo)||guessGroup(it.ex);
       const b={id:newId(),name:it.ex,grupo,sets:[],obs:""};
+      let nPrep=0,nDc=0,nW=0;
       for(let i=0;i<it.series;i++){
-        const s=makeSet(i+1,prev[i]||null);
-        const meta=pickN(it.metas,i);if(meta)s.meta=meta;
+        // No texto das repetições, "P:" marca preparatória (progressão até a carga de trabalho) e "D:" marca descompressão.
+        const tm=tipoMeta(pickN(it.metas,i));
+        const s=makeSet(0,prev[i]||null);
+        if(tm.t==="prep"){s.aq=true;s.aqn=++nPrep}else if(tm.t==="desc"){s.dc=true;s.dcn=++nDc}else s.n=++nW;
+        if(tm.meta)s.meta=tm.meta;
         if(!s.peso)s.peso=pickN(it.pesos,i)||(prev.length?String(prev[prev.length-1].peso||"").trim():"");
         b.sets.push(s);
       }
@@ -415,8 +437,9 @@ function aplicarAcademia(d){
   d.blocks.forEach(b=>{
     if(b.cardio)return;b.novaAcad=registra&&!conhece&&!!lastFor(b.name);
     b.sets.forEach((s,si0)=>{
-      if(s.aq||s.dc)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;
+      if(s.aq||s.dc)return;
       const rs=ultimaNaAcademia(s.exNome||b.name,d.academia);if(!rs.length)return;
+      const si=idxHist(b,si0,rs);
       b.novaAcad=false;
       const r=rs[s.lado?s.n-1:si]||rs[rs.length-1];
       s.last={feitas:String(r.feitas||""),peso:String(r.peso||""),reps:r.reps,pesoN:r.pesoN,vol:r.vol,skipped:!r.done};
@@ -462,7 +485,7 @@ function maquinaNasSeries(b){
   b.novaMaq=false;b.maqAntes="";b.sets.forEach(s=>{if(s.last)delete s.last.outraMaq});if(!b.maq)return;
   const com=rowsDoEx(b).filter(r=>r.maq),mesma=ultimaNaMaquina(b,b.maq);
   if(!mesma.length){if(com.length){b.novaMaq=true;b.maqAntes=com[com.length-1].maq;b.sets.forEach(s=>{if(s.last)s.last.outraMaq=b.maqAntes})}return}
-  b.sets.forEach((s,si0)=>{if(s.aq||s.dc)return;const si=si0-b.sets.slice(0,si0).filter(x=>x.aq).length;const nome=s.exNome||b.name;let l=mesma.filter(r=>strip(r.ex)===strip(nome));if(!l.length)l=mesma;
+  b.sets.forEach((s,si0)=>{if(s.aq||s.dc)return;const nome=s.exNome||b.name;let l=mesma.filter(r=>strip(r.ex)===strip(nome));if(!l.length)l=mesma;const si=idxHist(b,si0,l);
     const r=l[s.lado?s.n-1:si]||l[l.length-1];if(!r)return;
     s.last={feitas:String(r.feitas||""),peso:String(r.peso||""),reps:r.reps,pesoN:r.pesoN,vol:r.vol,skipped:!r.done};
     if(!String(s.reps).trim())s.peso=String(r.peso||"").trim()||s.peso});
@@ -696,7 +719,7 @@ function lastText(s){
 const INCENTIVO=["💪 Série feita. Constância é o que leva longe.","💪 Mais uma na conta. Segue firme.","💪 Feito. Cada série soma.","💪 Boa. Mantém a técnica e segue.","💪 Série no bolso. Respira e vai para a próxima."];
 const veTudo=()=>S.role==="prof";
 function cmpBadge(s){
-  if(!String(s.reps).trim())return "";
+  if(!String(s.reps).trim()||s.aq||s.dc)return "";
   const reps=parseReps(s.reps,s.meta),peso=parsePeso(s.peso);const v=setVolume(reps,peso);
   if(s.last&&s.last.outraMaq)return veTudo()?'<span class="badge">outra máquina</span>':'<span class="badge mot">'+INCENTIVO[(s.n||1)%INCENTIVO.length]+'</span>';
   if(!veTudo()){
