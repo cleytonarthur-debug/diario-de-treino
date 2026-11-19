@@ -1271,6 +1271,7 @@ const IA_SISTEMA = [
   '- Cansaço e empolgação podem vir juntos: separe o que foi bom do que foi demais.',
   '- O que pedir no próximo treino precisa concordar com FATOS.metas. Não invente outra meta.',
   '- Olhe FATOS.gruposDoTreino: só fale de dor, articulação ou músculo que esse treino usa, a não ser que ela tenha comentado hoje. Ombro não entra em treino de perna. No "resumo", guarde esse cuidado para o treino em que ele importa.',
+  '- SÓ FALE DE SONO, OMBROS, DOR, ALIMENTAÇÃO OU ACADEMIA se a pessoa ou o professor comentaram isso NESTE treino (FATOS.comentariosTreino). Nunca puxe esses assuntos da memória ou do histórico por conta própria. Anotação automática de pausa (ex.: "máquina ocupada 8 min") não é reclamação da academia.',
   '',
   'FATOS.relacaoComOTreino liga o que a pessoa relatou ao rendimento do dia: use isso. Sono ruim, fraqueza ou comida ruim ajudam a explicar uma queda. Com sono e comida bons, o esperado é o treino responder. Trate como sinal, nunca como certeza. Se FATOS.respostasDoAluno vier preenchido, leve em conta. Meta batida é motivo de comemorar de verdade.',
   '',

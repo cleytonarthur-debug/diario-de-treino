@@ -339,3 +339,8 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.40.5 - Séries P:/D: invisíveis para o aluno
 - Nos modelos, as séries P:/D: aparecem como Série 1, 2, 3... sem rótulo e sem cor; a frase motivacional só aparece na série de trabalho da vez.
+
+## 2.40.6 - Avaliação do coach mais certa
+- [Pausa: ...] e [Água: ...] não contam mais como comentário (antes 'máquina ocupada' virava academia ruim).
+- 'Merece atenção': uma linha com os exercícios abaixo + uma de pendência da semana.
+- backend (ainda NÃO publicado): regra para IA só falar de sono/ombro/dor/academia se comentado no treino.

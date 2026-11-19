@@ -27,7 +27,7 @@ const TEMAS=[
   {id:"academiaboa",nome:"Academia boa",rx:/academia boa|academia otima|academia vazia|academia tranquila/}
 ];
 const CORPO=[["joelho",/joelho/],["ombro",/ombro/],["lombar",/lombar/],["cotovelo",/cotovelo/],["punho",/punho/],["pescoço",/pescoco/],["quadril",/quadril/],["costas",/\bcostas\b/],["peito",/\bpeito\b/],["tornozelo",/tornozelo/],["bíceps",/biceps/]];
-const limpa=s=>String(s||"").replace(/\[(Ânimo|Animo|Duração|Duracao|Método|Metodo|Meta coach)[^\]]*\]/gi," ").replace(/\[(Treino|Exercício|Exercicio)\]/gi," ");
+const limpa=s=>String(s||"").replace(/\[(Ânimo|Animo|Duração|Duracao|Método|Metodo|Meta coach|Pausa|Água|Agua)[^\]]*\]/gi," ").replace(/\[(Treino|Exercício|Exercicio)\]/gi," ");
 function temasDe(texto){
   const t=strip(limpa(texto));if(!t)return [];
   return TEMAS.filter(x=>{const m=t.match(x.rx);if(!m)return false;
@@ -373,7 +373,7 @@ function treino(rows,key){
   const inicial=(nSes>=1&&nSes<=3)||doCiclo;const nIni=doCiclo?nCiclo:nSes;
   const inicioSem=new Date(ses.date.getFullYear(),ses.date.getMonth(),ses.date.getDate()-6);
   const sessoesSem=todas.filter(s=>s!==ses&&s.date>=inicioSem&&s.date<=ses.date);
-  const outraAcad=acadDif(todas,ses);const comsCedo=comentariosDe(ses.rows);const maquinas=[];
+  const outraAcad=acadDif(todas,ses);const comsCedo=comentariosDe(ses.rows);const maquinas=[];const qLinhas=[];
   const contaHoje=analisarComentarios(ses.rows).cont;const cansado=!!(contaHoje.cansaco||contaHoje.sono);
   porExercicio(ses.rows.filter(r=>!eCardio(r))).forEach(ex=>{
     const dn=ex.rows.filter(r=>r.done);if(!dn.length)return;
@@ -413,7 +413,7 @@ function treino(rows,key){
       const ok=!!outra||sg==="em dia";quedaOk=ok;
       const doGrupo=[...new Set(sessoesSem.filter(s=>s.rows.some(r=>r.done&&r.grupo===gr)).map(s=>s.treino))];
       out.quedas.push({exercicio:ex.nome,quedaPct:d,feitoTambemEm:outra?outra.treino:null,grupoTambemEm:doGrupo,grupo:gr,grupoNaSemana:sg,veredito:ok?"ok":"faltou"});
-      out.abaixo.push("<b>"+esc(ex.nome)+"</b>: "+d+"% de volume sobre "+esc(ultData.slice(0,5))+"."+(outra?[" Esse exercício já apareceu em "+esc(outra.treino)+" nesta semana, sem pendência."," Você já fez esse exercício em "+esc(outra.treino)+" nesta semana, então não perdeu nada."][ex.k.length%2]:sg==="em dia"?(doGrupo.length?[" "+esc(gr)+" já foi trabalhado em "+esc(doGrupo[0])+" nesta semana, sem pendência."," Você já treinou "+esc(gr)+" em "+esc(doGrupo[0])+" nesta semana, então a semana segue em dia."][ex.k.length%2]:" "+esc(gr)+" está em dia na semana, então não falta nada."):(cansado?" Recupere primeiro e só complete "+esc(gr)+" nesta semana se estiver descansado.":" Vale completar "+esc(gr)+" ainda nesta semana.")));
+      qLinhas.push({nome:ex.nome,d,data:ultData.slice(0,5),ok,gr});
     }
     // meta batida em todas as séries, sem ter ido ao limite em todas
     let vaiSubir=false;
@@ -431,6 +431,12 @@ function treino(rows,key){
       const pedeMais=!inicial&&!cansado&&!outraAcad&&volSem==="abaixo"&&sg==="abaixo";const m=pedeMais?aMais():aManter();
       if(m){(pedeMais?mais:segue).push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
   });
+  // Uma observação só, estruturada: o que ficou abaixo, e se isso deixa algo pendente na semana.
+  if(qLinhas.length){
+    out.abaixo.push("<b>Abaixo do último registro:</b> "+qLinhas.map(q=>esc(q.nome)+" ("+q.d+"% sobre "+esc(q.data)+")").join("; ")+".");
+    const faltou=qLinhas.filter(q=>!q.ok);
+    out.abaixo.push(!faltou.length?"Nada pendente: esses exercícios já foram trabalhados nesta semana e ela segue em dia.":(cansado?"Recupere primeiro e só complete ":"Vale completar ")+[...new Set(faltou.map(q=>esc(q.gr)))].join(" e ")+" ainda nesta semana"+(cansado?", se estiver descansado.":"."));
+  }
   if(naoFeitas.length){
     const nomes=[...new Set(naoFeitas.map(r=>semLadoNome(r.ex)))];
     out.abaixo.push(naoFeitas.length+(naoFeitas.length===1?" série não feita":" séries não feitas")+": "+nomes.slice(0,4).map(esc).join(", ")+".");
