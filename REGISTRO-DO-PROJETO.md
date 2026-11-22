@@ -441,3 +441,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.47.1 - Resumo do dia no calendário e ajustes
 - Toque num dia treinado: card com treino, séries, volume, duração, academia, cada exercício com reps x peso e o comentário do treino (resumoDiaHtml; só na conta do próprio aluno/professor).
 - Conquistas por grupo muscular agora 25/100/500 t (plaquinhas dos pins ajustadas). Plaquinha de Costas estava espelhada, corrigida.
+
+## 2.47.2 - Janela do dia no calendário
+- Tocar num dia treinado abre uma janela com o resumo (treino, séries, toneladas, duração, academia, cada exercício com reps x peso e comentário). O card embaixo do calendário continua.

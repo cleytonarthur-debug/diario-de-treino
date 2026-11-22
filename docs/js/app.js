@@ -2700,6 +2700,13 @@ function resumoDiaHtml(sel){
       (cm&&cm[1].trim()?'<div class="dia-c">“'+esc(cm[1].trim())+'”</div>':"")+'</div>';
   }catch(e){return ""}
 }
+// Toque num dia do calendário: abre uma janela com o resumo do que foi treinado naquele dia.
+function abrirDia(sel){
+  const ov=document.createElement("div");ov.className="pin-ov";
+  ov.innerHTML='<div class="pin-big pin-dia"><h3>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}))+'</h3><p class="muted small" style="text-align:left">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</p>'+(resumoDiaHtml(sel)||'<p class="muted small" style="text-align:left">Os detalhes dos exercícios aparecem na conta do próprio aluno.</p>')+'<button class="btn primary" style="margin-top:12px">Fechar</button></div>';
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
+  document.body.appendChild(ov);
+}
 function renderAlunoCal(){
   const el=$("#alcal-c")||$("#v-alcal");const a=S.aluno;if(!a){el.innerHTML="";return}
   const lista=sessoesCal(a);const h=diaZero();const ult=lista&&lista.length?lista[lista.length-1]:null;const base=ult?ult.date:h;const m=S.alMes||new Date(base.getFullYear(),base.getMonth(),1);
@@ -2729,7 +2736,7 @@ function renderAlunoCal(){
     (sel?'<div class="card dia-card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span>'+resumoDiaHtml(sel)+'</div>':'<p class="muted small">'+(lista?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
   $("#cm-a").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()-1,1);S.alDia=null;renderAlunoCal()};
   $("#cm-p").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()+1,1);S.alDia=null;renderAlunoCal()};
-  el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal()});
+  el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal();const s2=set.get(S.alDia);if(s2)abrirDia(s2)});
   el.querySelectorAll("[data-caixa]").forEach(b=>b.onclick=abrirCaixa);
 }
 function renderNavBaixo(){

@@ -1,7 +1,7 @@
 {
-  "versao": "2.47.1",
+  "versao": "2.47.2",
   "data": "22/11/2026",
   "notas": [
-    "Calendário: ao tocar num dia mostra o resumo do treino (exercícios, séries, duração, comentário); marcos por grupo 25/100/500 t; pin de Costas consertado"
+    "Calendário: ao tocar num dia abre uma janela com o resumo do treino do dia"
   ]
 }
