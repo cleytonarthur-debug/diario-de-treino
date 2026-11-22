@@ -1,7 +1,7 @@
 {
-  "versao": "2.43.0",
+  "versao": "2.43.1",
   "data": "22/11/2026",
   "notas": [
-    "Novidades liberadas para todos os alunos: layout enxuto, bi-set em uma caixa, drop em qualquer série, mudar ordem, descanso de até 3 min, tela acesa, cargas da academia, saída obrigatória"
+    "Calendário: dia treinado fica com a cor viva da semana (antes ficava branco); dia sem treino na semana completa fica suave"
   ]
 }

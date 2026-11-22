@@ -612,7 +612,9 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .cal-g .s4{background:linear-gradient(135deg,#fdba74,#f97316);border:1px solid #ea580c}
 .cal-g .s5{background:linear-gradient(135deg,#f9a8d4,#ec4899);border:1px solid #db2777}
 .cal-g .s1,.cal-g .s2,.cal-g .s3,.cal-g .s4,.cal-g .s5{color:#0b0c0f}
-.cal-g button.on.s1,.cal-g button.on.s2,.cal-g button.on.s3,.cal-g button.on.s4,.cal-g button.on.s5{background:#fff;color:#0b0c0f;font-weight:800}
+/* Dia treinado numa semana completa: cor viva da semana com aro branco. Dia sem treino na mesma semana: a mesma cor, bem suave. */
+.cal-g button.on.s1,.cal-g button.on.s2,.cal-g button.on.s3,.cal-g button.on.s4,.cal-g button.on.s5{color:#0b0c0f;font-weight:800;box-shadow:inset 0 0 0 2px rgba(255,255,255,.9)}
+.cal-g .vz.s1,.cal-g .vz.s2,.cal-g .vz.s3,.cal-g .vz.s4,.cal-g .vz.s5{opacity:.35}
 .cal-g .bl.s1,.cal-g .bl.s2,.cal-g .bl.s3,.cal-g .bl.s4,.cal-g .bl.s5{border-width:1px 0}
 .semana-card[data-ir]{cursor:pointer}
 

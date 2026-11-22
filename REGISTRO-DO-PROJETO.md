@@ -402,3 +402,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.43.0 - Novidades para todos os alunos
 - novos() agora é verdadeiro para todos (pedido do professor em 22/11/2026): layout enxuto, bi-set em caixa única com fotos lado a lado, drop em qualquer série, mudar ordem, juntar/desfazer bi-set, descanso 60-180 s com apito, tela acesa, sugestão de cargas da academia, saída obrigatória, ânimo ruim mantém o método.
+
+## 2.43.1 - Calendário: dias treinados coloridos
+- Antes, o dia treinado em semana completa ficava branco e só o dia sem treino (ex.: domingo) ficava colorido. Agora o dia treinado tem a cor viva da semana com aro branco e o dia sem treino fica suave.
