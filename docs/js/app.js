@@ -731,6 +731,16 @@ function cmpBadge(s){
     return '<span class="badge mot">'+INCENTIVO[(s.n||1)%INCENTIVO.length]+'</span>';
   }
   if(!s.last||!s.last.vol||!v)return "";
+  // Repetição × peso: compara pela força equivalente (peso × (1 + reps/30)), não pelo volume cru.
+  // Mais peso com menos repetições não é "abaixo"; 20 repetições onde a meta era 10 é excelente.
+  const pn2=Array.isArray(peso)?Math.max(...peso):peso,pa2=Array.isArray(s.last.pesoN)?Math.max(...s.last.pesoN):s.last.pesoN;
+  const r1=reps&&reps[0],r0=s.last.reps&&s.last.reps[0];
+  if(pn2>0&&pa2>0&&r1>0&&r0>0){
+    const eh=pn2*(1+Math.min(r1,20)/30),ea=pa2*(1+Math.min(r0,20)/30),dq=(eh-ea)/ea;
+    if(Math.abs(dq)<0.03)return '<span class="badge">igual</span>';
+    if(dq>0)return '<span class="badge up">▲ superou'+(pn2>pa2&&r1<r0?" (mais carga)":"")+'</span>';
+    return '<span class="badge down">▼ abaixo</span>';
+  }
   const diff=v-s.last.vol;if(Math.abs(diff)<0.5)return '<span class="badge">igual</span>';
   return diff>0?'<span class="badge up">▲ superou</span>':'<span class="badge down">▼ abaixo</span>';
 }

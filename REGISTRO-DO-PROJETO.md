@@ -344,3 +344,8 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - [Pausa: ...] e [Água: ...] não contam mais como comentário (antes 'máquina ocupada' virava academia ruim).
 - 'Merece atenção': uma linha com os exercícios abaixo + uma de pendência da semana.
 - backend (ainda NÃO publicado): regra para IA só falar de sono/ombro/dor/academia se comentado no treino.
+
+## 2.41.0 - Meta com salto de carga e repetição x peso
+- Sem salto cadastrado, assume 5 kg a partir de 25 kg. Se o salto passa de 10% da carga (35 para 40), a meta mantém o peso e pede +2 repetições.
+- Badge 'abaixo/superou' do professor compara pela força equivalente (peso x (1+reps/30)); mais peso com menos reps não é abaixo.
+- Queda de volume não vira alerta se a força equivalente se manteve; reps >= 1,5x a meta vira 'Excelente' com sugestão de mais peso ou reps.

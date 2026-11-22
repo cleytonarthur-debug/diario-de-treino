@@ -384,7 +384,10 @@ function treino(rows,key){
     const maqNova=!!maqHoje&&comMaq.length>0&&!naMesma.length;const salto=saltoDe(naMesma.concat(dn));
     if(maqHoje)out.maquinasInfo.push({exercicio:ex.nome,maquinaHoje:maqHoje,maquinaAnterior:maqDe(comMaq),saltoDeCargaKg:salto||null,primeiraVezNestaMaquina:maqNova});
     const top=dn.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];const P=pesoNum(top.peso);const R=top.reps?top.reps[0]:null;
-    const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];let c=proxCarga(P.n,salto);const fl=faltasDe(ex.rows.concat(gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[]));while(fl.has(c))c=proxCarga(c,salto);const nv=fmtP(c,P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+(salto?", a máquina sobe de "+nf(salto)+" em "+nf(salto)+" kg":"")+")",nv]};
+    const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];
+      // Sem salto cadastrado, a máquina/barra costuma subir de 5 em 5 kg a partir de 25 kg. Salto grande demais (mais de 10% da carga): mantém o peso e pede repetições.
+      const sEf=salto>0?salto:(P.n>=25?5:0);let c=proxCarga(P.n,sEf);const topoM=topoMeta(top.meta)||R||0;
+      if(R&&c>P.n&&(c/P.n-1)>0.10&&R<topoM+4){const alvo=R+2;return ["manter "+fmtP(P.n,P.cl)+" e ir para "+alvo+" repetições (de "+fmtP(P.n,P.cl)+" para "+fmtP(c,P.cl)+" é salto grande, primeiro mais repetições)",fmtP(P.n,P.cl)+" × "+alvo]}const fl=faltasDe(ex.rows.concat(gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[]));while(fl.has(c))c=proxCarga(c,salto);const nv=fmtP(c,P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+(salto?", a máquina sobe de "+nf(salto)+" em "+nf(salto)+" kg":"")+")",nv]};
     const aManter=()=>!R?null:P?["manter "+fmtP(P.n,P.cl)+" × "+R,fmtP(P.n,P.cl)+" × "+R]:["manter "+R+" repetições",R+" repetições"];
     const aMais=()=>!R?null:P?[fmtP(P.n,P.cl)+" × "+(R+1)+" (1 repetição a mais)",fmtP(P.n,P.cl)+" × "+(R+1)]:[(R+1)+" repetições (1 a mais)",(R+1)+" repetições"];
     if(!anteriores.length){
@@ -407,7 +410,7 @@ function treino(rows,key){
     else if(d!=null&&d>=3)out.bem.push("<b>"+esc(ex.nome)+"</b>: +"+d+"% de volume sobre "+esc(ultData.slice(0,5))+".");
     const aquec=/aquec/.test(ex.k);
     if(d!=null&&!aquec)difs.push({nome:ex.nome,d});
-    if(d!=null&&d<=-10&&!aquec&&!inicial){
+    if(d!=null&&d<=-10&&!aquec&&!inicial&&!(bestE&&recE&&bestE>=recE*0.97)){
       const outra=sessoesSem.find(s=>s.rows.some(r=>r.done&&base(r.ex)===ex.k));
       const gr=dn[0].grupo||"Sem grupo";const sg=(ctxTempo.semana.grupos.find(x=>x.grupo===gr)||{}).situacao||"em dia";
       const ok=!!outra||sg==="em dia";quedaOk=ok;
@@ -422,6 +425,7 @@ function treino(rows,key){
       const rirs=dn.map(r=>r.rir).filter(x=>x!=="");
       if(!rirs.length||rirs.some(x=>+x>=1))vaiSubir=true;
     }
+    {const tp=topoMeta(top.meta);if(vaiSubir&&R&&tp&&R>=tp*1.5)out.bem.push("<b>"+esc(ex.nome)+"</b>: "+R+" repetições para uma meta de "+tp+". Excelente! Não é queda de nada: no próximo treino, mais peso ou mais repetições.")}
     if(vaiSubir&&!inicial){const m=aSubir();subir.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
     else if(d!=null&&d<=-10&&(inicial||quedaOk&&volSem!=="abaixo")){const m=aManter();if(m){segue.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
     else if(d!=null&&d<=-10){const prevR=Math.max(0,...prev.map(r=>r.reps?r.reps[0]:0));
