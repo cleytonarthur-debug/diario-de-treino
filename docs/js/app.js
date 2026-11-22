@@ -3347,7 +3347,7 @@ function treinosNaSemana(seg){
 const CORES_SEM=[["#f0b27a","#8c5a2b","#cd7f32"],["#ffffff","#8e97a3","#cfd4dc"],["#fff1b3","#b8860b","#f1c232"],["#f4fbff","#6d94ad","#b9d6e8"],["#e0f7ff","#2aa6d8","#7fdcff"]];
 const NOMES_METAL=["Bronze","Prata","Ouro","Platina","Diamante"];
 // Tema da medalha de cada mês (índice 0 = janeiro). Out a dez lembram o pré-verão.
-const TEMAS_MES=[["Recomeço","🔥"],["Ritmo de Folia","🥁"],["Constância","⚓"],["Renovação","🌱"],["Mão na Massa","🛠️"],["Arraiá de Força","🎪"],["Inverno de Ferro","❄️"],["Foco Total","🎯"],["Primavera de Força","🌸"],["Operação Verão","☀️"],["Shape de Verão","🏖️"],["Verão Chegou","🌴"]];
+const TEMAS_MES=[["Recomeço","🔥"],["Ritmo de Folia","🥁"],["Constância","⚓"],["Renovação","🌱"],["Mão na Massa","🛠️"],["Arraiá de Força","🎪"],["Inverno de Ferro","❄️"],["Foco Total","🎯"],["Primavera de Força","🌸"],["Operação Verão","☀️"],["Rumo ao Verão","🏖️"],["Verão Chegou","🌴"]];
 // Resumo do ano: medalhas de mês completas (4 semanas) e semanas completas no total. "Lenda do Ano" = 40 semanas completas (o equivalente a 10 meses de treino na meta).
 function anoResumo(lista,meta,ano){
   let semanas=0,medalhas=0;

@@ -412,3 +412,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.44.0 - Medalhas metálicas e temas
 - Semanas completas: 1ª bronze, 2ª prata, 3ª ouro, 4ª platina, 5ª diamante (calendário e medalha). Tema do mês (TEMAS_MES; out Operação Verão, nov Shape de Verão, dez Verão Chegou).
 - Níveis do ano por medalhas de mês completas: 1 bronze, 3 prata, 6 ouro, 9+ platina. Lenda do Ano = 40 semanas completas no ano (equivale a 10 meses na meta).
+
+## 2.44.1 - Tema de novembro
+- 'Shape de Verão' virou 'Rumo ao Verão': tema não pode cobrar corpo de quem não conseguiu treinar no ano.
