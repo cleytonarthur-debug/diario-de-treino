@@ -1,7 +1,7 @@
 {
-  "versao": "2.41.1",
+  "versao": "2.41.2",
   "data": "21/11/2026",
   "notas": [
-    "Frases curtas e variadas por momento do treino (80 frases): série pesada, meio da pirâmide, última, drop, bi-set, começo e último exercício"
+    "Bi-set nos treinos da planilha: escreva 'bi-set' nas repetições de dois exercícios seguidos e o app alterna série a série (um, outro, um, outro)"
   ]
 }

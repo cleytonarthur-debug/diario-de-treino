@@ -360,6 +360,7 @@ function buildDraft(treino){
   if(t&&t.metodo)return buildMetodoDraft(t);
   const blocks=[];
   if(t&&t.model){
+    let nBiM=0,biAberto=null;
     t.model.forEach(it=>{
       // Todas as linhas da última vez (inclusive preparatórias e descompressão): o treino tem sempre a mesma estrutura, então série a série.
       const prev=lastExactAll(it.ex);
@@ -371,10 +372,14 @@ function buildDraft(treino){
         const tm=tipoMeta(pickN(it.metas,i));
         const s=makeSet(0,prev[i]||null);
         if(tm.t==="prep"){s.aq=true;s.aqn=++nPrep;s.oc=true}else if(tm.t==="desc"){s.dc=true;s.dcn=++nDc;s.oc=true}else{s.n=++nW;s.oc=nPrep>0||it.metas.some(m=>tipoMeta(m).t!=="work")}
-        if(tm.meta)s.meta=tm.meta;
+        if(tm.meta)s.meta=String(tm.meta).replace(/\s*bi-?set.*$/i,"").trim();
         if(!s.peso)s.peso=pickN(it.pesos,i)||(prev.length?String(prev[prev.length-1].peso||"").trim():"");
         b.sets.push(s);
       }
+      // "bi-set" no texto das repetições: dois exercícios seguidos viram um par, série a série (um, outro, um, outro).
+      if(it.metas.some(m=>/bi-?set/i.test(String(m)))){
+        if(!biAberto){b.bi=++nBiM;b.lado="a";biAberto=b}else{b.bi=biAberto.bi;b.lado="b";biAberto=null}
+      }else biAberto=null;
       blocks.push(b);
     });
   }else if(t){
@@ -637,6 +642,7 @@ function metodoTopo(d){
 }
 function parHeader(d,b){
   if(b.cardio)return '<div class="par-h">Cardio no fim</div>';
+  if(!d.metodo&&b.bi&&b.lado==="a"){const nb=d.blocks.find(x=>x.bi===b.bi&&x.lado==="b");return nb?'<div class="par-h">Bi-set · '+esc(b.name)+" + "+esc(nb.name)+' · um, outro, um, outro</div>':""}
   if(!d.metodo||b.lado!=="a")return "";
   const m=metodoDoDraft(d);
   if(m&&m.livre){
@@ -810,6 +816,17 @@ function vezGlobal(){
   const d=S.draft;if(!d)return null;
   const feita=x=>!!String(x.reps).trim()||!!x.skip;
   for(let bi=0;bi<d.blocks.length;bi++){const B=d.blocks[bi];if(B.cardio)continue;
+    // Bi-set em treino de modelo: alterna A, B, A, B.
+    if(B.bi&&!d.metodo){
+      const par=d.blocks.find(x=>x.bi===B.bi&&x.lado==="a"),nb=d.blocks.find(x=>x.bi===B.bi&&x.lado==="b");
+      if(B.lado==="b"&&par)continue;
+      if(B.lado==="a"&&nb){
+        const dn=x=>x.sets.filter(feita).length,pa=B.sets.findIndex(x=>!feita(x)),pb=nb.sets.findIndex(x=>!feita(x));
+        if(pa>=0&&(pb<0||dn(B)<=dn(nb)))return {bi,si:pa};
+        if(pb>=0)return {bi:d.blocks.indexOf(nb),si:pb};
+        continue;
+      }
+    }
     const si=B.sets.findIndex(x=>!feita(x));if(si>=0)return {bi,si}}
   return null;
 }
@@ -1032,7 +1049,16 @@ function swapExercise(b,name){
 const rotSerie=(b,i)=>{const s=b.sets[i];return s&&s.aq?"preparatória "+s.aqn:s&&s.dc?"descompressão":"série "+(i+1-b.sets.slice(0,i).filter(x=>x.aq).length)};
 function startRest(bi,si){
   const d=S.draft;const m=metodoDoDraft(d);const b=d.blocks[bi];
-  if(!m){d.rest=null;return}
+  if(!m){
+    // Treino de modelo com bi-set: sem descanso entre o 1º e o 2º; o descanso vem depois do 2º, e a frase diz quem é o próximo.
+    if(b.bi&&!b.cardio){
+      const pd=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
+      const A=d.blocks.find(x=>x.bi===b.bi&&x.lado==="a"),Bb=d.blocks.find(x=>x.bi===b.bi&&x.lado==="b");
+      if(b.lado==="a"&&Bb&&pd(Bb)>=0){d.rest=null;toast("Sem descanso: vá direto para "+Bb.name+".");return}
+      const prox=(A&&pd(A)>=0)?A:d.blocks.find(x=>!x.cardio&&pd(x)>=0)||null;
+      d.rest={min:60,max:90,at:Date.now(),buzz:0,prox:prox?prox.name+" · série "+(pd(prox)+1):"fim do treino"};return;
+    }
+    d.rest=null;return}
   const pend=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
   const blk=(par,l)=>d.blocks.find(x=>x.par===par&&x.lado===l);
   if(m.livre){
