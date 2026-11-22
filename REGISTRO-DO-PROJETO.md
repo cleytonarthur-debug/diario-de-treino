@@ -389,3 +389,7 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Planilha Modelos do professor renomeada para os nomes enxutos.
 - Coach: se a carga feita passou de 3% ou mais da meta e bateu as reps, a carga feita vira a base do próximo treino (com topo = próxima carga da academia), em vez de subir de novo.
 - Chegou com ânimo ruim (novos()): vale a carga de base do método, sem a meta do coach; refaz ao trocar o ânimo.
+
+## 2.42.7 - Descanso de no máximo 3 min e tela acesa
+- novos(): toda série ganha descanso 60-180 s (preparatória/descompressão 30-90 s), com vibração no mínimo e vibração + apito + aviso ao chegar no máximo. Descanso de método limitado a 180 s.
+- Wake Lock: tela fica acesa durante o treino (novos()). Contagem na tela de bloqueio como o Hevy não é possível em PWA.

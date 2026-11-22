@@ -593,6 +593,7 @@ function moverBloco(bi,dir){
 }
 function renderLancar(){
   document.body.classList.toggle("prof-lc",novos());
+  manterTela(!!(S.draft&&!S.picker&&novos()));
   const el=$("#lancar");
   if(needAluno(el)){$("#savebar").hidden=true;return}
   if(S.role==="prof"&&S.modEdit){$("#savebar").hidden=true;return renderModelEditor(el)}
@@ -1126,6 +1127,13 @@ function startRest(bi,si){
       const prox=(A&&pd(A)>=0)?A:d.blocks.find(x=>!x.cardio&&pd(x)>=0)||null;
       d.rest={min:60,max:90,at:Date.now(),buzz:0,prox:prox?prox.name+" · série "+(pd(prox)+1):"fim do treino"};return;
     }
+    // Descanso fixo: no máximo 3 min (vibra e apita no limite). Preparatória/descompressão descansam menos.
+    if(novos()&&!b.cardio){
+      const pd=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
+      const prox=pd(b)>=0?b:d.blocks.find(x=>!x.cardio&&pd(x)>=0)||null;
+      const leve=b.sets[si]&&(b.sets[si].aq||b.sets[si].dc);
+      d.rest={min:leve?30:60,max:leve?90:180,at:Date.now(),buzz:0,prox:prox?prox.name+" · série "+(pd(prox)+1):"fim do treino"};return;
+    }
     d.rest=null;return}
   const pend=x=>x?x.sets.findIndex(s=>!setDone(s)):-1;
   const blk=(par,l)=>d.blocks.find(x=>x.par===par&&x.lado===l);
@@ -1135,7 +1143,7 @@ function startRest(bi,si){
     // Um lado só: depois da esquerda segue direto para a direita; o descanso vem depois da direita.
     if(b.uni&&b.sets[si]&&b.sets[si].lado==="E"){d.rest=null;return}
     const ba=b.bi&&b.lado==="b"?d.blocks.find(x=>x.bi===b.bi&&x.lado==="a"):null;
-    const dsc=(b.sets[si]&&b.sets[si].aq)?30:(+(ba?ba.descanso:b.descanso)||60);
+    const dsc=Math.min(180,(b.sets[si]&&b.sets[si].aq)?30:(+(ba?ba.descanso:b.descanso)||60));
     // (descompressão usa o descanso normal do exercício)
     const cur=(ba&&pend(ba)>=0)?ba:pend(b)>=0?b:d.blocks.find(x=>!x.cardio&&pend(x)>=0)||d.blocks.find(x=>x.cardio&&pend(x)>=0)||null;
     const ci=pend(cur);
@@ -1195,6 +1203,12 @@ function updateBar(){
   else if(off){save.textContent="Sem internet";cancel.hidden=true}
   else{save.textContent="Concluir treino";cancel.hidden=true}
 }
+// Apito curto ao fim do descanso (só toca se o navegador já liberou som; senão fica só a vibração).
+function apito(){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const ac=new AC(),o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(ac.destination);o.start();setTimeout(()=>{o.frequency.value=1175},180);setTimeout(()=>{o.stop();ac.close()},420)}catch(e){}}
+// Mantém a tela acesa durante o treino (o descanso fica sempre visível ao olhar o celular).
+let WL=null;
+async function manterTela(on){try{if(on&&!WL&&navigator.wakeLock){WL=await navigator.wakeLock.request("screen");WL.addEventListener("release",()=>{WL=null})}else if(!on&&WL){await WL.release();WL=null}}catch(e){WL=null}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.draft&&novos())manterTela(true)});
 setInterval(()=>{
   if(!S.draft||S.view!=="lancar")return;
   const mins=minutosTreino(S.draft);const st=$("#sb-time");if(st)st.textContent="⏱ "+fmtMin(mins)+" de treino";
@@ -1209,7 +1223,7 @@ setInterval(()=>{
     r.innerHTML='<b class="'+(s>=R.min?"rest-ok":"")+'">descanso '+Math.floor(s/60)+":"+pad(s%60)+'</b> · ideal '+R.min+"–"+R.max+" s"+fase+'<br>depois: '+esc(R.prox);
     // vibra ao chegar no mínimo e no máximo do descanso
     if(s>=R.min&&R.buzz<1){R.buzz=1;try{navigator.vibrate&&navigator.vibrate(250)}catch(e){}}
-    if(s>=R.max&&R.buzz<2){R.buzz=2;try{navigator.vibrate&&navigator.vibrate([200,120,200])}catch(e){}}
+    if(s>=R.max&&R.buzz<2){R.buzz=2;try{navigator.vibrate&&navigator.vibrate([200,120,200])}catch(e){}if(novos()){apito();toast("Descanso acabou ("+Math.round(R.max/60*10)/10+" min). Hora da próxima série.")}}
   }else if(S.draft.lastTick){const s=Math.floor((Date.now()-S.draft.lastTick)/1000);r.textContent="descanso "+Math.floor(s/60)+":"+pad(s%60)}
   else r.textContent="preencha as repetições ao terminar cada série";
 },1000);
