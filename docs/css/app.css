@@ -123,6 +123,24 @@ body:not(.prof-lc) .tm-btn,body:not(.prof-lc) .mv,body:not(.prof-lc) .res{displa
 .prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .set-in,.prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .set-frase,.prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .drops,.prof-lc .set.done:not(.open):not(:focus-within) .set-in,.prof-lc .set.done:not(.open):not(:focus-within) .set-frase{display:none}
 .prof-lc .set:not(.s-vez):not(.open) .set-info{cursor:pointer}
 .prof-lc .set:not(.s-vez):not(.open){padding-top:6px;padding-bottom:6px}
+/* Série fechada e ainda não feita: precisa chamar atenção para ninguém passar batido (a da vez fica ainda mais forte). */
+.prof-lc .set:not(.s-vez):not(.done):not(.open):not(:focus-within){background:color-mix(in srgb,var(--ink) 10%,var(--surface));border-left:4px solid #f59e0b;border-radius:8px;margin:4px 0}
+.prof-lc .set:not(.s-vez):not(.done):not(.open):not(:focus-within)::after{content:"toque para lançar ›";display:block;font-size:12px;font-weight:700;color:#f59e0b;margin-top:2px}
+.prof-lc .set.done:not(.open){border-left:4px solid var(--good)}
+/* Bi-set em uma caixa só: os dois exercícios um embaixo do outro, séries intercaladas A1, B1, A2, B2. */
+.par-box{display:flex;flex-direction:column;border:1px solid var(--line-2);border-radius:14px;background:var(--surface);margin:0 0 12px;overflow:hidden}
+.par-box>.par-h{order:-1;margin:0;padding:8px 12px}
+.par-box .ex{display:contents}
+.par-box .ex>*{order:5}
+.par-box .lado-a>*{order:2}.par-box .lado-b>*{order:3}
+.par-box .lado-a>.ex-h{order:0}.par-box .lado-b>.ex-h{order:1}
+.par-box .ex-h{border-top:1px solid var(--line);padding:6px 10px}
+.par-box .ex-h select,.par-box .lado-b .mv{display:none}
+.par-box .ex-h .ex-foto{width:44px;height:44px}
+.par-box .ex-h h3{font-size:15px}
+.par-box .lado-a>.ex-f{order:200}.par-box .lado-b>.ex-f{order:201}
+.par-box .lado-a>.ex-obs{order:202}.par-box .lado-b>.ex-obs{order:203}
+.exn{font-size:12px;font-weight:700;color:var(--action);background:color-mix(in srgb,var(--action) 14%,transparent);padding:1px 8px;border-radius:999px}
 .drops{display:grid;gap:6px;margin-top:6px}
 .drop-l{display:grid;grid-template-columns:70px 1fr 1fr;gap:6px;align-items:center;border-top:1px dashed var(--line-2);padding-top:6px}
 .drop-l span{font-size:12px;font-weight:700;color:var(--action)}

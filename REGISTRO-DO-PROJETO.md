@@ -379,3 +379,7 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.42.4 - Cargas da academia no campo de peso
 - O campo de peso sugere as cargas já usadas naquele exercício na academia do dia (datalist), só em novos(). Treino teste adicionado na aba Modelos do professor.
+
+## 2.42.5 - Bi-set em caixa única
+- Pares de bi-set em treinos de modelo (novos()) viram uma caixa só: cabeçalhos dos dois exercícios empilhados e séries intercaladas por CSS (order). Cada série mostra o nome do exercício.
+- Série fechada e pendente: fundo claro, barra âmbar e 'toque para lançar'; feita: barra verde; a da vez continua azul.

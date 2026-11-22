@@ -644,7 +644,14 @@ function renderLancar(){
     '<div class="row-btns"><button class="btn ghost" id="b-trocar">Trocar treino</button><button class="btn ghost" id="b-stop" title="Marca as séries que faltam como não feitas">Parei aqui</button><button class="btn ghost" id="b-discard">Descartar</button></div></div>'+
     (d.metodo?metodoTopo(d):"")+
     (d.blocks.length?"":'<div class="empty">Nenhum exercício ainda. Adicione abaixo.</div>')+
-    (d.blocks.length?insHtml(0):"")+(()=>{const ultOk=d.blocks.map(exOk).lastIndexOf(true);return d.blocks.map((b,bi)=>parHeader(d,b)+exCard(b,bi)+(bi===ultOk?aguaHtml():"")+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")).join("")})()+
+    (d.blocks.length?insHtml(0):"")+(()=>{const ultOk=d.blocks.map(exOk).lastIndexOf(true);return d.blocks.map((b,bi)=>{
+      // Bi-set: os dois exercícios entram numa caixa só (as séries se intercalam por CSS).
+      if(novos()&&b.bi&&!d.metodo){
+        const nx=d.blocks[bi+1],pv=d.blocks[bi-1];
+        if(b.lado==="a"&&nx&&nx.bi===b.bi)return '<div class="par-box">'+parHeader(d,b)+exCard(b,bi)+exCard(nx,bi+1)+'</div>';
+        if(b.lado==="b"&&pv&&pv.bi===b.bi)return (bi===ultOk?aguaHtml():"")+(bi<d.blocks.length-1?insHtml(bi+1):"");
+      }
+      return parHeader(d,b)+exCard(b,bi)+(bi===ultOk?aguaHtml():"")+(bi<d.blocks.length-1&&b.lado!=="a"?insHtml(bi+1):"")}).join("")})()+
     '<div class="add-ex"><input id="new-ex" list="ex-list" placeholder="Adicionar exercício (busque pelo nome)" aria-label="Nome do exercício"><button class="btn" id="b-add">Adicionar</button></div>'+
     '<datalist id="ex-list">'+exNames.map(n=>'<option value="'+esc(n)+'">').join("")+'</datalist>';
   bindLancar();ligarAgua();ligarFotos();
@@ -716,7 +723,7 @@ function exCard(b,bi){
   if(b.cardio)return cardioCard(b,bi);
   const gv=GROUP_VAR[b.grupo]||"--g-abd";
   const im=window.Metodos&&Metodos.imagem(b.name,S.aluno&&S.aluno.sexo);
-  return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
+  return '<div class="ex'+(exOk(b)?" ex-ok":"")+(b.bi&&novos()&&b.lado?" lado-"+b.lado:"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
     (novos()?'<button class="mv" data-act="mv-up" aria-label="Subir exercício" title="Subir">▲</button><button class="mv" data-act="mv-dn" aria-label="Descer exercício" title="Descer">▼</button>':"")+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
@@ -945,7 +952,10 @@ function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
   const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
   const fz=fraseSerie(S.draft.blocks[bi],s,si,bi);
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(novos()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
+  // Bi-set em caixa única: as séries dos dois exercícios se intercalam (A1, B1, A2, B2) na ordem visual.
+  const Bk=S.draft.blocks[bi],pb=novos()&&Bk&&Bk.bi&&Bk.lado;
+  const ordStyle=pb?' style="order:'+(10+si*2+(Bk.lado==="b"?1:0))+'"':"";
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'"'+ordStyle+'>'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info">'+(pb?'<span class="exn">'+esc(Bk.name)+'</span>':"")+'<b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(novos()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"'+(novos()?' list="cg'+bi+'"':"")+'></div>'+
