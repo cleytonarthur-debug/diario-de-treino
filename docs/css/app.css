@@ -623,6 +623,47 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .cal-g button.on.s1,.cal-g button.on.s2,.cal-g button.on.s3,.cal-g button.on.s4,.cal-g button.on.s5{box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 3px rgba(0,0,0,.25),0 0 0 1px rgba(255,255,255,.55)}
 .cal-g .vz.s1,.cal-g .vz.s2,.cal-g .vz.s3,.cal-g .vz.s4,.cal-g .vz.s5{opacity:.35}
 .cal-g .bl.s1,.cal-g .bl.s2,.cal-g .bl.s3,.cal-g .bl.s4,.cal-g .bl.s5{border-width:1px 0}
+/* Pins de medalha do mês: cinza quando falta, parte colorida quando está perto, colorido e animado quando conquistado. */
+.pin{position:relative;display:inline-block;flex:none}
+.pin svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+.pin-off svg{filter:grayscale(1) brightness(.6) drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+.pin-part .pin-g{position:absolute;inset:0}.pin-part .pin-g svg{filter:grayscale(1) brightness(.6) drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+.pin-part .pin-c{position:absolute;inset:0;-webkit-mask-image:conic-gradient(from 0deg,#000 var(--p),transparent 0);mask-image:conic-gradient(from 0deg,#000 var(--p),transparent 0)}
+.pin-bri{position:absolute;inset:-12%;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(255,236,160,.6),transparent 62%);opacity:0}
+.pin-on::after{content:"";position:absolute;inset:6%;border-radius:50%;pointer-events:none;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.5) 50%,transparent 60%);background-size:260% 100%;mix-blend-mode:overlay;animation:pinShine 3.8s ease-in-out infinite}
+.pin .tw{position:absolute;color:#fff;font-size:13px;line-height:1;text-shadow:0 0 6px rgba(255,255,255,.9);pointer-events:none;opacity:0;animation:pinTw 2.4s ease-in-out infinite}
+.pin .tw1{top:2%;right:6%}.pin .tw2{bottom:10%;left:4%;animation-delay:1.1s;font-size:10px}
+.pin-on svg{animation:pinFloat 3.2s ease-in-out infinite}
+.pa-flick svg{animation:pinFlick 1.3s ease-in-out infinite}
+.pa-bounce svg{animation:pinBounce 1.6s ease-in-out infinite}
+.pa-sway svg{animation:pinSway 2.8s ease-in-out infinite;transform-origin:50% 8%}
+.pa-grow svg{animation:pinPulse 2.2s ease-in-out infinite}
+.pa-tilt svg{animation:pinTilt 1.8s ease-in-out infinite}
+.pa-shine svg{animation:pinPulse 3s ease-in-out infinite}
+.pa-pulse svg{animation:pinPulse 1.7s ease-in-out infinite}
+.pa-spin svg{animation:pinTilt 3s ease-in-out infinite}
+.pa-sun .pin-bri{animation:pinHalo 2.4s ease-in-out infinite}
+.pa-sun svg{animation:pinPulse 2.4s ease-in-out infinite}
+.pa-wave svg{animation:pinBounce 2.4s ease-in-out infinite}
+@keyframes pinFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes pinFlick{0%,100%{transform:scale(1) rotate(0)}30%{transform:scale(1.04,.97) rotate(-1.5deg)}60%{transform:scale(.98,1.04) rotate(1.5deg)}}
+@keyframes pinBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes pinSway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes pinPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes pinTilt{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@keyframes pinHalo{0%,100%{opacity:.15;transform:scale(.92)}50%{opacity:.85;transform:scale(1.12)}}
+@keyframes pinShine{0%{background-position:150% 0}60%,100%{background-position:-50% 0}}
+@keyframes pinTw{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.15)}}
+.pin-box .pin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 6px;margin-top:10px}
+.pin-cell{appearance:none;background:transparent;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3);font-size:12px;font-weight:600;cursor:pointer;padding:0}
+.pin-ov{position:fixed;inset:0;background:rgba(0,0,0,.74);z-index:300;display:grid;place-items:center;padding:20px;animation:pinFade .2s}
+.pin-big{background:var(--surface);border:1px solid var(--line-2);border-radius:18px;padding:22px 18px 18px;max-width:340px;width:100%;text-align:center;animation:pinGrow .35s cubic-bezier(.2,1.3,.4,1)}
+.pin-big .pin{display:block;margin:0 auto 10px}.pin-big h3{margin:6px 0 8px}.pin-big p{font-size:14px;line-height:1.45;margin:0 0 14px;color:var(--ink-2)}
+@keyframes pinFade{from{opacity:0}to{opacity:1}}
+@keyframes pinGrow{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.pin-fim{display:flex;align-items:center;gap:14px;margin-bottom:10px}.pin-fim h3{margin:0}
+.pin-fim-ok{border-color:var(--action)}
+@media (prefers-reduced-motion:reduce){.pin *,.pin,.pin::after,.pin-big,.pin-ov{animation:none!important}}
 .semana-card[data-ir]{cursor:pointer}
 
 /* ---- auxiliar do coach ---- */

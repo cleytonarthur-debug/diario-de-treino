@@ -418,3 +418,8 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.44.2 - Cartão da semana sem fundo dourado
 - .semana-card.ouro deixa de pintar o cartão inteiro de amarelo; fica no fundo do app com um fio na cor do metal da semana e a medalha.
+
+## 2.45.0 - Pins de medalha (pack 4)
+- js/pins.js com os 12 pins SVG (adesivos divertidos). Caixa 'Minhas medalhas de ANO' no calendário: cinza quando falta, parte colorida (fatia por 4 semanas) quando está perto, colorido e animado quando conquistado. Toque abre janela grande com o porquê/data ou o que falta.
+- Fim do treino: mostra o pin do mês com a parte já conquistada; se o treino fecha a semana ou o mês, comemora (fogos no mês fechado).
+- Animações leves por pin (chama, balanço, sol que ilumina, onda), desligadas com prefers-reduced-motion.
