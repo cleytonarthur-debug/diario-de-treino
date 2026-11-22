@@ -3488,7 +3488,7 @@ function conquistasGanhas(){
     let runS=0,maxS=0;for(let sg=segundaDe(ini);sg<=fim;sg=new Date(sg.getFullYear(),sg.getMonth(),sg.getDate()+7)){if(semDiasR(lista,sg)>=meta){runS++;maxS=Math.max(maxS,runS)}else if(+sg+6*864e5<Date.now())runS=0}
     const fem=!!(S.aluno&&/fem/i.test(String(S.aluno.sexo||"")));
     const hab=[];
-    if(sv("bv"))hab.push({k:"bv",nome:"Boas-vindas",svg:sv("bv"),curto:"Boas-vindas",texto:"Você começou! O primeiro treino registrado é o primeiro passo de uma jornada.",marco:"Boas-vindas",prox:maxS>=3?null:"3 semanas seguidas na meta"});
+    if(sv(fem?"bv":"bvm"))hab.push({k:"bv",nome:"Boas-vindas",svg:sv(fem?"bv":"bvm"),curto:"Boas-vindas",texto:"Você começou! O primeiro treino registrado é o primeiro passo de uma jornada.",marco:"Boas-vindas",prox:maxS>=3?null:"3 semanas seguidas na meta"});
     if(maxS>=3&&sv("comeco"))hab.push({k:"comeco",nome:"Começo da mudança",svg:sv("comeco"),curto:"3 semanas",texto:"Você bateu a meta de "+meta+(meta===1?" treino":" treinos")+" por semana 3 semanas seguidas. Aqui começa a mudança de hábito.",marco:"3 semanas seguidas",prox:v.dias>=21?null:"21 dias treinados"});
     if(v.dias>=21&&sv("habito"))hab.push({k:"habito",nome:"Mudança de hábito",svg:sv("habito"),curto:"21 dias",texto:"Você chegou a 21 dias treinados. Dizem que é o tempo de um hábito se formar: o seu já está de pé!",marco:"21 dias treinados",prox:v.seq>=2?null:"2 meses seguidos"});
     if(v.seq>=2&&sv("rotina"))hab.push({k:"rotina",nome:"Rotina de treino",svg:sv("rotina"),curto:"2 meses",texto:"Você treinou 2 meses seguidos. Treinar já faz parte da sua rotina.",marco:"2 meses seguidos",prox:v.seq>=6?null:"6 meses seguidos"});
