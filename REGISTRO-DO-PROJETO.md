@@ -396,3 +396,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.42.8 - Criar bi-set durante o treino
 - Em cada exercício (novos()): 'Juntar com o próximo' (une com o exercício de baixo), 'Bi-set (outro exercício)' (digita o nome do exercício feito na sequência) e 'Desfazer bi-set'.
+
+## 2.42.9 - Bi-set com fotos lado a lado
+- Na caixa do bi-set, os dois exercícios ficam lado a lado no topo (foto grande e nome embaixo); as séries continuam intercaladas abaixo.

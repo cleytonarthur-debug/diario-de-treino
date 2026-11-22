@@ -128,16 +128,20 @@ body:not(.prof-lc) .tm-btn,body:not(.prof-lc) .mv,body:not(.prof-lc) .res{displa
 .prof-lc .set:not(.s-vez):not(.done):not(.open):not(:focus-within)::after{content:"toque para lançar ›";display:block;font-size:12px;font-weight:700;color:#f59e0b;margin-top:2px}
 .prof-lc .set.done:not(.open){border-left:4px solid var(--good)}
 /* Bi-set em uma caixa só: os dois exercícios um embaixo do outro, séries intercaladas A1, B1, A2, B2. */
-.par-box{display:flex;flex-direction:column;border:1px solid var(--line-2);border-radius:14px;background:var(--surface);margin:0 0 12px;overflow:hidden}
+.par-box{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-2);border-radius:14px;background:var(--surface);margin:0 0 12px;overflow:hidden}
+.par-box>*,.par-box .ex>*{grid-column:1/-1}
 .par-box>.par-h{order:-1;margin:0;padding:8px 12px}
 .par-box .ex{display:contents}
 .par-box .ex>*{order:5}
 .par-box .lado-a>*{order:2}.par-box .lado-b>*{order:3}
-.par-box .lado-a>.ex-h{order:0}.par-box .lado-b>.ex-h{order:1}
-.par-box .ex-h{border-top:1px solid var(--line);padding:6px 10px}
+/* Os dois exercícios lado a lado: foto em cima e o nome embaixo, de forma harmônica. */
+.par-box .lado-a>.ex-h{order:0;grid-column:1}.par-box .lado-b>.ex-h{order:0;grid-column:2;border-left:1px solid var(--line)}
+.par-box .ex-h{display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;text-align:center;gap:6px 4px;border-top:1px solid var(--line);padding:0 8px 8px}
+.par-box .ex-h .stripe{flex:0 0 100%;width:100%;height:4px;align-self:auto;border-radius:0;margin:0 -8px}
 .par-box .ex-h select,.par-box .lado-b .mv{display:none}
-.par-box .ex-h .ex-foto{width:44px;height:44px}
-.par-box .ex-h h3{font-size:15px}
+.par-box .ex-h .ex-foto{flex:0 0 auto;width:92px;height:70px;margin:6px auto 0;border-radius:10px}
+.par-box .ex-h h3{flex:0 0 100%;font-size:14px;line-height:1.2;margin:0;overflow-wrap:break-word}
+.par-box .ex-h .sw,.par-box .ex-h .x,.par-box .ex-h .mv{width:30px;height:30px}
 .par-box .lado-a>.ex-f{order:200}.par-box .lado-b>.ex-f{order:201}
 .par-box .lado-a>.ex-obs{order:202}.par-box .lado-b>.ex-obs{order:203}
 .exn{font-size:12px;font-weight:700;color:var(--action);background:color-mix(in srgb,var(--action) 14%,transparent);padding:1px 8px;border-radius:999px}
