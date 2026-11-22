@@ -1,7 +1,7 @@
 {
-  "versao": "2.42.1",
-  "data": "21/11/2026",
+  "versao": "2.42.3",
+  "data": "22/11/2026",
   "notas": [
-    "Novidades (layout enxuto, drop, mudar ordem) também na conta de aluno do professor"
+    "Correções do uso: frase de carga só quando a carga sobe; meta batida não é abaixo; caixa não fecha ao digitar; cargas sugeridas pelo histórico da academia; saída obrigatória; botão + Na sequência"
   ]
 }

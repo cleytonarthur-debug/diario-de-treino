@@ -368,3 +368,11 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.42.2 - Regras da IA publicadas no programa central (@39)
 - IA_SISTEMA ganhou: repetição x peso (força equivalente), meta ultrapassada = excelente, salto de carga, super set e antagonista, tom de treinador. Autorização permanente do professor para publicar atualizações da IA.
+
+## 2.42.3 - Correções do primeiro uso
+- Frase que fala de subir carga só quando a carga subiu em relação à série anterior.
+- Badge: bateu a meta de hoje não é 'abaixo'; coach não conta queda se bateu a meta em todas as séries.
+- Layout enxuto: série com foco/teclado não fecha (focus-within).
+- Carga sugerida sem salto cadastrado: próxima carga já usada na mesma academia (histórico), senão passo 1/2,5/5 kg conforme o peso.
+- Saída: não conclui sem marcar como está saindo (só novos()).
+- Botão '+ Na sequência' cria bi-set com exercício feito na hora (só novos()).

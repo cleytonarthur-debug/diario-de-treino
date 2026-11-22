@@ -552,7 +552,8 @@ function renderFim(el){
   const msg=()=>{const m=$("#fim-msg");const t=Coach.saida(ini,S.draft.animoFim);m.textContent=t;m.hidden=!t};msg();
   ligarAnimo("animo-fim","animoFim",msg);
   const ob=$("#treino-obs");ob.addEventListener("input",()=>{S.draft.obs=ob.value;saveDraft()});
-  $("#fim-save").onclick=save;
+  // Na versão em teste (professor), não fecha o treino sem avaliar como está saindo.
+  $("#fim-save").onclick=()=>{if(novos()&&!S.draft.animoFim){toast("Antes de concluir, marque como você está saindo.");const c=$("#animo-fim");if(c)c.scrollIntoView({block:"center"});return}save()};
   $("#fim-voltar").onclick=voltar;
   updateBar();
 }
@@ -717,7 +718,7 @@ function exCard(b,bi){
     maqHtml(b)+(b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
-    '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
+    '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(novos()&&!b.bi?'<button class="btn ghost" data-act="seq">+ Na sequência</button>':"")+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
     '<button class="btn ghost" data-act="ex-note">'+(b.obs?"✎ Obs.":"✎ Obs. do exercício")+'</button></div>'+
     (b.noteOpen||b.obs?'<div class="ex-obs"><input class="obs" data-f="exobs" value="'+esc(b.obs||"")+'" placeholder="Observação do exercício (ex.: máquina diferente, ajuste de banco)" aria-label="Observação do exercício"></div>':"")+
     '</div>';
@@ -764,6 +765,9 @@ function cmpBadge(s){
     const eh=pn2*(1+Math.min(r1,20)/30),ea=pa2*(1+Math.min(r0,20)/30),dq=(eh-ea)/ea;
     if(Math.abs(dq)<0.03)return '<span class="badge">igual</span>';
     if(dq>0)return '<span class="badge up">▲ superou'+(pn2>pa2&&r1<r0?" (mais carga)":"")+'</span>';
+    // Bateu a meta de hoje com a carga planejada: não é "abaixo", mesmo que a meta de hoje seja menor que a da última vez.
+    const topo=Coach.topoMeta?Coach.topoMeta(s.meta):null;
+    if(topo&&r1>=topo)return '<span class="badge up">✓ meta batida</span>';
     return '<span class="badge down">▼ abaixo</span>';
   }
   const diff=v-s.last.vol;if(Math.abs(diff)<0.5)return '<span class="badge">igual</span>';
@@ -884,7 +888,10 @@ function fraseMomento(B,s,si,bi){
   else if(ehUlt)c="ult";
   else if(ehPrim)c="prim";
   else c="meio";
-  const L=FR_MOM[c],n=d._frN[c]||0;d._frN[c]=n+1;
+  // Frases que falam de subir a carga só aparecem quando a carga realmente subiu em relação à série anterior.
+  const num=x=>{const p=parsePeso(x);return Array.isArray(p)?Math.max(...p):p};
+  const ant=B.sets[si-1],subiu=!!ant&&num(s.peso)>0&&num(s.peso)>num(ant.peso)+0.01;
+  const L=(c==="meio"&&!subiu)?FR_MOM.meio.filter((_,i)=>![0,3,8,11].includes(i)):FR_MOM[c],n=d._frN[c]||0;d._frN[c]=n+1;
   return d._fr[k]=L[(n+bi*3)%L.length];
 }
 // Atualiza as cores e frases de todos os cartões sem redesenhar (para não tirar o foco de quem está digitando).
@@ -1009,6 +1016,16 @@ function bindLancar(){
         const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o&&s.skip&&!s.obs){o.placeholder="Por que não fez? (ex.: máquina ocupada, dor)";o.focus()}};
     });
     const exo=card.querySelector('[data-f="exobs"]');if(exo)exo.addEventListener("input",()=>{b.obs=exo.value;saveDraft()});
+    // Exercício feito logo na sequência (sem planejar): vira um bi-set com este e já entra no treino para anotar.
+    const seqB=card.querySelector('[data-act="seq"]');
+    if(seqB)seqB.onclick=()=>{
+      const nome=(window.prompt("Qual exercício você fez na sequência? (ex.: Remada alta com barra)")||"").trim();if(!nome)return;
+      const bl=S.draft.blocks;
+      const nb={id:newId(),name:nome,grupo:S.exMap.get(strip(nome))||guessGroup(nome),sets:[makeSet(1,null)],obs:""};
+      const idBi=Math.max(0,...bl.map(x=>x.bi||0))+1;
+      b.bi=idBi;b.lado="a";nb.bi=idBi;nb.lado="b";
+      bl.splice(bi+1,0,nb);saveDraft();renderLancar();toast("Anotado: "+nome+" na sequência. Preencha reps e peso.");
+    };
     const mvU=card.querySelector('[data-act="mv-up"]');if(mvU)mvU.onclick=()=>moverBloco(bi,-1);
     const mvD=card.querySelector('[data-act="mv-dn"]');if(mvD)mvD.onclick=()=>moverBloco(bi,1);
     card.querySelector('[data-act="ex-note"]').onclick=()=>{b.noteOpen=!b.noteOpen;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] [data-f="exobs"]');if(o)o.focus()};

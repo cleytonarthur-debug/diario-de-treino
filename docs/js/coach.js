@@ -138,7 +138,7 @@ function topoMeta(m){m=String(m||"").replace(/\s*(bi-set|drop set|rest pause).*$
 const pesoNum=p=>{const m=String(p||"").trim().match(/^(\d+(?:[.,]\d+)?)\s*(?:kg)?\s*(cl|cada lado)?$/i);return m?{n:parseFloat(m[1].replace(",",".")),cl:!!m[2]}:null};
 const fmtP=(n,cl)=>nf(n)+" kg"+(cl?" cada lado":"");
 // Salto de carga: de quantos em quantos kg a máquina sobe. Sem ele, um passo padrão pelo tamanho da carga.
-const incCarga=(n,salto)=>salto>0?salto:n<20?1:n<60?2:5;
+const incCarga=(n,salto)=>salto>0?salto:n<10?1:n<30?2.5:5;
 // Próxima carga que a máquina permite: com salto de 5 kg, depois de 57 vem 60, e depois de 60 vem 65.
 const proxCarga=(n,salto)=>salto>0?Math.round((Math.floor(n/salto+1e-9)+1)*salto*100)/100:n+incCarga(n);
 const saltoDe=rs=>{for(let i=rs.length-1;i>=0;i--){const v=parseFloat(String(rs[i].salto||"").replace(",","."));if(v>0)return v}return 0};
@@ -384,9 +384,13 @@ function treino(rows,key){
     const maqNova=!!maqHoje&&comMaq.length>0&&!naMesma.length;const salto=saltoDe(naMesma.concat(dn));
     if(maqHoje)out.maquinasInfo.push({exercicio:ex.nome,maquinaHoje:maqHoje,maquinaAnterior:maqDe(comMaq),saltoDeCargaKg:salto||null,primeiraVezNestaMaquina:maqNova});
     const top=dn.slice().sort((a,b)=>(b.e1||0)-(a.e1||0))[0];const P=pesoNum(top.peso);const R=top.reps?top.reps[0]:null;
+    const cargasGym=[...new Set((gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):anteriores).concat(ex.rows).map(r=>{const p=pesoNum(r.peso);return p?p.n:null}).filter(Boolean))].sort((a,b)=>a-b);
     const aSubir=()=>{if(!P)return ["subir um pouco a carga","suba um pouco a carga"];
       // Sem salto cadastrado, a máquina/barra costuma subir de 5 em 5 kg a partir de 25 kg. Salto grande demais (mais de 10% da carga): mantém o peso e pede repetições.
-      const sEf=salto>0?salto:(P.n>=25?5:0);let c=proxCarga(P.n,sEf);const topoM=topoMeta(top.meta)||R||0;
+      const sEf=salto>0?salto:(P.n>=25?5:0);let c=proxCarga(P.n,sEf);
+      // Histórico de cargas da academia: sem salto cadastrado, só sugere uma carga que já existe nessa academia (a próxima acima da atual).
+      if(!(salto>0)){const prox=cargasGym.find(x=>x>P.n+1e-9);if(prox)c=prox}
+      const topoM=topoMeta(top.meta)||R||0;
       if(R&&c>P.n&&(c/P.n-1)>0.10&&R<topoM+4){const alvo=R+2;return ["manter "+fmtP(P.n,P.cl)+" e ir para "+alvo+" repetições (de "+fmtP(P.n,P.cl)+" para "+fmtP(c,P.cl)+" é salto grande, primeiro mais repetições)",fmtP(P.n,P.cl)+" × "+alvo]}const fl=faltasDe(ex.rows.concat(gym?anteriores.filter(r=>strip(r.academia)===strip(gym)):[]));while(fl.has(c))c=proxCarga(c,salto);const nv=fmtP(c,P.cl);return ["subir para "+nv+" (hoje "+fmtP(P.n,P.cl)+(R?" × "+R:"")+(salto?", a máquina sobe de "+nf(salto)+" em "+nf(salto)+" kg":"")+")",nv]};
     const aManter=()=>!R?null:P?["manter "+fmtP(P.n,P.cl)+" × "+R,fmtP(P.n,P.cl)+" × "+R]:["manter "+R+" repetições",R+" repetições"];
     const aMais=()=>!R?null:P?[fmtP(P.n,P.cl)+" × "+(R+1)+" (1 repetição a mais)",fmtP(P.n,P.cl)+" × "+(R+1)]:[(R+1)+" repetições (1 a mais)",(R+1)+" repetições"];
@@ -410,7 +414,9 @@ function treino(rows,key){
     else if(d!=null&&d>=3)out.bem.push("<b>"+esc(ex.nome)+"</b>: +"+d+"% de volume sobre "+esc(ultData.slice(0,5))+".");
     const aquec=/aquec/.test(ex.k);
     if(d!=null&&!aquec)difs.push({nome:ex.nome,d});
-    if(d!=null&&d<=-10&&!aquec&&!inicial&&!(bestE&&recE&&bestE>=recE*0.97)){
+    // Bateu a meta de hoje em todas as séries, com carga igual ou maior: não é queda, mesmo que a meta de hoje seja menor que a da última vez.
+    const metaTodas=dn.length>0&&dn.every(r=>{const t=topoMeta(r.meta);return t!=null&&r.reps&&r.reps[0]>=t});
+    if(d!=null&&d<=-10&&!aquec&&!inicial&&!metaTodas&&!(bestE&&recE&&bestE>=recE*0.97)){
       const outra=sessoesSem.find(s=>s.rows.some(r=>r.done&&base(r.ex)===ex.k));
       const gr=dn[0].grupo||"Sem grupo";const sg=(ctxTempo.semana.grupos.find(x=>x.grupo===gr)||{}).situacao||"em dia";
       const ok=!!outra||sg==="em dia";quedaOk=ok;
@@ -768,7 +774,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","
 // Início do ciclo do método do aluno (data), para o parecer motivacional dos 3 primeiros treinos do ciclo.
 let CICLO=null;
 function setCiclo(d){CICLO=d instanceof Date&&!isNaN(d)?d:null}
-const API={setCiclo,projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
+const API={setCiclo,projecao,caminhoCerto,desafios,relatorio,metaDaSerie,bateuAlvo,topoMeta,FIRMAR,treino,mes,periodo,meses,nomeMes,academias,sessoes,temasDe,partesComDor,animoDe,animos,duracaoDe,recado,recadoPicker,chegada,saida,base,fatosIA,nomeAcademia,setModelos,EMO};
 // Séries de aquecimento (r.aq) nunca entram em volume, força, séries, recordes ou comparações: saem de toda análise.
 Object.keys(API).forEach(k=>{const f=API[k];if(typeof f!=="function")return;
   API[k]=function(rows){const a=arguments;if(Array.isArray(rows)&&rows.length&&rows.some(r=>r&&r.aq)){const c=Array.prototype.slice.call(a);c[0]=rows.filter(r=>!r.aq);return f.apply(this,c)}return f.apply(this,a)}});

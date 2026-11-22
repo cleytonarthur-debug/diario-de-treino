@@ -120,7 +120,7 @@ body:not(.prof-lc) .tm-btn,body:not(.prof-lc) .mv,body:not(.prof-lc) .res{displa
 .prof-lc .set.done:not(.open) .res{display:inline}
 .prof-lc .set .tm-lbl{display:none}
 .prof-lc .set.show-tm .tm-lbl,.prof-lc .set.open .tm-lbl{display:inline-flex}
-.prof-lc .set:not(.s-vez):not(.open) .set-in,.prof-lc .set:not(.s-vez):not(.open) .set-frase,.prof-lc .set:not(.s-vez):not(.open) .drops,.prof-lc .set.done:not(.open) .set-in,.prof-lc .set.done:not(.open) .set-frase{display:none}
+.prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .set-in,.prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .set-frase,.prof-lc .set:not(.s-vez):not(.open):not(:focus-within) .drops,.prof-lc .set.done:not(.open):not(:focus-within) .set-in,.prof-lc .set.done:not(.open):not(:focus-within) .set-frase{display:none}
 .prof-lc .set:not(.s-vez):not(.open) .set-info{cursor:pointer}
 .prof-lc .set:not(.s-vez):not(.open){padding-top:6px;padding-bottom:6px}
 .drops{display:grid;gap:6px;margin-top:6px}
