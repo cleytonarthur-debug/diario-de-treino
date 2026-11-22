@@ -430,3 +430,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.46.0 - Pins por estação e Platina brilhante
 - PIN_COR: cada pin mantém a arte e muda a cor para a família da estação. Platina: mesmo pin da estação, mais brilhante (halo na cor da estação, reflexo holográfico) e coroa dourada. Rubi vermelho removido.
+
+## 2.46.1 - Só conquistadas na caixa
+- A caixa 'Minhas medalhas' lista apenas as conquistadas, sem pins cinza. Vale também para as conquistas novas quando entrarem. O pin parcial continua só no card do mês abaixo do calendário.

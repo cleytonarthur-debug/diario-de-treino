@@ -3418,8 +3418,10 @@ function caixaMedalhasHtml(lista,meta,ano){
 function abrirCaixa(){
   const P=S.pinInfo;if(!P)return;
   const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  // Só aparece o que foi conquistado (nada em cinza).
+  const ganhas=P.info.map((x,mi)=>x.n>=4?mi:-1).filter(mi=>mi>=0);
   const ov=document.createElement("div");ov.className="pin-ov";
-  ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>Toque numa medalha para ver o porquê.'+(P.rubi?" Você chegou à Platina: as conquistadas ficam brilhantes, com coroa! ✨":"")+'</p><div class="pin-grid">'+P.info.map((x,mi)=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,x.n/4,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join("")+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
+  ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>'+(ganhas.length?"Toque numa medalha para ver o porquê.":"")+(P.rubi?" Você chegou à Platina: as conquistadas ficam brilhantes, com coroa! ✨":"")+'</p><div class="pin-grid">'+(ganhas.length?ganhas.map(mi=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,1,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join(""):'<p class="muted small" style="grid-column:1/-1">Ainda não tem medalha conquistada. A próxima é a do mês: complete 4 semanas na meta e ela aparece aqui.</p>')+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
   ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta)};
   document.body.appendChild(ov);
 }
