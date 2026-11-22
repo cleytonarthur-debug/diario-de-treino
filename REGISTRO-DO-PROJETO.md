@@ -444,3 +444,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.47.2 - Janela do dia no calendário
 - Tocar num dia treinado abre uma janela com o resumo (treino, séries, toneladas, duração, academia, cada exercício com reps x peso e comentário). O card embaixo do calendário continua.
+
+## 2.48.0 - Conquistas de hábito
+- Boas-vindas (1º treino), Começo da mudança (3 semanas seguidas na meta), Mudança de hábito (21 dias treinados), Rotina de treino (2 meses seguidos), Rato/Rata de academia (6 meses seguidos; pelo sexo do cadastro). Pins em conquistas.js (bv, comeco, habito, rotina, rato, rata). Aparecem só na caixa de medalhas, quando conquistados.

@@ -3483,7 +3483,17 @@ function conquistasGanhas(){
       out.push({k:d.k,nome:d.nome,svg:(window.CONQ[d.k]||[])[ti]||"",curto:d.f(val,d.marcos[ti]),texto:d.t(Math.round(val*10)/10),marco:d.f(val,d.marcos[ti]),prox:prox?d.f(val,prox):null})});
     // Especial: a primeira semana de treino já bateu a meta.
     const seg0=segundaDe(ini);if(semDiasR(lista,seg0)>=meta&&window.CONQ.especial&&window.CONQ.especial[0])out.unshift({k:"especial",nome:"1ª semana completa",svg:window.CONQ.especial[0],curto:"1ª semana",texto:"Você completou a sua primeira semana de treino batendo a meta de "+meta+(meta===1?" treino":" treinos")+". O começo de tudo!",marco:"1ª semana completa",prox:null});
-    return out;
+    // Hábito (para quem está começando): boas-vindas, começo da mudança (3 semanas seguidas na meta), mudança de hábito (21 dias), rotina (2 meses seguidos) e rato/rata de academia (6 meses seguidos).
+    const H=window.CONQ,sv=k=>(H[k]&&H[k][0])||"";
+    let runS=0,maxS=0;for(let sg=segundaDe(ini);sg<=fim;sg=new Date(sg.getFullYear(),sg.getMonth(),sg.getDate()+7)){if(semDiasR(lista,sg)>=meta){runS++;maxS=Math.max(maxS,runS)}else if(+sg+6*864e5<Date.now())runS=0}
+    const fem=!!(S.aluno&&/fem/i.test(String(S.aluno.sexo||"")));
+    const hab=[];
+    if(sv("bv"))hab.push({k:"bv",nome:"Boas-vindas",svg:sv("bv"),curto:"Boas-vindas",texto:"Você começou! O primeiro treino registrado é o primeiro passo de uma jornada.",marco:"Boas-vindas",prox:maxS>=3?null:"3 semanas seguidas na meta"});
+    if(maxS>=3&&sv("comeco"))hab.push({k:"comeco",nome:"Começo da mudança",svg:sv("comeco"),curto:"3 semanas",texto:"Você bateu a meta de "+meta+(meta===1?" treino":" treinos")+" por semana 3 semanas seguidas. Aqui começa a mudança de hábito.",marco:"3 semanas seguidas",prox:v.dias>=21?null:"21 dias treinados"});
+    if(v.dias>=21&&sv("habito"))hab.push({k:"habito",nome:"Mudança de hábito",svg:sv("habito"),curto:"21 dias",texto:"Você chegou a 21 dias treinados. Dizem que é o tempo de um hábito se formar: o seu já está de pé!",marco:"21 dias treinados",prox:v.seq>=2?null:"2 meses seguidos"});
+    if(v.seq>=2&&sv("rotina"))hab.push({k:"rotina",nome:"Rotina de treino",svg:sv("rotina"),curto:"2 meses",texto:"Você treinou 2 meses seguidos. Treinar já faz parte da sua rotina.",marco:"2 meses seguidos",prox:v.seq>=6?null:"6 meses seguidos"});
+    if(v.seq>=6){const kk=fem?"rata":"rato";if(sv(kk))hab.push({k:kk,nome:fem?"Rata de academia":"Rato de academia",svg:sv(kk),curto:fem?"Rata de academia":"Rato de academia",texto:"Você treinou 6 meses seguidos. Já é "+(fem?"rata":"rato")+" de academia, de casa na rotina!",marco:"6 meses seguidos",prox:null})}
+    return hab.concat(out);
   }catch(e){return []}
 }
 function abrirConq(c){
