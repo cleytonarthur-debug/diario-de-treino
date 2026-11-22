@@ -1,7 +1,7 @@
 {
-  "versao": "2.46.1",
+  "versao": "2.47.0",
   "data": "22/11/2026",
   "notas": [
-    "Caixa de medalhas mostra só o que foi conquistado (nada em cinza)"
+    "Conquistas: sequência de meses, dias treinados, toneladas, horas e toneladas por grupo (pins do pack A), na caixa de medalhas, só as conquistadas"
   ]
 }

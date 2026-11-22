@@ -433,3 +433,7 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.46.1 - Só conquistadas na caixa
 - A caixa 'Minhas medalhas' lista apenas as conquistadas, sem pins cinza. Vale também para as conquistas novas quando entrarem. O pin parcial continua só no card do mês abaixo do calendário.
+
+## 2.47.0 - Conquistas do histórico
+- js/conquistas.js (pins pack A). conquistasGanhas(): sequência de meses (>=1 semana completa por mês) 3/6/12; dias 10/50/200; toneladas 10/100/1000; horas 50/200/500; pernas/costas/peito/braços/ombros 5/25/100 t; especial 1ª semana completa. Aparecem na caixa de medalhas (só conquistadas); toque abre explicação e próximo marco.
+- Falta (2ª etapa): conquistas extras que precisam de novas contagens (madrugador, fim de semana, recordista, bi-set, mão pesada, viajante, volta por cima, dia ruim, semana perfeita, hidratado, coach conversa).

@@ -3412,7 +3412,7 @@ function caixaMedalhasHtml(lista,meta,ano){
   const ar=anoResumo(lista,meta,ano),rubi=ar.nivel>=3,ganhas=info.filter(x=>x.n>=4).length;
   S.pinInfo={info,ano,meta,rubi};
   // Os pins não ficam à mostra na tela do calendário: só o botão. A caixa abre ao tocar.
-  return '<button class="card pin-box-btn" data-caixa="1"><span class="pin-box-ic">🏅</span><span><b>Minhas medalhas de '+ano+'</b><br><span class="muted small">'+ganhas+' de 12 conquistadas'+(rubi?" · Platina: pins brilhantes ✨":"")+'</span></span><span class="pin-box-go">›</span></button>';
+  return '<button class="card pin-box-btn" data-caixa="1"><span class="pin-box-ic">🏅</span><span><b>Minhas medalhas de '+ano+'</b><br><span class="muted small">'+ganhas+' de 12 medalhas'+(conquistasGanhas().length?" · "+conquistasGanhas().length+" conquistas":"")+(rubi?" · Platina: pins brilhantes ✨":"")+'</span></span><span class="pin-box-go">›</span></button>';
 }
 // Abre a caixa com as 12 medalhas do ano.
 function abrirCaixa(){
@@ -3422,7 +3422,53 @@ function abrirCaixa(){
   const ganhas=P.info.map((x,mi)=>x.n>=4?mi:-1).filter(mi=>mi>=0);
   const ov=document.createElement("div");ov.className="pin-ov";
   ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>'+(ganhas.length?"Toque numa medalha para ver o porquê.":"")+(P.rubi?" Você chegou à Platina: as conquistadas ficam brilhantes, com coroa! ✨":"")+'</p><div class="pin-grid">'+(ganhas.length?ganhas.map(mi=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,1,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join(""):'<p class="muted small" style="grid-column:1/-1">Ainda não tem medalha conquistada. A próxima é a do mês: complete 4 semanas na meta e ela aparece aqui.</p>')+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
-  ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta)};
+  // Conquistas do histórico todo (sequência, dias, toneladas, horas, grupos): só as conquistadas.
+  const cq=conquistasGanhas();
+  if(cq.length){const g=ov.querySelector(".pin-big"),fx=g.querySelector("[data-fx]");
+    fx.insertAdjacentHTML("beforebegin",'<h3 style="margin-top:16px">Conquistas</h3><div class="pin-grid">'+cq.map((c,i)=>'<button class="pin-cell" data-conq="'+i+'" aria-label="'+esc(c.nome)+'"><span class="pin pin-on pa-pulse" style="width:64px;height:64px"><i class="pin-bri"></i>'+c.svg+'</span><span>'+esc(c.curto)+'</span></button>').join("")+'</div>')}
+  ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta);const q=e.target.closest("[data-conq]");if(q)abrirConq(cq[+q.dataset.conq])};
+  document.body.appendChild(ov);
+}
+const CONQ_DEF=[
+  {k:"seq",nome:"Sequência de meses",marcos:[3,6,12],f:(v,m)=>m+" meses seguidos",t:(v)=>"Você treinou "+v+" meses seguidos, com pelo menos 1 semana completa em cada mês."},
+  {k:"dias",nome:"Dias treinados",marcos:[10,50,200],f:(v,m)=>m+" dias",t:(v)=>"Você já treinou "+v+" dias no total, em qualquer época. Cada dia conta!"},
+  {k:"ton",nome:"Toneladas movidas",marcos:[10,100,1000],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas somando todos os treinos."},
+  {k:"horas",nome:"Horas de treino",marcos:[50,200,500],f:(v,m)=>m+" h",t:(v)=>"Você já passou "+nf1.format(v)+" horas treinando."},
+  {k:"pernas",nome:"Pernas",g:"Inferiores",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em pernas."},
+  {k:"costas",nome:"Costas",g:"Costas",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em costas."},
+  {k:"peito",nome:"Peito",g:"Peito",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em peito."},
+  {k:"bracos",nome:"Braços",g:"Braços",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em braços."},
+  {k:"ombros",nome:"Ombros",g:"Ombros",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em ombros."}
+];
+// Calcula os números do histórico todo e devolve as conquistas já ganhas (maior marco de cada uma).
+function conquistasGanhas(){
+  try{
+    const ss=sessions();if(!ss.length||!window.CONQ)return [];
+    const meta=metaDeTreinos()||4,lista=ss.map(s=>({date:s.date,dateS:s.dateS}));
+    const v={dias:new Set(ss.map(s=>s.dateS)).size,ton:0,horas:0,seq:0,pernas:0,costas:0,peito:0,bracos:0,ombros:0};
+    const gk={Inferiores:"pernas",Costas:"costas",Peito:"peito","Braços":"bracos",Ombros:"ombros"};
+    ss.forEach(s=>{v.horas+=(Coach.duracaoDe(s.rows)||0)/60;s.rows.forEach(r=>{if(!r.done||r.aq)return;const t=(r.vol||0)/1000;v.ton+=t;const k=gk[r.grupo];if(k)v[k]+=t})});
+    const ini=ss.reduce((a,s)=>s.date<a?s.date:a,ss[0].date),fim=new Date();
+    let run=0,max=0;
+    for(let y=ini.getFullYear(),m=ini.getMonth();y<fim.getFullYear()||(y===fim.getFullYear()&&m<=fim.getMonth());){
+      if(semanasCompletasDoMes(lista,meta,y,m).length>=1){run++;max=Math.max(max,run)}else run=0;
+      if(++m>11){m=0;y++}
+    }
+    v.seq=max;
+    const out=[];
+    CONQ_DEF.forEach(d=>{const val=v[d.k];let ti=-1;d.marcos.forEach((m,i)=>{if(val>=m)ti=i});if(ti<0)return;
+      const prox=d.marcos[ti+1];
+      out.push({k:d.k,nome:d.nome,svg:(window.CONQ[d.k]||[])[ti]||"",curto:d.f(val,d.marcos[ti]),texto:d.t(Math.round(val*10)/10),marco:d.f(val,d.marcos[ti]),prox:prox?d.f(val,prox):null})});
+    // Especial: a primeira semana de treino já bateu a meta.
+    const seg0=segundaDe(ini);if(semDiasR(lista,seg0)>=meta&&window.CONQ.especial&&window.CONQ.especial[0])out.unshift({k:"especial",nome:"1ª semana completa",svg:window.CONQ.especial[0],curto:"1ª semana",texto:"Você completou a sua primeira semana de treino batendo a meta de "+meta+(meta===1?" treino":" treinos")+". O começo de tudo!",marco:"1ª semana completa",prox:null});
+    return out;
+  }catch(e){return []}
+}
+function abrirConq(c){
+  if(!c)return;
+  const ov=document.createElement("div");ov.className="pin-ov";
+  ov.innerHTML='<div class="pin-big"><span class="pin pin-on pa-pulse" style="width:170px;height:170px;display:block;margin:0 auto 10px"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+c.svg+'</span><h3>'+esc(c.nome)+'</h3><p><b>Conquistada: '+esc(c.marco)+'</b><br>'+esc(c.texto)+(c.prox?'<br><br>Próximo marco: <b>'+esc(c.prox)+'</b>.':"")+'</p><button class="btn primary">Fechar</button></div>';
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
   document.body.appendChild(ov);
 }
 // Resumo do ano: medalhas de mês completas (4 semanas) e semanas completas no total. "Lenda do Ano" = 40 semanas completas (o equivalente a 10 meses de treino na meta).
