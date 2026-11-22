@@ -415,3 +415,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.44.1 - Tema de novembro
 - 'Shape de Verão' virou 'Rumo ao Verão': tema não pode cobrar corpo de quem não conseguiu treinar no ano.
+
+## 2.44.2 - Cartão da semana sem fundo dourado
+- .semana-card.ouro deixa de pintar o cartão inteiro de amarelo; fica no fundo do app com um fio na cor do metal da semana e a medalha.
