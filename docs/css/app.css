@@ -654,7 +654,16 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 @keyframes pinHalo{0%,100%{opacity:.15;transform:scale(.92)}50%{opacity:.85;transform:scale(1.12)}}
 @keyframes pinShine{0%{background-position:150% 0}60%,100%{background-position:-50% 0}}
 @keyframes pinTw{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.15)}}
-.pin-box .pin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 6px;margin-top:10px}
+.pin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 6px;margin:10px 0 14px}
+.pin-box-btn{appearance:none;display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--ink);cursor:pointer;margin-top:10px}
+.pin-box-ic{font-size:26px}.pin-box-btn>span:nth-child(2){flex:1}.pin-box-go{font-size:22px;color:var(--ink-3)}
+.pin-caixa{max-height:86vh;overflow-y:auto;overflow-x:hidden;max-width:360px}
+.pin-caixa .pin-grid{gap:10px 2px}
+/* Platina: pin conquistado vira rubi, com brilho holográfico girando e mais faíscas (estilo shiny). */
+.pin-rubi svg{filter:grayscale(1) contrast(1.3) brightness(.72) sepia(1) hue-rotate(-52deg) saturate(9) drop-shadow(0 0 8px rgba(255,30,80,.85))}
+.pin-rubi::before{content:"";position:absolute;inset:3%;border-radius:50%;pointer-events:none;background:conic-gradient(from 0deg,rgba(255,255,255,0),rgba(255,236,150,.45),rgba(130,220,255,.4),rgba(255,140,200,.4),rgba(255,255,255,0));mix-blend-mode:screen;animation:pinSpinR 3.4s linear infinite}
+.pin .tw3{top:34%;left:-3%;animation-delay:.5s;font-size:11px}.pin .tw4{top:4%;left:34%;animation-delay:1.7s;font-size:12px}
+@keyframes pinSpinR{to{transform:rotate(360deg)}}
 .pin-cell{appearance:none;background:transparent;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3);font-size:12px;font-weight:600;cursor:pointer;padding:0}
 .pin-ov{position:fixed;inset:0;background:rgba(0,0,0,.74);z-index:300;display:grid;place-items:center;padding:20px;animation:pinFade .2s}
 .pin-big{background:var(--surface);border:1px solid var(--line-2);border-radius:18px;padding:22px 18px 18px;max-width:340px;width:100%;text-align:center;animation:pinGrow .35s cubic-bezier(.2,1.3,.4,1)}

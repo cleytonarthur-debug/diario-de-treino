@@ -559,7 +559,8 @@ function pinFimHtml(){
     else if(n1>n0){titulo="Semana completa! 🎉";sub="Você bateu a meta de "+meta+(meta===1?" treino":" treinos")+" da semana. Medalha "+tema[0]+": "+n1+" de 4 semanas.";fogos=true}
     else{titulo="Sua medalha do mês";sub=tema[1]+" "+tema[0]+": "+n1+" de 4 semanas"+(feitos<meta?" · esta semana "+feitos+" de "+meta+" treinos":"")+"."}
     S.fimFogos=fogos?(S.fimFogos||"p"):"";
-    return {html:'<div class="card pin-fim'+(fogos?" pin-fim-ok":"")+'">'+pinHtml(mes,n1>=4?1:n1/4,fogos?112:84)+'<div><h3>'+titulo+'</h3><p class="muted small" style="margin:2px 0 0">'+esc(sub)+'</p></div></div>',fogos};
+    const rubiFim=anoResumo(com,meta,ano).nivel>=3;
+    return {html:'<div class="card pin-fim'+(fogos?" pin-fim-ok":"")+'">'+pinHtml(mes,n1>=4?1:n1/4,fogos?112:84,rubiFim)+'<div><h3>'+titulo+'</h3><p class="muted small" style="margin:2px 0 0">'+esc(sub)+'</p></div></div>',fogos};
   }catch(e){return {html:"",fogos:false}}
 }
 function renderFim(el){
@@ -2702,7 +2703,8 @@ function renderAlunoCal(){
   const pecas=Math.min(4,compl.length);
   const tema=TEMAS_MES[m.getMonth()],ar=lista?anoResumo(lista,meta,m.getFullYear()):null;
   const anoTxt=ar?'<br><span class="muted small">'+m.getFullYear()+': '+ar.medalhas+(ar.medalhas===1?" medalha":" medalhas")+' de mês'+(ar.nivel>=0?" · nível "+["Bronze","Prata","Ouro","Platina"][ar.nivel]:"")+' · '+(ar.lenda?"🏆 Lenda do Ano!":"Lenda do Ano: "+ar.semanas+" de 40 semanas")+'</span>':"";
-  const medalhaCard='<div class="card sc-m" style="display:flex;gap:12px;align-items:center;margin-top:10px">'+medalhaSvg(compl.slice(0,4).map(w=>CORES_SEM[w.ord-1]))+'<div><b>'+tema[1]+' '+esc(tema[0])+'</b><br><span class="muted small">Medalha de '+m.toLocaleDateString("pt-BR",{month:"long"})+': '+pecas+' de 4 semanas completas'+(pecas===4?" · conquistada! 🏅":"")+' · meta de '+meta+(meta===1?" treino":" treinos")+' por semana</span>'+anoTxt+'</div></div>';
+  // A medalha deste cartão é o pin do mês, parcial: a parte colorida é o que já foi conquistado.
+  const medalhaCard='<div class="card sc-m" style="display:flex;gap:12px;align-items:center;margin-top:10px">'+pinHtml(m.getMonth(),Math.min(1,compl.length/4),76,ar&&ar.nivel>=3)+'<div><b>'+tema[1]+' '+esc(tema[0])+'</b><br><span class="muted small">Medalha de '+m.toLocaleDateString("pt-BR",{month:"long"})+': '+pecas+' de 4 semanas completas'+(pecas===4?" · conquistada! 🏅":"")+' · meta de '+meta+(meta===1?" treino":" treinos")+' por semana</span>'+anoTxt+'</div></div>';
   let gap=0,ant=null;doMes.forEach(s=>{if(ant)gap=Math.max(gap,diasEntre(ant,s.date));ant=s.date});
   const corridos=Math.max(1,m.getMonth()===h.getMonth()&&m.getFullYear()===h.getFullYear()?h.getDate():n);
   const sel=S.alDia&&set.get(S.alDia)||doMes[doMes.length-1];
@@ -2713,7 +2715,7 @@ function renderAlunoCal(){
   $("#cm-a").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()-1,1);S.alDia=null;renderAlunoCal()};
   $("#cm-p").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()+1,1);S.alDia=null;renderAlunoCal()};
   el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal()});
-  el.querySelectorAll("[data-pin]").forEach(b=>b.onclick=()=>{const mi=+b.dataset.pin,P=S.pinInfo;if(P)abrirPin(mi,P.info[mi],P.ano,P.meta)});
+  el.querySelectorAll("[data-caixa]").forEach(b=>b.onclick=abrirCaixa);
 }
 function renderNavBaixo(){
   const nav=$("#nav-baixo");let itens=null,on="";
@@ -3373,9 +3375,10 @@ const TEMAS_TXT=["Para quem começa o ano com garra e volta mais forte, como a f
 // Animação leve de cada pin (brilho, chama, sol que ilumina, onda). Só movimento suave; quem pede menos movimento não vê.
 const PIN_ANIM=["flick","bounce","sway","grow","tilt","flick","shine","pulse","spin","sun","wave","sun"];
 // frac: 0 = cinza, 1 = colorido e animado, entre 0 e 1 = parte colorida (fatia) por cima do cinza.
-function pinHtml(mi,frac,tam){
+// rubi: quem chegou ao nível Platina do ano ganha os pins conquistados em vermelho rubi, com brilho holográfico (estilo "shiny").
+function pinHtml(mi,frac,tam,rubi){
   const svg=(window.PINS||[])[mi]||"",t=tam||88;
-  if(frac>=1)return '<span class="pin pin-on pa-'+PIN_ANIM[mi]+'" style="width:'+t+'px;height:'+t+'px"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+svg+'</span>';
+  if(frac>=1)return '<span class="pin pin-on pa-'+PIN_ANIM[mi]+(rubi?" pin-rubi":"")+'" style="width:'+t+'px;height:'+t+'px"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+(rubi?'<b class="tw tw3">✦</b><b class="tw tw4">✧</b>':"")+svg+'</span>';
   if(frac<=0)return '<span class="pin pin-off" style="width:'+t+'px;height:'+t+'px">'+svg+'</span>';
   const p=Math.round(frac*100);
   return '<span class="pin pin-part" style="width:'+t+'px;height:'+t+'px"><span class="pin-g">'+svg+'</span><span class="pin-c" style="--p:'+p+'%">'+svg+'</span></span>';
@@ -3392,7 +3395,7 @@ function abrirPin(mi,n,ano,meta){
   else if(atual)txt='Você já completou <b>'+n.n+' de 4 semanas</b> em '+mesNome+'. Falta'+(4-n.n===1?"":"m")+' <b>'+(4-n.n)+'</b> '+(4-n.n===1?"semana":"semanas")+' para ganhar esta medalha.';
   else txt='Esta medalha era de <b>'+mesNome+' de '+ano+'</b>. Você completou <b>'+n.n+' de 4 semanas</b>'+(n.n?"":", sem fechar nenhuma ainda")+'. O que vale é seguir firme: os próximos meses estão te esperando.';
   const ov=document.createElement("div");ov.className="pin-ov";
-  ov.innerHTML='<div class="pin-big">'+pinHtml(mi,frac>=1?1:frac,190)+'<h3>'+nome[1]+' '+esc(nome[0])+'</h3><p>'+txt+'</p><button class="btn primary">Fechar</button></div>';
+  ov.innerHTML='<div class="pin-big">'+pinHtml(mi,frac>=1?1:frac,190,S.pinInfo&&S.pinInfo.rubi)+'<h3>'+nome[1]+' '+esc(nome[0])+'</h3><p>'+txt+'</p><button class="btn primary">Fechar</button></div>';
   ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
   document.body.appendChild(ov);
 }
@@ -3403,8 +3406,19 @@ function caixaMedalhasHtml(lista,meta,ano){
     const c=semanasCompletasDoMes(lista,meta,ano,mi),n=Math.min(4,c.length);
     info.push({n,data:c.length>=4?new Date(c[3].seg.getFullYear(),c[3].seg.getMonth(),c[3].seg.getDate()+6):null});
   }
-  S.pinInfo={info,ano,meta};
-  return '<div class="card pin-box"><b>Minhas medalhas de '+ano+'</b><div class="pin-grid">'+info.map((x,mi)=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,x.n/4,78)+'<span>'+["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][mi]+'</span></button>').join("")+'</div></div>';
+  const ar=anoResumo(lista,meta,ano),rubi=ar.nivel>=3,ganhas=info.filter(x=>x.n>=4).length;
+  S.pinInfo={info,ano,meta,rubi};
+  // Os pins não ficam à mostra na tela do calendário: só o botão. A caixa abre ao tocar.
+  return '<button class="card pin-box-btn" data-caixa="1"><span class="pin-box-ic">🏅</span><span><b>Minhas medalhas de '+ano+'</b><br><span class="muted small">'+ganhas+' de 12 conquistadas'+(rubi?" · Platina: pins rubi ✨":"")+'</span></span><span class="pin-box-go">›</span></button>';
+}
+// Abre a caixa com as 12 medalhas do ano.
+function abrirCaixa(){
+  const P=S.pinInfo;if(!P)return;
+  const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const ov=document.createElement("div");ov.className="pin-ov";
+  ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>Toque numa medalha para ver o porquê.'+(P.rubi?" Você chegou à Platina: as conquistadas ficam em rubi! ✨":"")+'</p><div class="pin-grid">'+P.info.map((x,mi)=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,x.n/4,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join("")+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
+  ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta)};
+  document.body.appendChild(ov);
 }
 // Resumo do ano: medalhas de mês completas (4 semanas) e semanas completas no total. "Lenda do Ano" = 40 semanas completas (o equivalente a 10 meses de treino na meta).
 function anoResumo(lista,meta,ano){

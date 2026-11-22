@@ -423,3 +423,7 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - js/pins.js com os 12 pins SVG (adesivos divertidos). Caixa 'Minhas medalhas de ANO' no calendário: cinza quando falta, parte colorida (fatia por 4 semanas) quando está perto, colorido e animado quando conquistado. Toque abre janela grande com o porquê/data ou o que falta.
 - Fim do treino: mostra o pin do mês com a parte já conquistada; se o treino fecha a semana ou o mês, comemora (fogos no mês fechado).
 - Animações leves por pin (chama, balanço, sol que ilumina, onda), desligadas com prefers-reduced-motion.
+
+## 2.45.1 - Caixa de medalhas, pin parcial e rubi
+- Calendário: só um botão 'Minhas medalhas de ANO' (os pins não ficam à mostra); abre a caixa com os 12 pins. O card da medalha do mês mostra o pin parcial.
+- Nível Platina (9+ medalhas no ano): pins conquistados viram rubi com brilho holográfico girando e mais faíscas.
