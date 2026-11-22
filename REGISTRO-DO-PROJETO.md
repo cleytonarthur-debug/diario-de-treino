@@ -365,3 +365,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.42.1 - Novidades também no aluno Cleyton
 - novos() = professor ou o aluno AMVDUE2LP (o próprio professor como aluno). Alunos de verdade continuam sem as novidades.
+
+## 2.42.2 - Regras da IA publicadas no programa central (@39)
+- IA_SISTEMA ganhou: repetição x peso (força equivalente), meta ultrapassada = excelente, salto de carga, super set e antagonista, tom de treinador. Autorização permanente do professor para publicar atualizações da IA.
