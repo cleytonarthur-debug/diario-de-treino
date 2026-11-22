@@ -405,3 +405,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.43.1 - Calendário: dias treinados coloridos
 - Antes, o dia treinado em semana completa ficava branco e só o dia sem treino (ex.: domingo) ficava colorido. Agora o dia treinado tem a cor viva da semana com aro branco e o dia sem treino fica suave.
+
+## 2.43.2 - Calendário: cor por semana de verdade
+- button.on (azul de ação) vencia o degradê da semana por especificidade; agora button.on.sN define o degradê de cada semana.

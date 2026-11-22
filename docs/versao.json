@@ -1,7 +1,7 @@
 {
-  "versao": "2.43.1",
+  "versao": "2.43.2",
   "data": "22/11/2026",
   "notas": [
-    "Calendário: dia treinado fica com a cor viva da semana (antes ficava branco); dia sem treino na semana completa fica suave"
+    "Calendário: cada semana completa com a sua cor (verde, azul, roxo), dias treinados na cor da semana"
   ]
 }
