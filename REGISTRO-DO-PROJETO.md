@@ -362,3 +362,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Drop em qualquer série: 2ª linha de reps/peso; grava no mesmo registro (ex.: 10+8 e 40kg > 30kg).
 - Botões ▲▼ no cabeçalho do exercício mudam a ordem sem excluir (bi-set anda junto).
 - Tudo atrás de S.role==='prof' (classe prof-lc); aluno não vê nada disso. Liberar para alunos só quando o professor pedir.
+
+## 2.42.1 - Novidades também no aluno Cleyton
+- novos() = professor ou o aluno AMVDUE2LP (o próprio professor como aluno). Alunos de verdade continuam sem as novidades.

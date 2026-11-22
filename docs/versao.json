@@ -1,7 +1,7 @@
 {
-  "versao": "2.42.0",
+  "versao": "2.42.1",
   "data": "21/11/2026",
   "notas": [
-    "Só para o professor: layout enxuto (só a série da vez aberta), drop em qualquer série com 2ª linha de repetições, e botões para mudar a ordem dos exercícios"
+    "Novidades (layout enxuto, drop, mudar ordem) também na conta de aluno do professor"
   ]
 }

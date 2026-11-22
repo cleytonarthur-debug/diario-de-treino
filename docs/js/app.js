@@ -577,7 +577,7 @@ function moverBloco(bi,dir){
   saveDraft();renderLancar();
 }
 function renderLancar(){
-  document.body.classList.toggle("prof-lc",S.role==="prof");
+  document.body.classList.toggle("prof-lc",novos());
   const el=$("#lancar");
   if(needAluno(el)){$("#savebar").hidden=true;return}
   if(S.role==="prof"&&S.modEdit){$("#savebar").hidden=true;return renderModelEditor(el)}
@@ -709,7 +709,7 @@ function exCard(b,bi){
   const im=window.Metodos&&Metodos.imagem(b.name,S.aluno&&S.aluno.sexo);
   return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
-    (S.role==="prof"?'<button class="mv" data-act="mv-up" aria-label="Subir exercício" title="Subir">▲</button><button class="mv" data-act="mv-dn" aria-label="Descer exercício" title="Descer">▼</button>':"")+
+    (novos()?'<button class="mv" data-act="mv-up" aria-label="Subir exercício" title="Subir">▲</button><button class="mv" data-act="mv-dn" aria-label="Descer exercício" title="Descer">▼</button>':"")+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
     '<div class="ex-okmsg"><span>🏆 Exercício concluído</span><span class="palma" aria-hidden="true">👏</span></div>'+
@@ -741,6 +741,8 @@ function lastText(s){
 // O aluno só vê a comparação quando superou a última vez. Igual ou abaixo, vê uma frase de incentivo.
 const INCENTIVO=["💪 Série feita. Constância é o que leva longe.","💪 Mais uma na conta. Segue firme.","💪 Feito. Cada série soma.","💪 Boa. Mantém a técnica e segue.","💪 Série no bolso. Respira e vai para a próxima."];
 const veTudo=()=>S.role==="prof";
+// Novidades em teste: só o professor e o aluno dele mesmo (conta do próprio professor). Alunos de verdade não veem.
+const novos=()=>S.role==="prof"||S.alunoId==="AMVDUE2LP";
 function cmpBadge(s){
   if(!String(s.reps).trim()||s.aq||s.dc)return "";
   const reps=parseReps(s.reps,s.meta),peso=parsePeso(s.peso);const v=setVolume(reps,peso);
@@ -927,14 +929,14 @@ function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
   const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
   const fz=fraseSerie(S.draft.blocks[bi],s,si,bi);
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(veTudo()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(novos()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
       (s.aq||s.dc?"":'<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>')+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
-    '</div>'+(veTudo()&&!s.aq&&!s.dc?dropHtml(s):"")+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
+    '</div>'+(novos()&&!s.aq&&!s.dc?dropHtml(s):"")+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
 }
 function bindLancar(){
   const el=$("#lancar");
@@ -1000,7 +1002,7 @@ function bindLancar(){
       const dAdd=row.querySelector('[data-act="drop-add"]');if(dAdd)dAdd.onclick=()=>{(s.drop=s.drop||[]).push({reps:"",peso:""});saveDraft();rerenderCard(bi)};
       const dRm=row.querySelector('[data-act="drop-rm"]');if(dRm)dRm.onclick=()=>{(s.drop||[]).pop();saveDraft();rerenderCard(bi)};
       const tmB=row.querySelector('[data-act="tm"]');if(tmB)tmB.onclick=()=>row.classList.toggle("show-tm");
-      const inf=row.querySelector(".set-info");if(inf&&veTudo())inf.addEventListener("click",e=>{if(e.target.closest("button,input,label,select"))return;row.classList.toggle("open")});
+      const inf=row.querySelector(".set-info");if(inf&&novos())inf.addEventListener("click",e=>{if(e.target.closest("button,input,label,select"))return;row.classList.toggle("open")});
       row.querySelector('[data-act="note"]').onclick=()=>{s.note=!s.note;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o)o.focus()};
       const sk=row.querySelector('[data-act="skip"]');
       if(sk)sk.onclick=()=>{s.skip=!s.skip;if(s.skip){s.reps="";s.ok=false;s.okAuto=false;s.time=s.time||hhmm(new Date())}s.note=true;saveDraft();rerenderCard(bi);updateBar();
