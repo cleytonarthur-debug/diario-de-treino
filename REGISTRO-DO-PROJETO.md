@@ -459,3 +459,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.4 - Pins de Peito e Pernas
 - Peito: troféu com carinha. Pernas: barra carregada de anilhas (lado). Regra: pins só com objetos (troféu, anilha, barra, haltere), nunca formas de corpo.
+
+## 2.48.5 - Pins de Pernas e Costas
+- Pernas: kettlebell com carinha (a barra com anilhas parecia fone de ouvido). Costas: puxador em V com cabo.
