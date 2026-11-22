@@ -465,3 +465,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.6 - Pins de grupos e Pesos movidos
 - Costas, pernas, braços e ombros: anilha com carinha e nome do grupo na fita (cores por grupo). Peito segue troféu. 'Toneladas movidas' renomeado 'Pesos movidos' com pilha de anilhas.
+
+## 2.48.7 - Troféus
+- Grupos musculares: troféu com carinha e o nome na fita (cada um no fundo da sua cor). Pesos movidos: troféu sobre anilhas.
