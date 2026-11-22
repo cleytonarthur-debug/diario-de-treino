@@ -462,3 +462,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.5 - Pins de Pernas e Costas
 - Pernas: kettlebell com carinha (a barra com anilhas parecia fone de ouvido). Costas: puxador em V com cabo.
+
+## 2.48.6 - Pins de grupos e Pesos movidos
+- Costas, pernas, braços e ombros: anilha com carinha e nome do grupo na fita (cores por grupo). Peito segue troféu. 'Toneladas movidas' renomeado 'Pesos movidos' com pilha de anilhas.

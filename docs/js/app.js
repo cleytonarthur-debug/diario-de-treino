@@ -3454,7 +3454,7 @@ function abrirCaixa(){
 const CONQ_DEF=[
   {k:"seq",nome:"Sequência de meses",marcos:[3,6,12],f:(v,m)=>m+" meses seguidos",t:(v)=>"Você treinou "+v+" meses seguidos, com pelo menos 1 semana completa em cada mês."},
   {k:"dias",nome:"Dias treinados",marcos:[10,50,200],f:(v,m)=>m+" dias",t:(v)=>"Você já treinou "+v+" dias no total, em qualquer época. Cada dia conta!"},
-  {k:"ton",nome:"Toneladas movidas",marcos:[10,100,1000],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas somando todos os treinos."},
+  {k:"ton",nome:"Pesos movidos",marcos:[10,100,1000],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas somando todos os treinos."},
   {k:"horas",nome:"Horas de treino",marcos:[50,200,500],f:(v,m)=>m+" h",t:(v)=>"Você já passou "+nf1.format(v)+" horas treinando."},
   {k:"pernas",nome:"Pernas",g:"Inferiores",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em pernas."},
   {k:"costas",nome:"Costas",g:"Costas",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em costas."},
