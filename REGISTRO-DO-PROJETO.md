@@ -450,3 +450,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.1 - Boas-vindas por sexo
 - Pin de boas-vindas: com laço (bv) para o cadastro feminino, sem laço (bvm) para os demais.
+
+## 2.48.2 - Pin de Braços
+- O braço dobrado do pin de Braços lembrava outra coisa; trocado por haltere com carinha.
