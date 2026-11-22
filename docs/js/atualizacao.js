@@ -5,7 +5,7 @@
    VERSAO e DATA são trocados pelo script tools/versao.mjs a cada publicação. */
 window.Atualizacao=(function(){
 "use strict";
-const VERSAO="2.43.2";
+const VERSAO="2.44.0";
 const DATA="22/11/2026";
 const K="dt2-ultima-verificacao";
 

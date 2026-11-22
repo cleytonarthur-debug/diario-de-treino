@@ -2681,7 +2681,9 @@ function renderAlunoCal(){
   for(let d=1;d<=n;d++){const oc=cl(Math.floor((off+d-1)/7));g+=set.has(d)?'<button class="on'+oc+'" data-d="'+d+'">'+d+'</button>':'<span class="vz'+oc+'">'+d+'</span>'}
   for(let i=0;i<nw*7-off-n;i++)g+='<span class="bl'+cl(nw-1)+'"></span>';
   const pecas=Math.min(4,compl.length);
-  const medalhaCard='<div class="card sc-m" style="display:flex;gap:12px;align-items:center;margin-top:10px">'+medalhaSvg(compl.slice(0,4).map(w=>CORES_SEM[w.ord-1]))+'<div><b>Medalha de '+m.toLocaleDateString("pt-BR",{month:"long"})+'</b><br><span class="muted small">'+pecas+' de 4 semanas completas'+(pecas===4?" · medalha completa! 🏅":"")+' · meta de '+meta+(meta===1?" treino":" treinos")+' por semana</span></div></div>';
+  const tema=TEMAS_MES[m.getMonth()],ar=lista?anoResumo(lista,meta,m.getFullYear()):null;
+  const anoTxt=ar?'<br><span class="muted small">'+m.getFullYear()+': '+ar.medalhas+(ar.medalhas===1?" medalha":" medalhas")+' de mês'+(ar.nivel>=0?" · nível "+["Bronze","Prata","Ouro","Platina"][ar.nivel]:"")+' · '+(ar.lenda?"🏆 Lenda do Ano!":"Lenda do Ano: "+ar.semanas+" de 40 semanas")+'</span>':"";
+  const medalhaCard='<div class="card sc-m" style="display:flex;gap:12px;align-items:center;margin-top:10px">'+medalhaSvg(compl.slice(0,4).map(w=>CORES_SEM[w.ord-1]))+'<div><b>'+tema[1]+' '+esc(tema[0])+'</b><br><span class="muted small">Medalha de '+m.toLocaleDateString("pt-BR",{month:"long"})+': '+pecas+' de 4 semanas completas'+(pecas===4?" · conquistada! 🏅":"")+' · meta de '+meta+(meta===1?" treino":" treinos")+' por semana</span>'+anoTxt+'</div></div>';
   let gap=0,ant=null;doMes.forEach(s=>{if(ant)gap=Math.max(gap,diasEntre(ant,s.date));ant=s.date});
   const corridos=Math.max(1,m.getMonth()===h.getMonth()&&m.getFullYear()===h.getFullYear()?h.getDate():n);
   const sel=S.alDia&&set.get(S.alDia)||doMes[doMes.length-1];
@@ -3341,7 +3343,18 @@ function treinosNaSemana(seg){
 }
 // Cada semana completa do mês tem a sua cor, na ordem em que foi completada (1ª verde, 2ª azul, 3ª roxa, 4ª laranja, 5ª rosa).
 // Só o mês com as 4 semanas completas fecha a medalha, com o anel dourado.
-const CORES_SEM=[["#86efac","#22c55e"],["#93c5fd","#3b82f6"],["#d8b4fe","#a855f7"],["#fdba74","#f97316"],["#f9a8d4","#ec4899"]];
+// Metais, na ordem em que as semanas completas são conquistadas: bronze, prata, ouro, platina e diamante (5ª semana, quando o mês tem).
+const CORES_SEM=[["#f0b27a","#8c5a2b","#cd7f32"],["#ffffff","#8e97a3","#cfd4dc"],["#fff1b3","#b8860b","#f1c232"],["#f4fbff","#6d94ad","#b9d6e8"],["#e0f7ff","#2aa6d8","#7fdcff"]];
+const NOMES_METAL=["Bronze","Prata","Ouro","Platina","Diamante"];
+// Tema da medalha de cada mês (índice 0 = janeiro). Out a dez lembram o pré-verão.
+const TEMAS_MES=[["Recomeço","🔥"],["Ritmo de Folia","🥁"],["Constância","⚓"],["Renovação","🌱"],["Mão na Massa","🛠️"],["Arraiá de Força","🎪"],["Inverno de Ferro","❄️"],["Foco Total","🎯"],["Primavera de Força","🌸"],["Operação Verão","☀️"],["Shape de Verão","🏖️"],["Verão Chegou","🌴"]];
+// Resumo do ano: medalhas de mês completas (4 semanas) e semanas completas no total. "Lenda do Ano" = 40 semanas completas (o equivalente a 10 meses de treino na meta).
+function anoResumo(lista,meta,ano){
+  let semanas=0,medalhas=0;
+  for(let mes=0;mes<12;mes++){const n=semanasCompletasDoMes(lista,meta,ano,mes).length;semanas+=n;if(n>=4)medalhas++}
+  const nivel=medalhas>=9?3:medalhas>=6?2:medalhas>=3?1:medalhas>=1?0:-1;
+  return {semanas,medalhas,nivel,lenda:semanas>=40};
+}
 function semanasCompletasDoMes(sess,meta,ano,mes){
   const lista=[];
   for(let s=segundaDe(new Date(ano,mes,1));s<=new Date(ano,mes+1,0);s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
@@ -3356,7 +3369,7 @@ function medalhaSvg(cores,tam){
   const id="mg"+(++MGN);tam=tam||72;cores=cores||[];
   const q=["M0 0 L0 -44 A44 44 0 0 1 44 0 Z","M0 0 L44 0 A44 44 0 0 1 0 44 Z","M0 0 L0 44 A44 44 0 0 1 -44 0 Z","M0 0 L-44 0 A44 44 0 0 1 0 -44 Z"];
   const cheia=cores.length>=4,anel=cheia?"#f5c542":(cores.length?"#8a8f9a":"#3a3e46");
-  const defs=q.map((_,i)=>cores[i]?'<linearGradient id="'+id+'_'+i+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+cores[i][0]+'"/><stop offset="1" stop-color="'+cores[i][1]+'"/></linearGradient>':"").join("");
+  const defs=q.map((_,i)=>cores[i]?'<linearGradient id="'+id+'_'+i+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+cores[i][0]+'"/>'+(cores[i][2]?'<stop offset=".5" stop-color="'+cores[i][2]+'"/>':"")+'<stop offset="1" stop-color="'+cores[i][1]+'"/></linearGradient>':"").join("");
   return '<svg width="'+tam+'" height="'+tam+'" viewBox="-50 -50 100 100" aria-hidden="true"><defs>'+defs+'</defs>'+
     q.map((d,i)=>'<path d="'+d+'" fill="'+(cores[i]?"url(#"+id+"_"+i+")":"#2a2d35")+'" stroke="#0b0c0f" stroke-width="1.5"/>').join("")+
     '<circle r="44" fill="none" stroke="'+anel+'" stroke-width="'+(cheia?5:3)+'"/><circle r="17" fill="#15171b" stroke="'+anel+'" stroke-width="2"/><text y="7" text-anchor="middle" font-size="20">'+(cheia?"🏅":"🏋️")+'</text></svg>';
