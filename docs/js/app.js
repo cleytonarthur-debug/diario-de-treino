@@ -766,7 +766,8 @@ function lastText(s){
 const INCENTIVO=["💪 Série feita. Constância é o que leva longe.","💪 Mais uma na conta. Segue firme.","💪 Feito. Cada série soma.","💪 Boa. Mantém a técnica e segue.","💪 Série no bolso. Respira e vai para a próxima."];
 const veTudo=()=>S.role==="prof";
 // Novidades em teste: só o professor e o aluno dele mesmo (conta do próprio professor). Alunos de verdade não veem.
-const novos=()=>S.role==="prof"||S.alunoId==="AMVDUE2LP";
+// Liberado para todos os alunos em 22/11/2026 (pedido do professor). Para voltar a testar só com ele: S.role==="prof"||S.alunoId==="AMVDUE2LP".
+const novos=()=>true;
 function cmpBadge(s){
   if(!String(s.reps).trim()||s.aq||s.dc)return "";
   const reps=parseReps(s.reps,s.meta),peso=parsePeso(s.peso);const v=setVolume(reps,peso);
