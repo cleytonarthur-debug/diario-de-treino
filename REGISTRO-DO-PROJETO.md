@@ -471,3 +471,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.8 - Troféus diferenciados por grupo
 - Cada grupo com fundo próprio e detalhe no troféu: peito estrela, costas V, pernas pódio, braços raio e alças largas, ombros raios de sol (taça prata).
+
+## 2.49.0 - Conquistas extras (pack B)
+- Madrugador (10 treinos antes das 7h), Guerreiro de fim de semana (10), Recordista (25 recordes), Mão pesada (100 cargas subidas), Viajante (3 academias), Volta por cima (14+ dias parado e fechou a semana), Dia ruim treino feito (10 com ânimo ruim), Semana perfeita (todos os treinos diferentes do plano na semana), Hidratado (14 treinos seguidos bebendo toda a água), Coach conversa (20 comentários). Bi-set master ficou de fora: o histórico não marca bi-set.

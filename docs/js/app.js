@@ -3493,7 +3493,39 @@ function conquistasGanhas(){
     if(v.dias>=21&&sv("habito"))hab.push({k:"habito",nome:"Mudança de hábito",svg:sv("habito"),curto:"21 dias",texto:"Você chegou a 21 dias treinados. Dizem que é o tempo de um hábito se formar: o seu já está de pé!",marco:"21 dias treinados",prox:v.seq>=2?null:"2 meses seguidos"});
     if(v.seq>=2&&sv("rotina"))hab.push({k:"rotina",nome:"Rotina de treino",svg:sv("rotina"),curto:"2 meses",texto:"Você treinou 2 meses seguidos. Treinar já faz parte da sua rotina.",marco:"2 meses seguidos",prox:v.seq>=6?null:"6 meses seguidos"});
     if(v.seq>=6){const kk=fem?"rata":"rato";if(sv(kk))hab.push({k:kk,nome:fem?"Rata de academia":"Rato de academia",svg:sv(kk),curto:fem?"Rata de academia":"Rato de academia",texto:"Você treinou 6 meses seguidos. Já é "+(fem?"rata":"rato")+" de academia, de casa na rotina!",marco:"6 meses seguidos",prox:null})}
-    return hab.concat(out);
+    // Conquistas extras (pack B): madrugador, fim de semana, recordista, mão pesada, viajante, volta por cima, dia ruim, semana perfeita, hidratado e coach conversa.
+    const ext=[];
+    const add=(k,nome,curto,texto)=>{const s0=H[k]&&H[k][0];if(s0)ext.push({k,nome,svg:s0,curto,texto,marco:curto,prox:null})};
+    const hm=s=>{const m=String(s||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null};
+    const ord=ss.slice().sort((a,b)=>a.date-b.date);
+    let madr=0,fds=0,ruim=0,coment=0,aguaRun=0,aguaMax=0,rec=0,carga=0;const acad=new Set(),bestE={},bestP={};
+    ord.forEach(s=>{
+      const mn=hm((s.rows[0]||{}).hora);if(mn!=null&&mn<420)madr++;
+      const wd=s.date.getDay();if(wd===0||wd===6)fds++;
+      const obs=s.rows.map(r=>r.obs||"").join(" ");
+      if(/Ânimo início:\s*ruim/i.test(obs))ruim++;
+      if(/\[Treino\]\s*\S/.test(obs))coment++;
+      const ag=obs.match(/Água:\s*bebeu\s*(\d+)\s*de\s*(\d+)/i);
+      if(ag){if(+ag[2]>0&&+ag[1]>=+ag[2]){aguaRun++;aguaMax=Math.max(aguaMax,aguaRun)}else aguaRun=0}
+      s.rows.forEach(r=>{const a=strip(r.academia||"");if(a)acad.add(a)});
+      const por=new Map();
+      s.rows.forEach(r=>{if(!r.done||r.aq||r.dc)return;const k=Coach.base(r.ex),pw=Array.isArray(r.pesoN)?Math.max(...r.pesoN):(r.pesoN||0),o=por.get(k)||{e:0,p:0};o.e=Math.max(o.e,r.e1||0);o.p=Math.max(o.p,pw||0);por.set(k,o)});
+      por.forEach((o,k)=>{if(bestE[k]>0&&o.e>bestE[k]*1.001)rec++;if(bestP[k]>0&&o.p>bestP[k]+0.01)carga++;bestE[k]=Math.max(bestE[k]||0,o.e);bestP[k]=Math.max(bestP[k]||0,o.p)});
+    });
+    let volta=false;for(let i=1;i<ord.length&&!volta;i++){if((ord[i].date-ord[i-1].date)/864e5>=14&&semDiasR(lista,segundaDe(ord[i].date))>=meta)volta=true}
+    let perfeita=false;const porSem=new Map();ord.forEach(s=>{const k=+segundaDe(s.date);const o=porSem.get(k)||{d:new Set(),t:new Set()};o.d.add(s.dateS);o.t.add(s.treino);porSem.set(k,o)});
+    porSem.forEach(o=>{if(o.d.size>=Math.max(meta,2)&&o.t.size>=Math.max(meta,2))perfeita=true});
+    if(madr>=10)add("madrugador","Madrugador","10 treinos","Você treinou "+madr+" vezes antes das 7h. Quem acorda cedo, conquista!");
+    if(fds>=10)add("guerreiro","Guerreiro de fim de semana","10 fins de semana","Você treinou "+fds+" vezes no sábado ou no domingo. Fim de semana também é dia de treino!");
+    if(rec>=25)add("recordista","Recordista","25 recordes","Você bateu "+rec+" recordes pessoais. Cada um deles foi você ficando mais forte.");
+    if(carga>=100)add("maopesada","Mão pesada","100 cargas","Você subiu a carga "+carga+" vezes em exercícios. Evolução na prática!");
+    if(acad.size>=3)add("viajante","Viajante","3 academias","Você já treinou em "+acad.size+" academias diferentes. Treino não tem endereço fixo!");
+    if(volta)add("volta","Volta por cima","Voltou e fechou","Você ficou 14 dias ou mais parado, voltou e ainda fechou a semana. Isso é força de verdade!");
+    if(ruim>=10)add("diaruim","Dia ruim, treino feito","10 treinos","Você treinou "+ruim+" vezes mesmo chegando sem ânimo. Parabéns pela constância!");
+    if(perfeita)add("semana","Semana perfeita","Semana perfeita","Você fez todos os treinos diferentes do plano em uma mesma semana. Perfeito!");
+    if(aguaMax>=14)add("hidratado","Hidratado","14 treinos seguidos","Você bebeu a água do treino "+aguaMax+" treinos seguidos. Corpo agradece!");
+    if(coment>=20)add("coach","Coach conversa","20 comentários","Você comentou "+coment+" treinos. Assim o coach te conhece e ajusta melhor!");
+    return hab.concat(ext,out);
   }catch(e){return []}
 }
 function abrirConq(c){
