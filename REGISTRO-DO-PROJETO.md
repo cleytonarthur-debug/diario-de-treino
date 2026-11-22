@@ -356,3 +356,9 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.41.2 - Bi-set em treinos de modelo (planilha)
 - Dois exercícios seguidos com 'bi-set' nas reps formam um par: a vez alterna A, B, A, B; sem descanso entre A e B; descanso 60-90 s depois do B com aviso de quem é o próximo; faixa 'Bi-set · A + B' no topo.
 - Braços do professor (segunda, foco bíceps) já na planilha com 2 super sets em pirâmide.
+
+## 2.42.0 - Novidades só para o professor
+- Layout enxuto: só a série da vez aberta; as outras viram linha (toque para abrir); horário atrás do relógio.
+- Drop em qualquer série: 2ª linha de reps/peso; grava no mesmo registro (ex.: 10+8 e 40kg > 30kg).
+- Botões ▲▼ no cabeçalho do exercício mudam a ordem sem excluir (bi-set anda junto).
+- Tudo atrás de S.role==='prof' (classe prof-lc); aluno não vê nada disso. Liberar para alunos só quando o professor pedir.

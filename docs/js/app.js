@@ -561,7 +561,23 @@ function needAluno(el){
   el.innerHTML='<div class="empty">'+(S.role==="prof"?'Escolha um aluno em <b>Alunos</b>, na tela inicial.':'Carregando seus dados…')+'</div>';
   return true;
 }
+// Novidades só para o professor por enquanto: layout enxuto (só a série da vez aberta), drop em qualquer série e mudar a ordem dos exercícios.
+function dropHtml(s){
+  const dr=s.drop||[];
+  return '<div class="drops">'+dr.map((d,i)=>'<div class="drop-l"><span>↳ drop'+(dr.length>1?" "+(i+1):"")+'</span><input data-df="reps" data-di="'+i+'" inputmode="numeric" autocomplete="off" placeholder="reps" value="'+esc(d.reps)+'" aria-label="Repetições do drop"><input data-df="peso" data-di="'+i+'" autocomplete="off" placeholder="kg" value="'+esc(d.peso)+'" aria-label="Peso do drop"></div>').join("")+
+    '<div class="drop-b"><button class="dropbtn" data-act="drop-add">'+(dr.length?"+ outro drop":"+ drop")+'</button>'+(dr.length?'<button class="dropbtn" data-act="drop-rm">− tirar drop</button>':"")+'</div></div>';
+}
+function moverBloco(bi,dir){
+  const bl=S.draft.blocks,units=[];
+  bl.forEach((b,i)=>{const prev=units[units.length-1];if(b.bi&&b.lado==="b"&&prev&&bl[prev[0]].bi===b.bi)prev.push(i);else units.push([i])});
+  const u=units.findIndex(x=>x.includes(bi)),v=u+dir;
+  if(u<0||v<0||v>=units.length)return;
+  [units[u],units[v]]=[units[v],units[u]];
+  S.draft.blocks=units.flat().map(i=>bl[i]);S.draft.rest=null;S.draft.ultSerie=null;
+  saveDraft();renderLancar();
+}
 function renderLancar(){
+  document.body.classList.toggle("prof-lc",S.role==="prof");
   const el=$("#lancar");
   if(needAluno(el)){$("#savebar").hidden=true;return}
   if(S.role==="prof"&&S.modEdit){$("#savebar").hidden=true;return renderModelEditor(el)}
@@ -693,6 +709,7 @@ function exCard(b,bi){
   const im=window.Metodos&&Metodos.imagem(b.name,S.aluno&&S.aluno.sexo);
   return '<div class="ex'+(exOk(b)?" ex-ok":"")+'" data-b="'+bi+'"><div class="ex-h"><span class="stripe" style="background:var('+gv+')"></span>'+(im?'<button class="ex-foto" data-foto="'+bi+'" aria-label="Ver a execução de '+esc(b.name)+'"><img src="'+esc(im.fotos[0])+'" alt="" loading="lazy">'+(im.fotos[1]?'<img src="'+esc(im.fotos[1])+'" alt="" loading="lazy" class="f2">':"")+'</button>':"")+'<h3>'+(b.par?'<span class="parlbl">'+b.par+b.lado+'</span> ':"")+esc(b.name)+
     (b.orig?'<br><span class="swapped">no lugar de: '+esc(b.orig)+'</span>':"")+'</h3>'+grupoSelect(b.grupo,'data-act="grupo"')+
+    (S.role==="prof"?'<button class="mv" data-act="mv-up" aria-label="Subir exercício" title="Subir">▲</button><button class="mv" data-act="mv-dn" aria-label="Descer exercício" title="Descer">▼</button>':"")+
     '<button class="sw" data-act="swap" aria-label="Trocar exercício (máquina ocupada ou sem equipamento)" title="Trocar exercício">⇄</button>'+
     '<button class="x" data-act="rm-ex" aria-label="Remover exercício">×</button></div>'+
     '<div class="ex-okmsg"><span>🏆 Exercício concluído</span><span class="palma" aria-hidden="true">👏</span></div>'+
@@ -910,14 +927,14 @@ function setRow(s,bi,si){
   const done=!!String(s.reps).trim();
   const mc=s.metaC?S.draft.blocks[bi].metaC:null,mcOk=mc&&metaBatida(s,mc);
   const fz=fraseSerie(S.draft.blocks[bi],s,si,bi);
-  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
+  return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(veTudo()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
       '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
       (s.aq||s.dc?"":'<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>')+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
-    '</div>'+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
+    '</div>'+(veTudo()&&!s.aq&&!s.dc?dropHtml(s):"")+(S.draft&&S.draft.ultSerie===bi+"_"+si&&done?timHtml():"")+(s.note||s.obs||s.skip?'<div class="note-row"><input class="obs" data-f="obs" value="'+esc(s.obs)+'" placeholder="Observação (como foi a série)" aria-label="Observação da série '+s.n+'"><button class="skipbtn" data-act="skip">'+(s.skip?"✓ Não fiz":"Não fiz")+'</button></div>':"")+'</div>';
 }
 function bindLancar(){
   const el=$("#lancar");
@@ -979,12 +996,19 @@ function bindLancar(){
         }
         saveDraft();rerenderCard(bi);updateBar();const nc=$('.ex[data-b="'+bi+'"]');if(nc)exercicioPronto(nc,b);
       };
+      row.querySelectorAll("[data-df]").forEach(inp=>inp.addEventListener("input",()=>{const d=(s.drop||[])[+inp.dataset.di];if(d){d[inp.dataset.df]=inp.value;saveDraft()}}));
+      const dAdd=row.querySelector('[data-act="drop-add"]');if(dAdd)dAdd.onclick=()=>{(s.drop=s.drop||[]).push({reps:"",peso:""});saveDraft();rerenderCard(bi)};
+      const dRm=row.querySelector('[data-act="drop-rm"]');if(dRm)dRm.onclick=()=>{(s.drop||[]).pop();saveDraft();rerenderCard(bi)};
+      const tmB=row.querySelector('[data-act="tm"]');if(tmB)tmB.onclick=()=>row.classList.toggle("show-tm");
+      const inf=row.querySelector(".set-info");if(inf&&veTudo())inf.addEventListener("click",e=>{if(e.target.closest("button,input,label,select"))return;row.classList.toggle("open")});
       row.querySelector('[data-act="note"]').onclick=()=>{s.note=!s.note;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o)o.focus()};
       const sk=row.querySelector('[data-act="skip"]');
       if(sk)sk.onclick=()=>{s.skip=!s.skip;if(s.skip){s.reps="";s.ok=false;s.okAuto=false;s.time=s.time||hhmm(new Date())}s.note=true;saveDraft();rerenderCard(bi);updateBar();
         const o=$('.ex[data-b="'+bi+'"] .set[data-s="'+si+'"] .obs');if(o&&s.skip&&!s.obs){o.placeholder="Por que não fez? (ex.: máquina ocupada, dor)";o.focus()}};
     });
     const exo=card.querySelector('[data-f="exobs"]');if(exo)exo.addEventListener("input",()=>{b.obs=exo.value;saveDraft()});
+    const mvU=card.querySelector('[data-act="mv-up"]');if(mvU)mvU.onclick=()=>moverBloco(bi,-1);
+    const mvD=card.querySelector('[data-act="mv-dn"]');if(mvD)mvD.onclick=()=>moverBloco(bi,1);
     card.querySelector('[data-act="ex-note"]').onclick=()=>{b.noteOpen=!b.noteOpen;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] [data-f="exobs"]');if(o)o.focus()};
     card.querySelector('[data-act="swap"]').onclick=()=>{b.swapping=!b.swapping;rerenderCard(bi);const i=$('.ex[data-b="'+bi+'"] [data-f="swapto"]');if(i)i.focus()};
     const so=card.querySelector('[data-act="swap-ok"]');
@@ -1222,7 +1246,11 @@ async function save(){
       const tagC=s.metaC&&b.metaC&&b.metaC.modo==="meta"?"[Meta coach: "+b.metaC.texto+"]":"";
       const obs=[tagM,tagA,tagD,tagC,s.obs,firstOfEx&&b.orig?"No lugar de: "+b.orig:"",firstOfEx&&b.obs?"[Exercício] "+b.obs:"",firstOfTreino&&d.obs?"[Treino] "+d.obs:""].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
       firstOfEx=false;firstOfTreino=false;
-      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.aq?"Pr"+s.aqn:s.dc?"D"+s.dcn:s.n,textCell(s.meta),s.skip?"'não fiz":textCell(s.reps),textCell(s.peso),s.skip?"":(s.aq?"Preparatória":s.dc?"Descompressão":intensityFromRir(s.rir)),s.skip||s.aq||s.dc||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||"",b.maq||"",b.maq&&b.salto?String(b.salto):""]);
+      // Drop: a série ganha as repetições e o peso do drop no mesmo registro (ex.: 10+8 e 40 kg > 30 kg).
+      const dpl=(s.drop||[]).filter(x=>String(x.reps).trim());
+      const repsTxt=dpl.length?[s.reps].concat(dpl.map(x=>String(x.reps).trim())).join("+"):s.reps;
+      const pesoTxt=dpl.length?[s.peso].concat(dpl.map(x=>String(x.peso||s.peso).trim())).join(" > "):s.peso;
+      rows.push([d.date,dia,d.treino,s.time||d.inicio||"",grupo,nomeEx,s.aq?"Pr"+s.aqn:s.dc?"D"+s.dcn:s.n,textCell(s.meta),s.skip?"'não fiz":textCell(repsTxt),textCell(pesoTxt),s.skip?"":(s.aq?"Preparatória":s.dc?"Descompressão":intensityFromRir(s.rir)),s.skip||s.aq||s.dc||s.rir===""?"":Number(s.rir),textCell(obs),d.academia||"",b.maq||"",b.maq&&b.salto?String(b.salto):""]);
     });
   });
   if(!rows.length)return;

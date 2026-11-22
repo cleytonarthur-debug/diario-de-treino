@@ -1,7 +1,7 @@
 {
-  "versao": "2.41.2",
+  "versao": "2.42.0",
   "data": "21/11/2026",
   "notas": [
-    "Bi-set nos treinos da planilha: escreva 'bi-set' nas repetições de dois exercícios seguidos e o app alterna série a série (um, outro, um, outro)"
+    "Só para o professor: layout enxuto (só a série da vez aberta), drop em qualquer série com 2ª linha de repetições, e botões para mudar a ordem dos exercícios"
   ]
 }
