@@ -818,9 +818,38 @@ function fraseSerie(B,s,si,bi){
   const feita=x=>!!String(x.reps).trim()||!!x.skip;
   if(s.oc&&(s.aq||s.dc))return {cls:"",txt:""};
   if(s.aq)return {cls:" s-prep",txt:feita(s)?"":FR_PREP};
-  if(s.dc)return {cls:" s-desc",txt:feita(s)?"":FR_DESC[si%FR_DESC.length]};
+  if(s.dc)return {cls:" s-desc",txt:feita(s)?"":FR_MOM.desc[(si+bi)%FR_MOM.desc.length]};
   const v=vezGlobal(),vez=!!v&&v.bi===bi&&v.si===si&&!B.cardio;
-  return {cls:(B.sets.some(x=>x.aq)&&!s.oc?" s-work":"")+(vez?" s-vez":""),txt:vez?FR_TRAB[(bi*5+si*7+B.sets.length)%FR_TRAB.length]:""};
+  return {cls:(B.sets.some(x=>x.aq)&&!s.oc?" s-work":"")+(vez?" s-vez":""),txt:vez?fraseMomento(B,s,si,bi):""};
+}
+// Frases curtas por momento do treino. Cada série guarda a sua (não muda ao redesenhar) e as frases só se repetem depois de usar todas do momento.
+const FR_MOM={
+ prim:["Agora é valendo, bora!","Puxa sem roubar.","Desce lento, sobe forte!","Core travado. Vai!","Você já sabe. Manda ver!","Mesma amplitude da primeira!","Segura dois tempos, explode!","Base firme. Pra cima!","Solta o ar na força!","Sente o músculo, esquece o peso.","Peso pesado pede respeito!","Carga pronta. Só executa!","Você dita o ritmo!","Encaixou? É agora, força!","Primeira igual à última. Bora!"],
+ meio:["Subiu a carga, pra cima!","Segura essa descida!","Respira e não perde o gás.","Mais peso, mesma amplitude!","Mente colada no músculo!","Postura firme até o fim.","Espreme no alto e volta.","Não acelera no final!","Pesou? Ajusta e vai!","Peito aberto, olhar fixo.","Você já fez isso. Vai!","Mais carga, mais base!","Uma rep de cada vez.","Respira e sustenta a força!","Aperta os dentes. Bora!"],
+ ult:["Última do exercício! Faz bonito!","Fecha com chave de ouro!","Sem pressa no final!","Tudo ajustado? Entrega agora!","Corrige rápido e puxa!","Movimento inteiro, sem cortar!","Respira e dá o seu melhor.","Só mais essa! Foco total!","Você aguenta. Mantém o padrão!","Vai até onde dá bem feito."],
+ desc:["Solta a pegada e flui.","Carga leve: sente o trajeto.","Puxa na ida, solta na volta.","Só o músculo trabalha agora.","Sem brigar com o peso.","No seu tempo, sem pressa.","Respiração longa, gesto leve.","Alonga bem na descida.","Peso leve afina a técnica.","Tira o pé. Pura fluidez!"],
+ drop:["Tirou peso, mantém o gás!","Menos carga, mesma postura!","Quantas ainda saem? Vamos ver!","Troca rápido e entra!","Descida ainda mais lenta!","Continua sem esfriar. Vai!","Uma respirada e bora!","Mesma amplitude, mais leve.","Não acelera à toa. Controle!","Cada rep conta muito. Vai!"],
+ bi:["Fechou? Vai pro próximo!","Sem pausa: ajeita e entra!","Próximo pronto. Manda ver!","Pausa mínima, postura intacta!","Vai firme pro outro!","Mesmo ritmo: segura a descida.","Sem sentar! Engata o próximo!","Troca rápido e já firma!"],
+ ini:["É agora! Treino começou!","Entra firme, sente o corpo.","Marca a amplitude desde já!","Sente o peso e ajusta.","Firma os pés e vai!","Abre focado. Você já sabe!"],
+ fim:["Último exercício! Postura alta!","Tá acabando, bora!","Reta final: faz bem feito!","Acerta os detalhes agora.","Fecha firme e pra cima!","Último do dia! Com vontade!"]
+};
+function fraseMomento(B,s,si,bi){
+  const d=S.draft;d._fr=d._fr||{};d._frN=d._frN||{};
+  const k=bi+"_"+si;if(d._fr[k])return d._fr[k];
+  const eh=x=>!x.aq&&!x.dc;
+  const ultEx=d.blocks.map((b,i)=>b.cardio?-1:i).filter(i=>i>=0).pop()===bi;
+  const trab=B.sets.filter(eh),ehUlt=trab.length>1&&trab[trab.length-1]===s;
+  const ehPrim=trab[0]===s;
+  let c;
+  if(/drop/i.test(String(s.meta||""))||(s.drop&&s.drop.length))c="drop";
+  else if(B.bi)c="bi";
+  else if(bi===0&&si===0)c="ini";
+  else if(ultEx&&ehUlt)c="fim";
+  else if(ehUlt)c="ult";
+  else if(ehPrim)c="prim";
+  else c="meio";
+  const L=FR_MOM[c],n=d._frN[c]||0;d._frN[c]=n+1;
+  return d._fr[k]=L[(n+bi*3)%L.length];
 }
 // Atualiza as cores e frases de todos os cartões sem redesenhar (para não tirar o foco de quem está digitando).
 function pintarTodas(){

@@ -349,3 +349,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Sem salto cadastrado, assume 5 kg a partir de 25 kg. Se o salto passa de 10% da carga (35 para 40), a meta mantém o peso e pede +2 repetições.
 - Badge 'abaixo/superou' do professor compara pela força equivalente (peso x (1+reps/30)); mais peso com menos reps não é abaixo.
 - Queda de volume não vira alerta se a força equivalente se manteve; reps >= 1,5x a meta vira 'Excelente' com sugestão de mais peso ou reps.
+
+## 2.41.1 - 80 frases curtas por momento
+- Frases escolhidas pelo professor, por momento: primeira pesada, meio/final da pirâmide, última do exercício, drop, bi-set, primeira série do treino, último exercício, descompressão. Cada série guarda a sua; só repete depois de usar todas do momento.
