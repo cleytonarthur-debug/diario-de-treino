@@ -741,7 +741,7 @@ function exCard(b,bi){
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
     (novos()?'<datalist id="cg'+bi+'">'+pesosDaAcademia(b.name).map(p=>'<option value="'+esc(p)+'">').join("")+'</datalist>':"")+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
-    '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(novos()&&!b.bi?'<button class="btn ghost" data-act="seq">+ Na sequência</button>':"")+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
+    '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(novos()&&!b.bi?'<button class="btn ghost" data-act="seq">+ Bi-set (outro exercício)</button>'+(S.draft.blocks[bi+1]&&!S.draft.blocks[bi+1].bi&&!S.draft.blocks[bi+1].cardio?'<button class="btn ghost" data-act="join">Juntar com o próximo</button>':""):"")+(novos()&&b.bi&&b.lado==="a"?'<button class="btn ghost" data-act="unjoin">Desfazer bi-set</button>':"")+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
     '<button class="btn ghost" data-act="ex-note">'+(b.obs?"✎ Obs.":"✎ Obs. do exercício")+'</button></div>'+
     (b.noteOpen||b.obs?'<div class="ex-obs"><input class="obs" data-f="exobs" value="'+esc(b.obs||"")+'" placeholder="Observação do exercício (ex.: máquina diferente, ajuste de banco)" aria-label="Observação do exercício"></div>':"")+
     '</div>';
@@ -1052,6 +1052,11 @@ function bindLancar(){
       b.bi=idBi;b.lado="a";nb.bi=idBi;nb.lado="b";
       bl.splice(bi+1,0,nb);saveDraft();renderLancar();toast("Anotado: "+nome+" na sequência. Preencha reps e peso.");
     };
+    // Juntar este exercício com o de baixo num bi-set (ex.: desenvolvimento + remada alta), ou desfazer.
+    const joinB=card.querySelector('[data-act="join"]');
+    if(joinB)joinB.onclick=()=>{const bl=S.draft.blocks,nx=bl[bi+1];if(!nx)return;const idBi=Math.max(0,...bl.map(x=>x.bi||0))+1;b.bi=idBi;b.lado="a";nx.bi=idBi;nx.lado="b";saveDraft();renderLancar();toast("Bi-set: "+b.name+" + "+nx.name+". Agora as séries se alternam.")};
+    const unjB=card.querySelector('[data-act="unjoin"]');
+    if(unjB)unjB.onclick=()=>{S.draft.blocks.forEach(x=>{if(x.bi===b.bi){delete x.bi;delete x.lado}});S.draft.rest=null;saveDraft();renderLancar();toast("Bi-set desfeito.")};
     const mvU=card.querySelector('[data-act="mv-up"]');if(mvU)mvU.onclick=()=>moverBloco(bi,-1);
     const mvD=card.querySelector('[data-act="mv-dn"]');if(mvD)mvD.onclick=()=>moverBloco(bi,1);
     card.querySelector('[data-act="ex-note"]').onclick=()=>{b.noteOpen=!b.noteOpen;saveDraft();rerenderCard(bi);const o=$('.ex[data-b="'+bi+'"] [data-f="exobs"]');if(o)o.focus()};
