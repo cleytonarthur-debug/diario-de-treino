@@ -456,3 +456,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.3 - Pins de Pernas e Peito
 - Pernas virou tênis com carinha; Peito virou barra com anilhas. Sem anatomia.
+
+## 2.48.4 - Pins de Peito e Pernas
+- Peito: troféu com carinha. Pernas: barra carregada de anilhas (lado). Regra: pins só com objetos (troféu, anilha, barra, haltere), nunca formas de corpo.
