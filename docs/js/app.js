@@ -2700,12 +2700,18 @@ function resumoDiaHtml(sel){
       (cm&&cm[1].trim()?'<div class="dia-c">“'+esc(cm[1].trim())+'”</div>':"")+'</div>';
   }catch(e){return ""}
 }
+// Janelas de medalhas: o botão voltar do celular fecha a janela (em vez de sair da tela).
+const OVS=[];let OVIGN=0;
+function mostrarOv(ov){document.body.appendChild(ov);OVS.push(ov);try{history.pushState({ov:1},'')}catch(e){}}
+function fecharOv(ov){const i=OVS.indexOf(ov);ov.remove();if(i<0)return;OVS.splice(i,1);try{if(history.state&&history.state.ov){OVIGN++;history.back()}}catch(e){}}
+let OVCONS=false;
+window.addEventListener('popstate',()=>{if(OVIGN>0){OVIGN--;OVCONS=true;return}const ov=OVS.pop();if(ov){ov.remove();OVCONS=true}});
 // Toque num dia do calendário: abre uma janela com o resumo do que foi treinado naquele dia.
 function abrirDia(sel){
   const ov=document.createElement("div");ov.className="pin-ov";
   ov.innerHTML='<div class="pin-big pin-dia"><h3>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}))+'</h3><p class="muted small" style="text-align:left">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</p>'+(resumoDiaHtml(sel)||'<p class="muted small" style="text-align:left">Os detalhes dos exercícios aparecem na conta do próprio aluno.</p>')+'<button class="btn primary" style="margin-top:12px">Fechar</button></div>';
-  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
-  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")fecharOv(ov)};
+  mostrarOv(ov);
 }
 function renderAlunoCal(){
   const el=$("#alcal-c")||$("#v-alcal");const a=S.aluno;if(!a){el.innerHTML="";return}
@@ -3230,6 +3236,7 @@ function voltar(){
   abrir(destinoVoltar());
 }
 window.addEventListener("popstate",()=>{
+  if(OVCONS){OVCONS=false;return}
   if(S.fim){S.fim=false;history.pushState({dt:1},"");render();return}
   if(S.view!=="inicio"){const d=destinoVoltar();window.scrollTo({top:0});if(d!=="inicio")history.pushState({dt:1},"");setView(d)}
 });
@@ -3421,8 +3428,8 @@ function abrirPin(mi,n,ano,meta){
   else txt='Esta medalha era de <b>'+mesNome+' de '+ano+'</b>. Você completou <b>'+n.n+' de 4 semanas</b>'+(n.n?"":", sem fechar nenhuma ainda")+'. O que vale é seguir firme: os próximos meses estão te esperando.';
   const ov=document.createElement("div");ov.className="pin-ov";
   ov.innerHTML='<div class="pin-big">'+pinHtml(mi,frac>=1?1:frac,190,S.pinInfo&&S.pinInfo.rubi)+'<h3>'+nome[1]+' '+esc(nome[0])+'</h3><p>'+txt+'</p><button class="btn primary">Fechar</button></div>';
-  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
-  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")fecharOv(ov)};
+  mostrarOv(ov);
 }
 // Caixa com as 12 medalhas do ano: colorida e animada quando conquistada, cinza quando não, parte colorida quando está perto.
 function caixaMedalhasHtml(lista,meta,ano){
@@ -3448,8 +3455,8 @@ function abrirCaixa(){
   const cq=conquistasGanhas();
   if(cq.length){const g=ov.querySelector(".pin-big"),fx=g.querySelector("[data-fx]");
     fx.insertAdjacentHTML("beforebegin",'<h3 style="margin-top:16px">Conquistas</h3><div class="pin-grid">'+cq.map((c,i)=>'<button class="pin-cell" data-conq="'+i+'" aria-label="'+esc(c.nome)+'"><span class="pin pin-on pa-pulse" style="width:64px;height:64px"><i class="pin-bri"></i>'+c.svg+'</span><span>'+esc(c.curto)+'</span></button>').join("")+'</div>')}
-  ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta);const q=e.target.closest("[data-conq]");if(q)abrirConq(cq[+q.dataset.conq])};
-  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)fecharOv(ov);const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta);const q=e.target.closest("[data-conq]");if(q)abrirConq(cq[+q.dataset.conq])};
+  mostrarOv(ov);
 }
 const CONQ_DEF=[
   {k:"seq",nome:"Sequência de meses",marcos:[3,6,12],f:(v,m)=>m+" meses seguidos",t:(v)=>"Você treinou "+v+" meses seguidos, com pelo menos 1 semana completa em cada mês."},
@@ -3532,8 +3539,8 @@ function abrirConq(c){
   if(!c)return;
   const ov=document.createElement("div");ov.className="pin-ov";
   ov.innerHTML='<div class="pin-big"><span class="pin pin-on pa-pulse" style="width:170px;height:170px;display:block;margin:0 auto 10px"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+c.svg+'</span><h3>'+esc(c.nome)+'</h3><p><b>Conquistada: '+esc(c.marco)+'</b><br>'+esc(c.texto)+(c.prox?'<br><br>Próximo marco: <b>'+esc(c.prox)+'</b>.':"")+'</p><button class="btn primary">Fechar</button></div>';
-  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")ov.remove()};
-  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov||e.target.tagName==="BUTTON")fecharOv(ov)};
+  mostrarOv(ov);
 }
 // Resumo do ano: medalhas de mês completas (4 semanas) e semanas completas no total. "Lenda do Ano" = 40 semanas completas (o equivalente a 10 meses de treino na meta).
 function anoResumo(lista,meta,ano){

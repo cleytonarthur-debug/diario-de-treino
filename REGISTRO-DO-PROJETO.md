@@ -474,3 +474,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.49.0 - Conquistas extras (pack B)
 - Madrugador (10 treinos antes das 7h), Guerreiro de fim de semana (10), Recordista (25 recordes), Mão pesada (100 cargas subidas), Viajante (3 academias), Volta por cima (14+ dias parado e fechou a semana), Dia ruim treino feito (10 com ânimo ruim), Semana perfeita (todos os treinos diferentes do plano na semana), Hidratado (14 treinos seguidos bebendo toda a água), Coach conversa (20 comentários). Bi-set master ficou de fora: o histórico não marca bi-set.
+
+## 2.49.1 - Voltar fecha a janela
+- Janelas do calendário (medalhas, caixa, conquistas, resumo do dia) usam pushState; o botão voltar do celular fecha a janela de cima sem sair da tela (OVS/OVCONS).
