@@ -468,3 +468,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.7 - Troféus
 - Grupos musculares: troféu com carinha e o nome na fita (cada um no fundo da sua cor). Pesos movidos: troféu sobre anilhas.
+
+## 2.48.8 - Troféus diferenciados por grupo
+- Cada grupo com fundo próprio e detalhe no troféu: peito estrela, costas V, pernas pódio, braços raio e alças largas, ombros raios de sol (taça prata).
