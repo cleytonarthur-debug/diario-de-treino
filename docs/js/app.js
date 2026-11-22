@@ -43,7 +43,9 @@ function setVolume(reps,peso){
   return reps.reduce((a,b)=>a+b,0)*peso[0];
 }
 function e1rm(reps,peso){if(!reps||!peso||!peso[0])return 0;const r=reps[0];if(!r||r>20)return 0;return peso[0]*(1+r/30)}
-function exKey(name){return strip(name).replace(/\b(d|e|direit[oa]|esquerd[oa]|doreita|lado d|lado e|cl|ambas?)\s*$/,"").replace(/\s+/g," ").trim()}
+const CANON_A=new Map();
+function canonNomeA(n){const k=String(n||"");let v=CANON_A.get(k);if(v===undefined){try{v=(window.Nomes&&k.trim()?window.Nomes.padronizar(k).nome:k)||k}catch(e){v=k}CANON_A.set(k,v)}return v}
+function exKey(name){return strip(canonNomeA(name)).replace(/\b(d|e|direit[oa]|esquerd[oa]|doreita|lado d|lado e|cl|ambas?)\s*$/,"").replace(/\s+/g," ").trim()}
 // A ordem importa: nomes de músculo explícitos (bíceps, tríceps) vêm antes de palavras de aparelho (cross, polia).
 const RX=[["Abdômen",/abs|abdom|prancha/],["Braços",/rosca|triceps|biceps|barra w|scott|martelo|frances|antebraco/],
   ["Ombros",/elevacao lateral|elevacao frontal|desenvolvimento|face ?pull|posterior de ombro|voador reverso|ombro/],
@@ -374,6 +376,7 @@ function buildDraft(treino){
         if(tm.t==="prep"){s.aq=true;s.aqn=++nPrep;s.oc=true}else if(tm.t==="desc"){s.dc=true;s.dcn=++nDc;s.oc=true}else{s.n=++nW;s.oc=nPrep>0||it.metas.some(m=>tipoMeta(m).t!=="work")}
         if(tm.meta)s.meta=String(tm.meta).replace(/\s*bi-?set.*$/i,"").trim();
         if(!s.peso)s.peso=pickN(it.pesos,i)||(prev.length?String(prev[prev.length-1].peso||"").trim():"");
+        s.pesoBase=s.peso;
         b.sets.push(s);
       }
       // "bi-set" no texto das repetições: dois exercícios seguidos viram um par, série a série (um, outro, um, outro).
@@ -463,8 +466,11 @@ function ajustarMetaAoSalto(b){
 }
 function aplicarMetaCoach(d){
   if(!d||!d.treino)return;
+  // Chegou sem ânimo: não sobe nada hoje. Vale a meta de trabalho do método (a carga de base do treino), sem a progressão do coach.
+  const seguro=d.animoIni==="ruim"&&novos();
   d.blocks.forEach(b=>{
-    b.sets.forEach(s=>{s.metaC=false});
+    b.sets.forEach(s=>{s.metaC=false;if(seguro&&!String(s.reps).trim()&&s.pesoBase!==undefined)s.peso=s.pesoBase});
+    if(seguro){b.metaC=null;return}
     b.metaC=b.cardio?null:Coach.metaDaSerie(S.rows,d.treino,b.name);
     if(!b.metaC||!b.sets.length)return;
     ajustarMetaAoSalto(b);
@@ -1068,7 +1074,7 @@ function bindLancar(){
   const ac=$("#academia");if(ac)ac.addEventListener("change",()=>{S.draft.academia=Coach.nomeAcademia(ac.value);ac.value=S.draft.academia;store("dt2-academia-"+keyA(),S.draft.academia||null);aplicarAcademia(S.draft);aplicarMaquina(S.draft);aplicarMetaCoach(S.draft);saveDraft();renderLancar()});
   if(S.draft.animo&&!S.draft.animoIni){S.draft.animoIni=S.draft.animo;S.draft.animo="";saveDraft()}
   const iniMsg=()=>{const m=$("#ini-msg");const t=Coach.chegada(S.rows,S.draft.animoIni);m.textContent=t;m.hidden=!t};iniMsg();
-  ligarAnimo("animo-ini","animoIni",iniMsg);
+  ligarAnimo("animo-ini","animoIni",()=>{iniMsg();if(novos()){aplicarMetaCoach(S.draft);saveDraft();renderLancar()}});
   $("#b-trocar").onclick=()=>{S.picker=true;render();window.scrollTo({top:0})};
   $("#b-add").onclick=()=>addExercise();
   $("#new-ex").addEventListener("keydown",e=>{if(e.key==="Enter")addExercise()});

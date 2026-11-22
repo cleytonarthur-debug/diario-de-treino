@@ -383,3 +383,9 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.42.5 - Bi-set em caixa única
 - Pares de bi-set em treinos de modelo (novos()) viram uma caixa só: cabeçalhos dos dois exercícios empilhados e séries intercaladas por CSS (order). Cada série mostra o nome do exercício.
 - Série fechada e pendente: fundo claro, barra âmbar e 'toque para lançar'; feita: barra verde; a da vez continua azul.
+
+## 2.42.6 - Nomes enxutos e meta pela evolução
+- Chave do exercício passa pelo Nomes.padronizar: marca da máquina e pegada saem do nome (Tríceps polia, Puxada alta, Remada articulada, Mesa flexora). Histórico antigo e nome novo = mesmo exercício (app e coach).
+- Planilha Modelos do professor renomeada para os nomes enxutos.
+- Coach: se a carga feita passou de 3% ou mais da meta e bateu as reps, a carga feita vira a base do próximo treino (com topo = próxima carga da academia), em vez de subir de novo.
+- Chegou com ânimo ruim (novos()): vale a carga de base do método, sem a meta do coach; refaz ao trocar o ânimo.

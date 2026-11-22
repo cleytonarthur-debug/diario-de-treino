@@ -5,7 +5,10 @@ window.Coach=(function(){
 "use strict";
 const strip=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\bdoreita\b/g,"direita").replace(/\s+/g," ").trim();
 const SEM_LADO=/\s+(?:lado\s+)?(e|d|esquerd[oa]|direit[oa])\s*$/;
-const base=n=>strip(n).replace(SEM_LADO,"").replace(/\s+(cl|cada lado|ambas?|ambos)\s*$/,"").trim();
+// Chave do exercício: o nome padronizado (sem marca da máquina nem pegada), para o histórico antigo e o nome novo contarem como o mesmo exercício.
+const CANON=new Map();
+const canonNome=n=>{const k=String(n||"");let v=CANON.get(k);if(v===undefined){try{v=(window.Nomes&&k.trim()?window.Nomes.padronizar(k).nome:k)||k}catch(e){v=k}CANON.set(k,v)}return v};
+const base=n=>strip(canonNome(n)).replace(SEM_LADO,"").replace(/\s+(cl|cada lado|ambas?|ambos)\s*$/,"").trim();
 const semLadoNome=n=>String(n||"").trim().replace(/\s+(?:lado\s+)?(e|d|esquerd[oa]|direit[oa]|doreita)\s*$/i,"").trim();
 const sem=(a,f)=>a.reduce((x,r)=>x+(f(r)||0),0);
 const nf=n=>new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1}).format(n);
@@ -432,6 +435,15 @@ function treino(rows,key){
       if(!rirs.length||rirs.some(x=>+x>=1))vaiSubir=true;
     }
     {const tp=topoMeta(top.meta);if(vaiSubir&&R&&tp&&R>=tp*1.5)out.bem.push("<b>"+esc(ex.nome)+"</b>: "+R+" repetições para uma meta de "+tp+". Excelente! Não é queda de nada: no próximo treino, mais peso ou mais repetições.")}
+    // Carga acima da meta que o coach passou (ex.: meta 120 cada lado, fez 4x12 com 140): essa carga vira a nova base do próximo treino, com um topo logo acima.
+    const mpl=dn.map(r=>{const mm=String(r.obs||"").match(/\[Meta coach:\s*([\d.,]+)\s*kg/i);return mm?parseFloat(mm[1].replace(",",".")):0}).filter(Boolean);
+    const plannedW=mpl.length?Math.max(...mpl):0;
+    const acima=vaiSubir&&!inicial&&P&&plannedW&&P.n>=plannedW*1.03;
+    if(acima){
+      const m=aManter();const topoC=cargasGym.find(x=>x>P.n+1e-9);
+      if(m){segue.push({nome:ex.nome,txt:"consolidar "+m[0]+": você passou da meta de "+nf(plannedW)+" kg, então essa carga vira a base"+(topoC?" (topo "+nf(topoC)+" kg)":""),curto:m[1]});out.metasEx[ex.k]=m[1]}
+      out.bem.push("<b>"+esc(ex.nome)+"</b>: meta era "+nf(plannedW)+" kg e você fez "+nf(P.n)+" kg"+(R?" × "+R:"")+". Essa carga é viável e vira a base do próximo treino"+(topoC?", com topo em "+nf(topoC)+" kg":"")+".");
+    }else
     if(vaiSubir&&!inicial){const m=aSubir();subir.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}
     else if(d!=null&&d<=-10&&(inicial||quedaOk&&volSem!=="abaixo")){const m=aManter();if(m){segue.push({nome:ex.nome,txt:m[0],curto:m[1]});out.metasEx[ex.k]=m[1]}}
     else if(d!=null&&d<=-10){const prevR=Math.max(0,...prev.map(r=>r.reps?r.reps[0]:0));
