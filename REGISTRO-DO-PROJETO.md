@@ -453,3 +453,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.48.2 - Pin de Braços
 - O braço dobrado do pin de Braços lembrava outra coisa; trocado por haltere com carinha.
+
+## 2.48.3 - Pins de Pernas e Peito
+- Pernas virou tênis com carinha; Peito virou barra com anilhas. Sem anatomia.
