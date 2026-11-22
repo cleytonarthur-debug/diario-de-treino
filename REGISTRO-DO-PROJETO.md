@@ -427,3 +427,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.45.1 - Caixa de medalhas, pin parcial e rubi
 - Calendário: só um botão 'Minhas medalhas de ANO' (os pins não ficam à mostra); abre a caixa com os 12 pins. O card da medalha do mês mostra o pin parcial.
 - Nível Platina (9+ medalhas no ano): pins conquistados viram rubi com brilho holográfico girando e mais faíscas.
+
+## 2.46.0 - Pins por estação e Platina brilhante
+- PIN_COR: cada pin mantém a arte e muda a cor para a família da estação. Platina: mesmo pin da estação, mais brilhante (halo na cor da estação, reflexo holográfico) e coroa dourada. Rubi vermelho removido.

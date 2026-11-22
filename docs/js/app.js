@@ -3376,12 +3376,15 @@ const TEMAS_TXT=["Para quem começa o ano com garra e volta mais forte, como a f
 const PIN_ANIM=["flick","bounce","sway","grow","tilt","flick","shine","pulse","spin","sun","wave","sun"];
 // frac: 0 = cinza, 1 = colorido e animado, entre 0 e 1 = parte colorida (fatia) por cima do cinza.
 // rubi: quem chegou ao nível Platina do ano ganha os pins conquistados em vermelho rubi, com brilho holográfico (estilo "shiny").
+// Cor de cada mês na família da estação (verão ouro, outono marrom, inverno azul, primavera verde): [giro de matiz, saturação, brilho, brilho de joia].
+const PIN_COR=[[40,1.6,1.1,"255,200,60"],[125,1.4,1,"255,170,40"],[163,.7,.8,"210,125,60"],[-75,.6,.85,"195,135,80"],[-8,.7,.75,"175,115,60"],[195,1.4,.9,"80,160,255"],[15,1.2,1.05,"110,205,255"],[80,1.5,.85,"90,130,255"],[155,1.5,.95,"60,225,130"],[45,1.3,1,"170,235,60"],[-45,1.3,.95,"50,215,150"],[-120,1.5,1.25,"255,215,100"]];
 function pinHtml(mi,frac,tam,rubi){
-  const svg=(window.PINS||[])[mi]||"",t=tam||88;
-  if(frac>=1)return '<span class="pin pin-on pa-'+PIN_ANIM[mi]+(rubi?" pin-rubi":"")+'" style="width:'+t+'px;height:'+t+'px"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+(rubi?'<b class="tw tw3">✦</b><b class="tw tw4">✧</b>':"")+svg+'</span>';
-  if(frac<=0)return '<span class="pin pin-off" style="width:'+t+'px;height:'+t+'px">'+svg+'</span>';
+  const svg=(window.PINS||[])[mi]||"",t=tam||88,c=PIN_COR[mi]||[0,1,1,"255,255,255"];
+  const est='width:'+t+'px;height:'+t+'px;--pf:hue-rotate('+c[0]+'deg) saturate('+c[1]+') brightness('+c[2]+');--glow:rgba('+c[3]+',.95)';
+  if(frac>=1)return '<span class="pin pin-on pa-'+PIN_ANIM[mi]+(rubi?" pin-rubi":"")+'" style="'+est+'"><i class="pin-bri"></i><b class="tw tw1">✦</b><b class="tw tw2">✦</b>'+(rubi?'<b class="tw tw3">✦</b><b class="tw tw4">✧</b><i class="coroa"></i>':"")+svg+'</span>';
+  if(frac<=0)return '<span class="pin pin-off" style="'+est+'">'+svg+'</span>';
   const p=Math.round(frac*100);
-  return '<span class="pin pin-part" style="width:'+t+'px;height:'+t+'px"><span class="pin-g">'+svg+'</span><span class="pin-c" style="--p:'+p+'%">'+svg+'</span></span>';
+  return '<span class="pin pin-part" style="'+est+'"><span class="pin-g">'+svg+'</span><span class="pin-c" style="--p:'+p+'%">'+svg+'</span></span>';
 }
 const dataBR=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
 // Janela com o pin grande e o texto: por que, quando ganhou, ou o que falta.
@@ -3409,14 +3412,14 @@ function caixaMedalhasHtml(lista,meta,ano){
   const ar=anoResumo(lista,meta,ano),rubi=ar.nivel>=3,ganhas=info.filter(x=>x.n>=4).length;
   S.pinInfo={info,ano,meta,rubi};
   // Os pins não ficam à mostra na tela do calendário: só o botão. A caixa abre ao tocar.
-  return '<button class="card pin-box-btn" data-caixa="1"><span class="pin-box-ic">🏅</span><span><b>Minhas medalhas de '+ano+'</b><br><span class="muted small">'+ganhas+' de 12 conquistadas'+(rubi?" · Platina: pins rubi ✨":"")+'</span></span><span class="pin-box-go">›</span></button>';
+  return '<button class="card pin-box-btn" data-caixa="1"><span class="pin-box-ic">🏅</span><span><b>Minhas medalhas de '+ano+'</b><br><span class="muted small">'+ganhas+' de 12 conquistadas'+(rubi?" · Platina: pins brilhantes ✨":"")+'</span></span><span class="pin-box-go">›</span></button>';
 }
 // Abre a caixa com as 12 medalhas do ano.
 function abrirCaixa(){
   const P=S.pinInfo;if(!P)return;
   const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const ov=document.createElement("div");ov.className="pin-ov";
-  ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>Toque numa medalha para ver o porquê.'+(P.rubi?" Você chegou à Platina: as conquistadas ficam em rubi! ✨":"")+'</p><div class="pin-grid">'+P.info.map((x,mi)=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,x.n/4,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join("")+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
+  ov.innerHTML='<div class="pin-big pin-caixa"><h3>Minhas medalhas de '+P.ano+'</h3><p>Toque numa medalha para ver o porquê.'+(P.rubi?" Você chegou à Platina: as conquistadas ficam brilhantes, com coroa! ✨":"")+'</p><div class="pin-grid">'+P.info.map((x,mi)=>'<button class="pin-cell" data-pin="'+mi+'" aria-label="Medalha '+esc(TEMAS_MES[mi][0])+'">'+pinHtml(mi,x.n/4,64,P.rubi)+'<span>'+meses[mi]+'</span></button>').join("")+'</div><button class="btn primary" data-fx="1">Fechar</button></div>';
   ov.onclick=e=>{if(e.target===ov||e.target.dataset.fx)ov.remove();const b=e.target.closest("[data-pin]");if(b)abrirPin(+b.dataset.pin,P.info[+b.dataset.pin],P.ano,P.meta)};
   document.body.appendChild(ov);
 }
