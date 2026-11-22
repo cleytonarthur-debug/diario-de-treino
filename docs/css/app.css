@@ -674,6 +674,8 @@ select.chip{font-weight:600;background:var(--surface);color:var(--ink);max-width
 .pin-big .pin{display:block;margin:0 auto 10px}.pin-big h3{margin:6px 0 8px}.pin-big p{font-size:14px;line-height:1.45;margin:0 0 14px;color:var(--ink-2)}
 @keyframes pinFade{from{opacity:0}to{opacity:1}}
 @keyframes pinGrow{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.dia-res{margin-top:6px}.dia-l{display:grid;gap:1px;padding:7px 0;border-top:1px solid var(--line)}.dia-l b{font-size:14px}.dia-l span{font-size:13px;color:var(--ink-2);font-family:var(--f-num)}
+.dia-c{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);font-style:italic}
 .pin-fim{display:flex;align-items:center;gap:14px;margin-bottom:10px}.pin-fim h3{margin:0}
 .pin-fim-ok{border-color:var(--action)}
 @media (prefers-reduced-motion:reduce){.pin *,.pin,.pin::after,.pin-big,.pin-ov{animation:none!important}}

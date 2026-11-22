@@ -2685,6 +2685,21 @@ function douradasDoMes(sess,meta,ano,mes){
   }
   return ouro;
 }
+// Resumo do treino do dia tocado no calendário: duração, academia, cada exercício com as séries (reps × peso) e o comentário.
+function resumoDiaHtml(sel){
+  try{
+    if(!S.loaded||!S.aluno||S.alunoId!==S.aluno.id)return "";
+    const ses=sessions().find(x=>x.dateS===sel.dateS);if(!ses)return "";
+    const por=new Map();ses.rows.forEach(r=>{if(!r.done)return;if(!por.has(r.ex))por.set(r.ex,[]);por.get(r.ex).push(r)});
+    if(!por.size)return "";
+    const min=Coach.duracaoDe(ses.rows),gym=(ses.rows.find(r=>r.academia)||{}).academia||"";
+    const cm=ses.rows.map(r=>String(r.obs||"").match(/\[Treino\]\s*([^\[·]*)/)).find(Boolean);
+    const cab=[min?fmtMin(min):"",gym].filter(Boolean).join(" · ");
+    return '<div class="dia-res">'+(cab?'<div class="muted small" style="margin-top:6px">'+esc(cab)+'</div>':"")+
+      [...por.entries()].map(([ex,rs])=>'<div class="dia-l"><b>'+esc(ex)+'</b><span>'+rs.map(r=>esc(String(r.feitas||"").trim()||"✓")+(r.peso?" × "+esc(r.peso):"")).join(" · ")+'</span></div>').join("")+
+      (cm&&cm[1].trim()?'<div class="dia-c">“'+esc(cm[1].trim())+'”</div>':"")+'</div>';
+  }catch(e){return ""}
+}
 function renderAlunoCal(){
   const el=$("#alcal-c")||$("#v-alcal");const a=S.aluno;if(!a){el.innerHTML="";return}
   const lista=sessoesCal(a);const h=diaZero();const ult=lista&&lista.length?lista[lista.length-1]:null;const base=ult?ult.date:h;const m=S.alMes||new Date(base.getFullYear(),base.getMonth(),1);
@@ -2711,7 +2726,7 @@ function renderAlunoCal(){
   const nome=m.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
   el.innerHTML='<div class="card"><div class="cal-h"><button class="btn ghost" id="cm-a" aria-label="Mês anterior">‹</button><b style="text-transform:capitalize">'+esc(nome)+'</b><button class="btn ghost" id="cm-p" aria-label="Próximo mês">›</button></div><div class="cal-g">'+g+'</div></div>'+medalhaCard+(lista?caixaMedalhasHtml(lista,meta,m.getFullYear()):"")+
     '<div class="calc" style="margin:10px 0"><div class="kpi"><span class="l">Treinos no mês</span><span class="v">'+doMes.length+'</span></div><div class="kpi"><span class="l">Por semana</span><span class="v">'+nf1.format(doMes.length/(corridos/7))+'</span></div><div class="kpi"><span class="l">Maior intervalo</span><span class="v">'+gap+'<small>dias</small></span></div></div>'+
-    (sel?'<div class="card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span></div>':'<p class="muted small">'+(lista?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
+    (sel?'<div class="card dia-card"><b>'+esc(sel.date.toLocaleDateString("pt-BR",{weekday:"long"}))+', '+fmtShort(sel.date)+'</b><br><span class="muted small">'+esc(sel.treino)+' · '+sel.series+' séries · '+nf1.format(sel.vol/1000)+' t</span>'+resumoDiaHtml(sel)+'</div>':'<p class="muted small">'+(lista?"Nenhum treino neste mês.":"Lendo os dados…")+'</p>');
   $("#cm-a").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()-1,1);S.alDia=null;renderAlunoCal()};
   $("#cm-p").onclick=()=>{S.alMes=new Date(m.getFullYear(),m.getMonth()+1,1);S.alDia=null;renderAlunoCal()};
   el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{S.alDia=+b.dataset.d;renderAlunoCal()});
@@ -3434,11 +3449,11 @@ const CONQ_DEF=[
   {k:"dias",nome:"Dias treinados",marcos:[10,50,200],f:(v,m)=>m+" dias",t:(v)=>"Você já treinou "+v+" dias no total, em qualquer época. Cada dia conta!"},
   {k:"ton",nome:"Toneladas movidas",marcos:[10,100,1000],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas somando todos os treinos."},
   {k:"horas",nome:"Horas de treino",marcos:[50,200,500],f:(v,m)=>m+" h",t:(v)=>"Você já passou "+nf1.format(v)+" horas treinando."},
-  {k:"pernas",nome:"Pernas",g:"Inferiores",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em pernas."},
-  {k:"costas",nome:"Costas",g:"Costas",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em costas."},
-  {k:"peito",nome:"Peito",g:"Peito",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em peito."},
-  {k:"bracos",nome:"Braços",g:"Braços",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em braços."},
-  {k:"ombros",nome:"Ombros",g:"Ombros",marcos:[5,25,100],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em ombros."}
+  {k:"pernas",nome:"Pernas",g:"Inferiores",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em pernas."},
+  {k:"costas",nome:"Costas",g:"Costas",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em costas."},
+  {k:"peito",nome:"Peito",g:"Peito",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em peito."},
+  {k:"bracos",nome:"Braços",g:"Braços",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em braços."},
+  {k:"ombros",nome:"Ombros",g:"Ombros",marcos:[25,100,500],f:(v,m)=>m+" t",t:(v)=>"Você já movimentou "+nf1.format(v)+" toneladas em ombros."}
 ];
 // Calcula os números do histórico todo e devolve as conquistas já ganhas (maior marco de cada uma).
 function conquistasGanhas(){

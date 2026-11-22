@@ -437,3 +437,7 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 ## 2.47.0 - Conquistas do histórico
 - js/conquistas.js (pins pack A). conquistasGanhas(): sequência de meses (>=1 semana completa por mês) 3/6/12; dias 10/50/200; toneladas 10/100/1000; horas 50/200/500; pernas/costas/peito/braços/ombros 5/25/100 t; especial 1ª semana completa. Aparecem na caixa de medalhas (só conquistadas); toque abre explicação e próximo marco.
 - Falta (2ª etapa): conquistas extras que precisam de novas contagens (madrugador, fim de semana, recordista, bi-set, mão pesada, viajante, volta por cima, dia ruim, semana perfeita, hidratado, coach conversa).
+
+## 2.47.1 - Resumo do dia no calendário e ajustes
+- Toque num dia treinado: card com treino, séries, volume, duração, academia, cada exercício com reps x peso e o comentário do treino (resumoDiaHtml; só na conta do próprio aluno/professor).
+- Conquistas por grupo muscular agora 25/100/500 t (plaquinhas dos pins ajustadas). Plaquinha de Costas estava espelhada, corrigida.
