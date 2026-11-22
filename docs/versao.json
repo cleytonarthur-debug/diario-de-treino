@@ -1,7 +1,7 @@
 {
-  "versao": "2.42.3",
+  "versao": "2.42.4",
   "data": "22/11/2026",
   "notas": [
-    "Correções do uso: frase de carga só quando a carga sobe; meta batida não é abaixo; caixa não fecha ao digitar; cargas sugeridas pelo histórico da academia; saída obrigatória; botão + Na sequência"
+    "Peso com sugestões das cargas já usadas no exercício nessa academia (barras e halteres fixos); treino teste na planilha"
   ]
 }

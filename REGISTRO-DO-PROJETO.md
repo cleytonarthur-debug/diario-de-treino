@@ -376,3 +376,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 - Carga sugerida sem salto cadastrado: próxima carga já usada na mesma academia (histórico), senão passo 1/2,5/5 kg conforme o peso.
 - Saída: não conclui sem marcar como está saindo (só novos()).
 - Botão '+ Na sequência' cria bi-set com exercício feito na hora (só novos()).
+
+## 2.42.4 - Cargas da academia no campo de peso
+- O campo de peso sugere as cargas já usadas naquele exercício na academia do dia (datalist), só em novos(). Treino teste adicionado na aba Modelos do professor.

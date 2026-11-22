@@ -568,6 +568,14 @@ function dropHtml(s){
   return '<div class="drops">'+dr.map((d,i)=>'<div class="drop-l"><span>↳ drop'+(dr.length>1?" "+(i+1):"")+'</span><input data-df="reps" data-di="'+i+'" inputmode="numeric" autocomplete="off" placeholder="reps" value="'+esc(d.reps)+'" aria-label="Repetições do drop"><input data-df="peso" data-di="'+i+'" autocomplete="off" placeholder="kg" value="'+esc(d.peso)+'" aria-label="Peso do drop"></div>').join("")+
     '<div class="drop-b"><button class="dropbtn" data-act="drop-add">'+(dr.length?"+ outro drop":"+ drop")+'</button>'+(dr.length?'<button class="dropbtn" data-act="drop-rm">− tirar drop</button>':"")+'</div></div>';
 }
+// Cargas já usadas neste exercício na academia de hoje (barras e halteres fixos, pilhas): aparecem como sugestão ao digitar o peso.
+function pesosDaAcademia(nome){
+  const k=exKey(nome),ac=strip((S.draft&&S.draft.academia)||"");
+  const vistos=new Map();
+  S.rows.forEach(r=>{if(exKey(r.ex)!==k||!r.done||r.aq||r.dc||!r.peso)return;if(ac&&strip(r.academia)!==ac)return;
+    const t=String(r.peso).split(">")[0].trim(),n=parseFloat(t.replace(",","."));if(!t||!(n>0))return;vistos.set(strip(t),{t,n})});
+  return [...vistos.values()].sort((a,b)=>a.n-b.n).slice(0,14).map(x=>x.t);
+}
 function moverBloco(bi,dir){
   const bl=S.draft.blocks,units=[];
   bl.forEach((b,i)=>{const prev=units[units.length-1];if(b.bi&&b.lado==="b"&&prev&&bl[prev[0]].bi===b.bi)prev.push(i);else units.push([i])});
@@ -717,6 +725,7 @@ function exCard(b,bi){
     (b.swapping?'<div class="swap"><input data-f="swapto" list="ex-list" placeholder="Trocar por qual exercício?" aria-label="Novo exercício"><button class="btn small" data-act="swap-ok">Trocar</button><button class="btn ghost small" data-act="swap-cancel">Cancelar</button></div>'+swapSugestoes(b):"")+
     maqHtml(b)+(b.ultTxt?'<div class="ult-vez small muted">'+esc(b.ultTxt)+'</div>':"")+avisosProgresso(S.draft,b)+metaCoach(b)+
     (b.novaAcad?'<div class="alerts"><span class="small muted">Primeira vez nesta academia: o peso é só uma referência.</span></div>':"")+
+    (novos()?'<datalist id="cg'+bi+'">'+pesosDaAcademia(b.name).map(p=>'<option value="'+esc(p)+'">').join("")+'</datalist>':"")+
     b.sets.map((s,si)=>setRow(s,bi,si)).join("")+
     '<div class="ex-f"><button class="btn" data-act="add-set">+ Série</button>'+(novos()&&!b.bi?'<button class="btn ghost" data-act="seq">+ Na sequência</button>':"")+(b.sets.length?'<button class="btn ghost" data-act="rm-set">− Última série</button>':"")+
     '<button class="btn ghost" data-act="ex-note">'+(b.obs?"✎ Obs.":"✎ Obs. do exercício")+'</button></div>'+
@@ -939,7 +948,7 @@ function setRow(s,bi,si){
   return '<div class="set'+(done?" done":"")+(s.skip?" skip":"")+(mc?(mcOk?" meta-o":" meta-v"):"")+fz.cls+'" data-s="'+si+'">'+(mc?'<div class="meta-s"><b>'+metaRotulo(mc,mcOk)+'</b><span>'+esc(mc.texto)+'</span></div>':"")+'<div class="set-info"><b>'+(s.oc?"Série "+(si+1):s.aq?"Preparatória "+s.aqn:s.dc?"Descompressão":"Série "+s.n)+'</b>'+(s.lado?'<span class="lado">'+(s.lado==="E"?"Esquerdo":"Direito")+'</span>':"")+(s.meta?'<span>meta <b>'+esc(s.meta)+'</b></span>':"")+(s.rirMeta?'<span>sobrar <b>'+esc(s.rirMeta)+'</b></span>':"")+lastText(s)+'<span class="cmp">'+cmpBadge(s)+'</span>'+(s.skip?'<span class="badge down">não feita</span>':"")+(novos()?(done?'<span class="res">'+esc(s.reps)+(s.peso?" × "+esc(s.peso):"")+((s.drop||[]).length?" + drop":"")+'</span>':"")+'<button class="tm-btn" data-act="tm" aria-label="Horário da série" title="Horário">🕒</button>':"")+'<label class="tm-lbl">horário <input type="time" class="tm" data-f="time" value="'+esc(s.time||"")+'" aria-label="Horário da série '+s.n+'"></label></div>'+(fz.txt?'<div class="set-frase">'+esc(fz.txt)+'</div>':"")+
     '<div class="set-in">'+
       '<div class="fld"><label for="r'+bi+'_'+si+'">Reps</label><input id="r'+bi+'_'+si+'" data-f="reps" inputmode="numeric" autocomplete="off" value="'+esc(s.reps)+'" placeholder="'+esc(String(s.meta).replace(/\s*(bi-set|drop set|rest pause).*$/i,"").replace(/[^\d+\-–]/g,"")||"–")+'"></div>'+
-      '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"></div>'+
+      '<div class="fld"><label for="p'+bi+'_'+si+'">Peso</label><input id="p'+bi+'_'+si+'" data-f="peso" autocomplete="off" value="'+esc(s.peso)+'" placeholder="kg"'+(novos()?' list="cg'+bi+'"':"")+'></div>'+
       (s.aq||s.dc?"":'<div class="fld"><label for="i'+bi+'_'+si+'">Sobrou</label><select id="i'+bi+'_'+si+'" data-f="rir"><option value="">–</option>'+[0,1,2,3,4,5].map(v=>'<option'+(String(s.rir)===String(v)?" selected":"")+'>'+v+'</option>').join("")+'</select></div>')+
       '<button class="chk'+(s.ok?" on":"")+'" data-act="check" aria-pressed="'+(s.ok?"true":"false")+'" aria-label="Confirmar série '+s.n+'">✓</button>'+
       '<button class="note-btn'+(s.obs||s.skip?" on":"")+'" data-act="note" aria-label="Observação ou não fiz">✎</button>'+
