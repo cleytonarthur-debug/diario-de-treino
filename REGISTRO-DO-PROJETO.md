@@ -477,3 +477,6 @@ Esta versão substitui o modelo "aquecimento com séries extras" da v2.39.0 (que
 
 ## 2.49.1 - Voltar fecha a janela
 - Janelas do calendário (medalhas, caixa, conquistas, resumo do dia) usam pushState; o botão voltar do celular fecha a janela de cima sem sair da tela (OVS/OVCONS).
+
+## 2.49.2 - Meta superada não firma
+- estadoMeta: se a carga feita passa 3% da meta do coach (com as repetições), evento "superou": não entra em firmar e a meta antiga some (ex.: leg press firmando 105 kg cl quando já fazia 140 kg cl). Planilha: tirado "(teste)" do peso do Voador inverso (9 linhas).

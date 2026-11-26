@@ -1,7 +1,7 @@
 {
-  "versao": "2.49.1",
-  "data": "22/11/2026",
+  "versao": "2.49.2",
+  "data": "26/11/2026",
   "notas": [
-    "Botão voltar do celular fecha as janelas de medalhas, conquistas e resumo do dia"
+    "Meta do coach: quando você já passou bem da meta, ela some (não pede para firmar carga menor)"
   ]
 }

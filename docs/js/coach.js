@@ -333,6 +333,9 @@ function estadoMeta(rows,k,ate){
     const bate=a=>rs.some(r=>bateuAlvo(a,r.reps&&r.reps[0],r.pesoN,r.meta));
     const faltas=faltasDe(rs);const gymDia=strip(rs[0].academia);const maqDia=maqDe(rs);
     if(st.alvo&&faltas.has(st.alvo.peso)){st.alvo=null;st.n=0;return}
+    // Já passou bem da meta (3% acima, com as repetições): não tem mais o que firmar.
+    const passou=a=>a&&a.pesoT!=null&&bate(Object.assign({},a,{pesoT:a.pesoT*1.03}));
+    if(passou(st.alvo)){st.ev="superou";st.evAlvo=st.alvo;st.alvo=null;st.n=0;return}
     if(st.alvo&&((st.gym&&gymDia&&gymDia!==st.gym)||!mesmaMaq(st.maq,maqDia)||rs.some(r=>RX_MAQ.test(strip(limpa(r.obs))))))return;
     if(st.alvo){
       st.n=bate(st.alvo)?st.n+1:0;st.ev=st.n?"firmou":"falhou";st.evAlvo=st.alvo;
@@ -341,6 +344,7 @@ function estadoMeta(rows,k,ate){
     }
     const tag=rs.map(r=>String(r.obs||"").match(/\[Meta coach: *([^\]]+)\]/i)).find(Boolean);
     const a=tag&&alvoDe(tag[1]);
+    if(a&&!faltas.has(a.peso)&&passou(a)){st.ev="superou";st.evAlvo=a;return}
     if(a&&!faltas.has(a.peso)&&bate(a)){st.alvo=a;st.n=0;st.ev="bateu";st.evAlvo=a;st.gym=gymDia;st.maq=maqDia}
   });
   return st;
@@ -555,6 +559,7 @@ function treino(rows,key){
     if(est.ev==="bateu")out.bem.unshift("🥇 "+["<b>Parabéns!</b> Você bateu a meta do coach em ","<b>Meta cumprida!</b> Você entregou o que o coach pediu em ","<b>Boa!</b> Meta do coach batida em "][ex.k.length%3].replace(/ em $/,"")+" em <b>"+esc(ex.nome)+"</b>: "+esc(t)+". Agora vamos firmar essa carga nos próximos "+FIRMAR+" treinos.");
     else if(est.ev==="firmou")out.bem.unshift("<b>"+esc(ex.nome)+"</b>: firmando "+esc(t)+", treino "+est.n+" de "+FIRMAR+".");
     else if(est.ev==="consolidou")out.bem.unshift("🏅 <b>"+esc(ex.nome)+"</b>: "+esc(t)+" consolidados. Essa carga agora é o seu padrão.");
+    else if(est.ev==="superou")out.bem.unshift("🚀 <b>"+esc(ex.nome)+"</b>: você passou da meta do coach ("+esc(t)+"). Não precisa firmar, a carga nova já é o seu padrão.");
   });
   // O que a pessoa escreveu muda a meta: carga que não existe sai, o que pesou não sobe e o que ficou leve pode subir.
   const comentadas=[];
